@@ -1,0 +1,62 @@
+import React, { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import * as Font from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useAuthStore } from '@store/authStore';
+import 'react-native-gesture-handler';
+
+// Keep splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
+const RootLayout = () => {
+  const loadUser = useAuthStore((state) => state.loadUser);
+
+  useEffect(() => {
+    async function prepare() {
+      try {
+        // Load fonts if they exist (for optional custom fonts)
+        try {
+          await Font.loadAsync({
+            'geist-sans': require('../assets/fonts/Geist-Regular.ttf'),
+            'geist-sans-bold': require('../assets/fonts/Geist-Bold.ttf'),
+          });
+        } catch {
+          // Fonts may not exist yet, that's fine
+          console.log('[v0] Custom fonts not available');
+        }
+
+        // Load user session
+        await loadUser();
+      } catch (e) {
+        console.warn('[v0] Initialization error:', e);
+      } finally {
+        SplashScreen.hideAsync();
+      }
+    }
+
+    prepare();
+  }, []);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animationEnabled: true,
+            animationTypeForReplace: 'fade',
+          }}
+        >
+          <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
+        </Stack>
+        <StatusBar barStyle="light-content" backgroundColor="#111226" />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+};
+
+export default RootLayout;
