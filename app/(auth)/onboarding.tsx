@@ -9,8 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAppStore } from '@store/appStore';
-import Button from '@components/Button';
+import { useAppStore } from '../../store/app.store';
+import { Button } from '../../components/common/Button';
+import { colors } from '../../utils/colors';
+import { spacing, typography } from '../../utils/spacing';
 
 const { width, height } = Dimensions.get('window');
 
