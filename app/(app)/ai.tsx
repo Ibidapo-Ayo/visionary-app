@@ -15,8 +15,15 @@ import { useAppStore } from '@store/appStore';
 import Card from '@components/Card';
 import Button from '@components/Button';
 
+type ChatMessage = {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+};
+
 const AIChatScreen = () => {
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'assistant' as const,

@@ -122,9 +122,7 @@ const ScanScreen = () => {
           </View>
         </>
       ) : (
-        <Animated.View
-          style={[styles.resultContainer, { entering: FadeIn }]}
-        >
+        <Animated.View style={styles.resultContainer} entering={FadeIn}>
           {isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="large" color="#fbbf24" />
@@ -339,4 +337,3 @@ const styles = StyleSheet.create({
 });
 
 export default ScanScreen;
-

@@ -29,6 +29,7 @@ const registrationSchema = z.object({
 });
 
 type RegistrationData = z.infer<typeof registrationSchema>;
+type RegistrationErrors = Partial<Record<keyof RegistrationData, string>>;
 
 const RegisterScreen = () => {
   const router = useRouter();
@@ -44,7 +45,7 @@ const RegisterScreen = () => {
     confirmPassword: '',
   });
 
-  const [errors, setErrors] = useState<Partial<RegistrationData>>({});
+  const [errors, setErrors] = useState<RegistrationErrors>({});
   const [generalError, setGeneralError] = useState('');
 
   const handleRegister = async () => {
@@ -57,10 +58,10 @@ const RegisterScreen = () => {
       router.replace('/(app)/home');
     } catch (err: any) {
       if (err instanceof z.ZodError) {
-        const newErrors: Partial<RegistrationData> = {};
+        const newErrors: RegistrationErrors = {};
         err.errors.forEach((error) => {
           const path = error.path[0] as keyof RegistrationData;
-          newErrors[path] = { message: error.message } as any;
+          newErrors[path] = error.message;
         });
         setErrors(newErrors);
       } else {
@@ -104,7 +105,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.firstName && (
-                <Text style={styles.errorText}>{errors.firstName?.message}</Text>
+                <Text style={styles.errorText}>{errors.firstName}</Text>
               )}
             </View>
 
@@ -122,7 +123,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.lastName && (
-                <Text style={styles.errorText}>{errors.lastName?.message}</Text>
+                <Text style={styles.errorText}>{errors.lastName}</Text>
               )}
             </View>
 
@@ -142,7 +143,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.email && (
-                <Text style={styles.errorText}>{errors.email?.message}</Text>
+                <Text style={styles.errorText}>{errors.email}</Text>
               )}
             </View>
 
@@ -161,7 +162,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.phone && (
-                <Text style={styles.errorText}>{errors.phone?.message}</Text>
+                <Text style={styles.errorText}>{errors.phone}</Text>
               )}
             </View>
 
@@ -180,7 +181,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.password && (
-                <Text style={styles.errorText}>{errors.password?.message}</Text>
+                <Text style={styles.errorText}>{errors.password}</Text>
               )}
             </View>
 
@@ -199,7 +200,7 @@ const RegisterScreen = () => {
                 editable={!isLoading}
               />
               {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword?.message}</Text>
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
               )}
             </View>
 
@@ -328,4 +329,3 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
-
