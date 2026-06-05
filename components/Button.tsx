@@ -6,8 +6,10 @@ import {
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, spacing, typography } from '../lib/theme';
 
 interface ButtonProps {
   onPress: () => void;
@@ -38,45 +40,41 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
     },
     ref
   ) => {
-    const buttonStyle = [
-      styles.button,
-      styles[`button_${variant}`],
-      styles[`button_${size}`],
-      disabled && styles.disabled,
-      fullWidth && styles.fullWidth,
-      style,
-    ];
+    const sizeStyle = styles[`button_${size}`];
+    const labelSizeStyle = styles[`label_${size}`];
 
-    const textSizeStyle = styles[`text_${size}`];
+    const content = (
+      <View style={styles.content}>
+        {icon}
+        <Text style={[styles.label, styles[`label_${variant}`], labelSizeStyle, textStyle]}>{title}</Text>
+      </View>
+    );
+
+    const isGradient = variant === 'primary';
 
     return (
       <TouchableOpacity
         ref={ref}
         onPress={onPress}
         disabled={disabled || loading}
-        activeOpacity={0.7}
-        style={buttonStyle}
+        activeOpacity={0.88}
+        style={[
+          styles.base,
+          styles[`button_${variant}`],
+          sizeStyle,
+          fullWidth && styles.fullWidth,
+          (disabled || loading) && styles.disabled,
+          style,
+        ]}
       >
         {loading ? (
-          <ActivityIndicator
-            color={variant === 'primary' ? '#fff' : '#fbbf24'}
-            size={size === 'sm' ? 'small' : 'large'}
-          />
+          <ActivityIndicator color={variant === 'primary' ? '#061021' : colors.textPrimary} />
+        ) : isGradient ? (
+          <LinearGradient colors={gradients.cta} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            {content}
+          </LinearGradient>
         ) : (
-          <Animated.View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: icon ? 8 : 0,
-            }}
-            entering={FadeIn}
-            exiting={FadeOut}
-          >
-            {icon}
-            <Text style={[styles.text, textSizeStyle, textStyle]}>
-              {title}
-            </Text>
-          </Animated.View>
+          content
         )}
       </TouchableOpacity>
     );
@@ -86,55 +84,81 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
 Button.displayName = 'Button';
 
 const styles = StyleSheet.create({
-  button: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center',
+  base: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  gradient: {
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  content: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  label: {
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  label_primary: {
+    color: '#061021',
+  },
+  label_secondary: {
+    color: colors.textPrimary,
+  },
+  label_tertiary: {
+    color: colors.textSecondary,
+  },
+  label_danger: {
+    color: '#FFE9EE',
   },
   button_primary: {
-    backgroundColor: '#fbbf24',
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.32)',
   },
   button_secondary: {
-    backgroundColor: '#10b981',
+    backgroundColor: colors.surfaceStrong,
+    borderColor: colors.border,
   },
   button_tertiary: {
-    backgroundColor: '#64748b',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.borderSoft,
   },
   button_danger: {
-    backgroundColor: '#ef4444',
+    backgroundColor: 'rgba(255,127,147,0.18)',
+    borderColor: 'rgba(255,127,147,0.4)',
   },
   button_sm: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
   button_md: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   button_lg: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
-  text: {
-    fontWeight: '600',
-    color: '#fff',
+  label_sm: {
+    fontSize: typography.bodySm.fontSize,
   },
-  text_sm: {
-    fontSize: 12,
+  label_md: {
+    fontSize: typography.body.fontSize,
   },
-  text_md: {
-    fontSize: 16,
-  },
-  text_lg: {
-    fontSize: 18,
-  },
-  disabled: {
-    opacity: 0.5,
+  label_lg: {
+    fontSize: typography.h3.fontSize,
   },
   fullWidth: {
     width: '100%',
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });
 

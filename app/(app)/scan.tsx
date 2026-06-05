@@ -1,88 +1,41 @@
-﻿import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Card from '@components/Card';
 import Button from '@components/Button';
+import { colors, radius, spacing, typography } from '../../lib/theme';
 
 const ScanScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [scannedData, setScannedData] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const scanProgressValue = useSharedValue(0);
 
-  const handleBarCodeScanned = async (data: any) => {
+  const handleBarCodeScanned = async () => {
     if (scanned || isProcessing) return;
 
-    setIsProcessing(true);
     setScanned(true);
+    setIsProcessing(true);
 
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      setScannedData({
-        eventName: 'Sunday Service',
-        checkedIn: true,
-        timestamp: new Date().toLocaleTimeString(),
-        points: 10,
-      });
-
-      scanProgressValue.value = withTiming(1, { duration: 600 });
-    } catch (error) {
-      console.error('[v0] Scan error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    setScannedData({ eventName: 'Sunday Service', timestamp: new Date().toLocaleTimeString(), points: 10 });
+    setIsProcessing(false);
   };
 
-  const handleReset = () => {
+  const reset = () => {
     setScanned(false);
     setScannedData(null);
-    scanProgressValue.value = 0;
   };
 
-  if (!permission) {
+  if (!permission || !permission.granted) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.title}>Camera Permission Required</Text>
-          <Text style={styles.subtitle}>
-            We need access to your camera to scan QR codes
-          </Text>
-          <Button
-            onPress={requestPermission}
-            title="Grant Permission"
-            variant="primary"
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.title}>Camera Access Denied</Text>
-          <Text style={styles.subtitle}>
-            Please enable camera permissions in your settings
-          </Text>
+        <View style={styles.permissionWrap}>
+          <Text style={styles.permissionTitle}>Camera access needed</Text>
+          <Text style={styles.permissionBody}>Enable camera permission for fast, touchless check-in.</Text>
+          <Button title="Allow Camera" onPress={requestPermission} />
         </View>
       </SafeAreaView>
     );
@@ -92,93 +45,37 @@ const ScanScreen = () => {
     <SafeAreaView style={styles.container}>
       {!scanned ? (
         <>
-          {/* Camera View */}
           <CameraView
             style={styles.camera}
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-            barcodeScannerSettings={{
-              barcodeTypes: ['qr'],
-            }}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           >
-            {/* Scanner Frame */}
-            <View style={styles.scannerContainer}>
-              <View style={styles.scannerFrame} />
-              <Animated.View style={styles.scannerOverlay} />
-            </View>
-
-            {/* Info Text */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoText}>
-                Point your camera at a QR code to check in
-              </Text>
+            <View style={styles.overlay}>
+              <View style={styles.frame} />
+              <Text style={styles.helper}>Align the QR code inside the frame</Text>
             </View>
           </CameraView>
-
-          {/* Torch Toggle */}
-          <View style={styles.torchContainer}>
-            <TouchableOpacity style={styles.torchButton}>
-              <Text style={styles.torchIcon}>LIGHT</Text>
+          <View style={styles.toolbar}>
+            <TouchableOpacity style={styles.toolButton}>
+              <MaterialCommunityIcons name="flashlight" color={colors.textPrimary} size={20} />
             </TouchableOpacity>
           </View>
         </>
       ) : (
-        <Animated.View style={styles.resultContainer} entering={FadeIn}>
+        <Animated.View entering={FadeIn} style={styles.resultWrap}>
           {isProcessing ? (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color="#fbbf24" />
-              <Text style={styles.processingText}>Processing check-in...</Text>
+            <View style={styles.processing}>
+              <ActivityIndicator size="large" color={colors.accentTeal} />
+              <Text style={styles.processingText}>Validating attendance...</Text>
             </View>
-          ) : scannedData ? (
-            <Card variant="elevated">
-              <Animated.View
-                style={styles.successContent}
-                entering={FadeIn}
-              >
-                <Text style={styles.successEmoji}>OK</Text>
-                <Text style={styles.successTitle}>Check-In Successful!</Text>
-
-                <View style={styles.detailsContainer}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Event:</Text>
-                    <Text style={styles.detailValue}>
-                      {scannedData.eventName}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Time:</Text>
-                    <Text style={styles.detailValue}>
-                      {scannedData.timestamp}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Points Earned:</Text>
-                    <Text style={[styles.detailValue, { color: '#fbbf24' }]}>
-                      +{scannedData.points}
-                    </Text>
-                  </View>
-                </View>
-
-                <Button
-                  onPress={handleReset}
-                  title="Scan Another"
-                  variant="primary"
-                  fullWidth
-                  style={styles.resetButton}
-                />
-              </Animated.View>
-            </Card>
           ) : (
-            <Card variant="outlined">
-              <Text style={styles.errorTitle}>Scan Failed</Text>
-              <Text style={styles.errorText}>
-                Could not process this QR code. Please try again.
-              </Text>
-              <Button
-                onPress={handleReset}
-                title="Try Again"
-                variant="secondary"
-                fullWidth
-              />
+            <Card variant="elevated" blurVariant="strong" padding="lg" style={styles.resultCard}>
+              <MaterialCommunityIcons name="check-decagram" color={colors.success} size={54} />
+              <Text style={styles.successTitle}>Check-in complete</Text>
+              <Text style={styles.resultLine}>Event: {scannedData.eventName}</Text>
+              <Text style={styles.resultLine}>Time: {scannedData.timestamp}</Text>
+              <Text style={styles.resultPoints}>+{scannedData.points} engagement points</Text>
+              <Button title="Scan Another" onPress={reset} fullWidth />
             </Card>
           )}
         </Animated.View>
@@ -190,149 +87,97 @@ const ScanScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111226',
+    backgroundColor: colors.background,
   },
-  centerContent: {
+  permissionWrap: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
   },
-  title: {
-    fontSize: 20,
+  permissionTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h2.fontSize,
     fontWeight: '700',
-    color: '#fff',
-    marginBottom: 12,
-    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#cbd5e1',
-    marginBottom: 24,
+  permissionBody: {
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
   },
   camera: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  scannerContainer: {
+  overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(5,9,20,0.45)',
   },
-  scannerFrame: {
-    width: 280,
-    height: 280,
-    borderRadius: 20,
-    borderColor: '#fbbf24',
-    borderWidth: 3,
-    backgroundColor: 'rgba(251, 191, 36, 0.05)',
-  },
-  scannerOverlay: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 20,
-    borderColor: '#fbbf24',
+  frame: {
+    width: 260,
+    height: 260,
+    borderRadius: radius.lg,
     borderWidth: 2,
+    borderColor: colors.accentTeal,
+    backgroundColor: 'rgba(82,210,198,0.1)',
   },
-  infoContainer: {
-    position: 'absolute',
-    bottom: 60,
-    paddingHorizontal: 24,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#e2e8f0',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  torchContainer: {
-    position: 'absolute',
-    bottom: 20,
-    right: 24,
-  },
-  torchButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  torchIcon: {
-    fontSize: 24,
-  },
-  resultContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  processingContainer: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  processingText: {
-    fontSize: 16,
-    color: '#e2e8f0',
-    fontWeight: '500',
-  },
-  successContent: {
-    alignItems: 'center',
-  },
-  successEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  detailsContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#94a3b8',
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 13,
-    color: '#e2e8f0',
+  helper: {
+    marginTop: spacing.md,
+    color: colors.textPrimary,
+    fontSize: typography.bodySm.fontSize,
     fontWeight: '600',
   },
-  resetButton: {
+  toolbar: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: 102,
+  },
+  toolButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  processing: {
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  processingText: {
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+  },
+  resultCard: {
     width: '100%',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  errorTitle: {
-    fontSize: 18,
+  successTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h2.fontSize,
     fontWeight: '700',
-    color: '#fca5a5',
-    marginBottom: 8,
-    textAlign: 'center',
   },
-  errorText: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
+  resultLine: {
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+  },
+  resultPoints: {
+    color: colors.accentGold,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
 });
 

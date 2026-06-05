@@ -1,187 +1,233 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import Badge from '../../components/Badge';
-import { colors, spacing, typography } from '../../lib/theme';
-import { mockMembers, MockMember } from '../../services/mockData';
+import ScreenBackground from '../../components/ScreenBackground';
+import { colors, radius, spacing, typography } from '../../lib/theme';
+import { mockEvents, mockMembers, MockMember } from '../../services/mockData';
+
+const statusFilters = ['all', 'new', 'active', 'at-risk', 'inactive'] as const;
 
 const MembersScreen = () => {
-  const [selectedTab, setSelectedTab] = useState('all');
+  const [mode, setMode] = useState<'events' | 'people'>('events');
+  const [filter, setFilter] = useState<(typeof statusFilters)[number]>('all');
 
-  const tabs = [
-    { id: 'all', label: 'All' },
-    { id: 'new', label: 'New' },
-    { id: 'at-risk', label: 'At-Risk' },
-    { id: 'inactive', label: 'Inactive' },
-  ];
-
-  const filteredMembers =
-    selectedTab === 'all' ? mockMembers : mockMembers.filter((m: MockMember) => m.status === selectedTab);
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'new':
-        return 'new';
-      case 'at-risk':
-        return 'at-risk';
-      case 'active':
-        return 'success';
-      default:
-        return 'default';
-    }
-  };
+  const filteredMembers = useMemo(
+    () => (filter === 'all' ? mockMembers : mockMembers.filter((member: MockMember) => member.status === filter)),
+    [filter]
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Members</Text>
-        <Text style={styles.count}>{filteredMembers.length} members</Text>
-      </View>
+    <ScreenBackground>
+      <View style={styles.container}>
+        <Animated.View entering={FadeIn} style={styles.header}>
+          <Text style={styles.title}>Community</Text>
+          <Text style={styles.subtitle}>Discover gatherings and stay close to your people.</Text>
+        </Animated.View>
 
-      {/* Tab bar */}
-      <View style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.tab, selectedTab === tab.id && styles.activeTab]}
-            onPress={() => setSelectedTab(tab.id)}
-          >
-            <Text
-              style={[
-                styles.tabLabel,
-                selectedTab === tab.id && styles.activeTabLabel,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.modeRow}>
+          {(['events', 'people'] as const).map((value) => (
+            <TouchableOpacity key={value} style={[styles.modeButton, mode === value && styles.modeButtonActive]} onPress={() => setMode(value)}>
+              <Text style={[styles.modeText, mode === value && styles.modeTextActive]}>{value === 'events' ? 'Events' : 'People'}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      {/* Members list */}
-      <FlatList
-        data={filteredMembers}
-        renderItem={({ item }) => (
-          <Card padding="md" style={styles.memberCard}>
-            <View style={styles.memberContent}>
-              <View style={styles.memberInfo}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {item.name.charAt(0).toUpperCase()}
-                  </Text>
+        {mode === 'events' ? (
+          <FlatList
+            data={mockEvents}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+              <Card padding="lg" blurVariant="strong" style={styles.listItem}>
+                <View style={styles.eventBanner}>
+                  <MaterialCommunityIcons name="calendar-star" size={18} color={colors.accentGold} />
+                  <Text style={styles.eventChip}>Featured</Text>
                 </View>
-                <View style={styles.details}>
-                  <Text style={styles.memberName}>{item.name}</Text>
-                  <Text style={styles.memberEmail}>{item.email}</Text>
+                <Text style={styles.eventTitle}>{item.title}</Text>
+                <Text style={styles.eventMeta}>{item.time} • {item.location}</Text>
+                <View style={styles.eventActionRow}>
+                  <Badge label="Register" variant="info" />
+                  <MaterialCommunityIcons name="arrow-right" size={18} color={colors.textSecondary} />
                 </View>
-              </View>
-              <Badge label={item.status} variant={getStatusVariant(item.status)} />
+              </Card>
+            )}
+          />
+        ) : (
+          <>
+            <View style={styles.filterRow}>
+              {statusFilters.map((status) => (
+                <TouchableOpacity key={status} style={[styles.filterChip, filter === status && styles.filterChipActive]} onPress={() => setFilter(status)}>
+                  <Text style={[styles.filterText, filter === status && styles.filterTextActive]}>{status === 'all' ? 'All' : status}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </Card>
+
+            <FlatList
+              data={filteredMembers}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              renderItem={({ item }) => (
+                <Card padding="md" blurVariant="soft" style={styles.listItem}>
+                  <View style={styles.memberRow}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.memberMeta}>
+                      <Text style={styles.memberName}>{item.name}</Text>
+                      <Text style={styles.memberEmail}>{item.email}</Text>
+                    </View>
+                    <Badge label={item.status} variant={item.status === 'new' ? 'new' : item.status === 'at-risk' ? 'at-risk' : item.status === 'active' ? 'success' : 'default'} />
+                  </View>
+                </Card>
+              )}
+            />
+          </>
         )}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={true}
-        contentContainerStyle={styles.listContent}
-      />
-    </SafeAreaView>
+      </View>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
   header: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: typography.heading.h1.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  count: {
-    fontSize: typography.body.small.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  tab: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-  },
-  activeTab: {
-    backgroundColor: colors.primary,
-  },
-  tabLabel: {
-    fontSize: typography.caption.large.fontSize,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  activeTabLabel: {
-    color: colors.background,
-  },
-  listContent: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  memberCard: {
+    marginTop: spacing.md,
     marginBottom: spacing.md,
   },
-  memberContent: {
+  title: {
+    color: colors.textPrimary,
+    fontSize: typography.h1.fontSize,
+    lineHeight: typography.h1.lineHeight,
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    marginBottom: spacing.md,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: 'rgba(157,141,255,0.35)',
+  },
+  modeText: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  modeTextActive: {
+    color: colors.textPrimary,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  filterChipActive: {
+    backgroundColor: 'rgba(82,210,198,0.25)',
+    borderColor: 'rgba(82,210,198,0.4)',
+  },
+  filterText: {
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  filterTextActive: {
+    color: colors.textPrimary,
+  },
+  listContent: {
+    paddingBottom: 140,
+  },
+  listItem: {
+    marginBottom: spacing.sm,
+  },
+  eventBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  eventChip: {
+    color: colors.accentGold,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  eventTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  eventMeta: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
+    marginTop: 2,
+  },
+  eventActionRow: {
+    marginTop: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  memberInfo: {
-    flex: 1,
+  memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(121,168,255,0.26)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
-    fontSize: typography.heading.h2.fontSize,
+    color: colors.textPrimary,
     fontWeight: '700',
-    color: colors.background,
   },
-  details: {
+  memberMeta: {
     flex: 1,
   },
   memberName: {
-    fontSize: typography.body.medium.fontSize,
-    fontWeight: '600',
     color: colors.textPrimary,
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
   },
   memberEmail: {
-    fontSize: typography.body.small.fontSize,
     color: colors.textSecondary,
-    marginTop: spacing.xs,
+    fontSize: typography.bodySm.fontSize,
   },
 });
 

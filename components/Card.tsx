@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
-import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { colors, radius, shadows, spacing } from '../lib/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ interface CardProps {
   variant?: 'default' | 'outlined' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';
   animated?: boolean;
+  blurVariant?: 'none' | 'soft' | 'strong';
 }
 
 const Card = React.forwardRef<View, CardProps>(
@@ -26,27 +28,24 @@ const Card = React.forwardRef<View, CardProps>(
       variant = 'default',
       padding = 'md',
       animated = true,
+      blurVariant = 'soft',
     },
     ref
   ) => {
-    const containerStyle = [
-      styles.card,
-      styles[`card_${variant}`],
-      styles[`padding_${padding}`],
-      style,
-    ];
-
     const Component = onPress ? TouchableOpacity : View;
 
     return (
-      <Animated.View
-        ref={ref as any}
-        entering={animated ? FadeIn.duration(300) : undefined}
-      >
+      <Animated.View ref={ref as any} entering={animated ? FadeIn.duration(240) : undefined}>
         <Component
-          style={containerStyle}
+          style={[
+            styles.card,
+            styles[`card_${variant}`],
+            styles[`padding_${padding}`],
+            styles[`blur_${blurVariant}`],
+            style,
+          ]}
           onPress={onPress}
-          activeOpacity={onPress ? 0.7 : 1}
+          activeOpacity={onPress ? 0.9 : 1}
         >
           {children}
         </Component>
@@ -59,38 +58,32 @@ Card.displayName = 'Card';
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    marginVertical: 8,
+    borderRadius: radius.lg,
+    borderWidth: 1,
   },
-  padding_none: {
-    padding: 0,
+  padding_none: { padding: 0 },
+  padding_sm: { padding: spacing.sm },
+  padding_md: { padding: spacing.md },
+  padding_lg: { padding: spacing.lg },
+  blur_none: {
+    backgroundColor: colors.backgroundElevated,
   },
-  padding_sm: {
-    padding: 12,
+  blur_soft: {
+    backgroundColor: colors.surface,
   },
-  padding_md: {
-    padding: 16,
-  },
-  padding_lg: {
-    padding: 20,
+  blur_strong: {
+    backgroundColor: colors.surfaceStrong,
   },
   card_default: {
-    backgroundColor: '#1a1f3a',
-    borderColor: '#2d3a5a',
-    borderWidth: 1,
+    borderColor: colors.borderSoft,
   },
   card_outlined: {
+    borderColor: colors.border,
     backgroundColor: 'transparent',
-    borderColor: '#64748b',
-    borderWidth: 1,
   },
   card_elevated: {
-    backgroundColor: '#1a1f3a',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
+    borderColor: colors.border,
+    ...shadows.strong,
   },
 });
 
