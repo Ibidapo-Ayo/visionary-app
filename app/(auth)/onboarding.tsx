@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
 import { useAppStore } from '../../store/appStore';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -11,30 +11,30 @@ import { colors, radius, spacing, typography } from '../../lib/theme';
 
 const slides = [
   {
-    title: 'Belong in every moment',
-    description: 'A cinematic welcome into your church community with clarity, warmth, and spiritual depth.',
-    icon: 'star-four-points-outline',
+    title: 'Enter a living story of purpose',
+    description: 'Immersive storytelling, motion, and spiritual clarity welcome every user in the first seconds.',
+    icon: 'sunrise',
+    chip: 'Purpose',
+  },
+  {
+    title: 'Grow through meaningful rhythms',
+    description: 'Track spiritual momentum, attendance, and habits through elegant progress experiences.',
+    icon: 'trending-up',
+    chip: 'Growth',
+  },
+  {
+    title: 'Build stronger community impact',
+    description: 'Create deeper belonging with event discovery, care moments, and connected leadership workflows.',
+    icon: 'users',
     chip: 'Community',
   },
   {
-    title: 'Stay present with your gatherings',
-    description: 'Track events and attendance with confidence so no one in your community goes unseen.',
-    icon: 'calendar-heart',
-    chip: 'Attendance',
-  },
-  {
-    title: 'Receive guided spiritual support',
-    description: 'Get scripture-led insights through a calm AI companion built for ministry moments.',
-    icon: 'brain',
-    chip: 'AI Assistant',
-  },
-  {
-    title: 'Lead with compassion and action',
-    description: 'Coordinate follow-ups, care paths, and ministry operations in one elegant experience.',
-    icon: 'hand-heart',
+    title: 'Lead with visionary confidence',
+    description: 'Unlock AI-powered guidance, devotional intelligence, and actionable ministry insight cards.',
+    icon: 'compass',
     chip: 'Leadership',
   },
-];
+] as const;
 
 const OnboardingScreen = () => {
   const router = useRouter();
@@ -61,21 +61,42 @@ const OnboardingScreen = () => {
           </TouchableOpacity>
         </View>
 
-        <Animated.View key={current.title} entering={SlideInRight.duration(280)} exiting={FadeOut.duration(180)}>
+        <Animated.View
+          key={current.title}
+          entering={SlideInRight.duration(320)}
+          exiting={SlideOutLeft.duration(220)}
+          style={styles.heroWrap}
+        >
           <Card variant="elevated" padding="lg" blurVariant="strong" style={styles.heroCard}>
-            <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name={current.icon as any} color={colors.textPrimary} size={24} />
+            <View style={styles.heroTop}>
+              <View style={styles.iconWrap}>
+                <Feather name={current.icon} color={colors.primaryStrong} size={24} />
+              </View>
+              <Text style={styles.chip}>{current.chip}</Text>
             </View>
-            <Text style={styles.chip}>{current.chip}</Text>
             <Text style={styles.title}>{current.title}</Text>
             <Text style={styles.description}>{current.description}</Text>
+            <View style={styles.statRow}>
+              <View style={styles.statPill}>
+                <Feather name="zap" size={12} color={colors.primaryStrong} />
+                <Text style={styles.statText}>Motion-first UX</Text>
+              </View>
+              <View style={styles.statPill}>
+                <Feather name="heart" size={12} color={colors.accentGreen} />
+                <Text style={styles.statText}>Community-led</Text>
+              </View>
+            </View>
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeIn.duration(360)} style={styles.footer}>
+        <Animated.View entering={FadeIn.duration(360)} exiting={FadeOut.duration(200)} style={styles.footer}>
           <View style={styles.pagination}>
             {slides.map((slide, slideIndex) => (
-              <TouchableOpacity key={slide.title} onPress={() => setIndex(slideIndex)} style={[styles.dot, slideIndex === index && styles.dotActive]} />
+              <TouchableOpacity
+                key={slide.title}
+                onPress={() => setIndex(slideIndex)}
+                style={[styles.dot, slideIndex === index && styles.dotActive]}
+              />
             ))}
           </View>
 
@@ -83,7 +104,7 @@ const OnboardingScreen = () => {
             <Button
               title="Continue"
               onPress={() => setIndex((prev) => prev + 1)}
-              icon={<MaterialCommunityIcons name="arrow-right" color="#061021" size={17} />}
+              icon={<Feather name="arrow-right" color="#1A120B" size={16} />}
               fullWidth
             />
           ) : (
@@ -112,12 +133,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 7,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     overflow: 'hidden',
   },
   progressValue: {
     height: '100%',
-    backgroundColor: colors.accentTeal,
+    backgroundColor: colors.primaryStrong,
     borderRadius: radius.pill,
   },
   skip: {
@@ -125,28 +146,35 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySm.fontSize,
     fontWeight: '600',
   },
-  heroCard: {
-    minHeight: 380,
+  heroWrap: {
+    flex: 1,
     justifyContent: 'center',
-    marginTop: spacing.xl,
   },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
+  heroCard: {
+    minHeight: 420,
     justifyContent: 'center',
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.md,
   },
+  iconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,122,26,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,122,26,0.34)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chip: {
-    color: colors.accentGold,
+    color: colors.primaryStrong,
     fontSize: typography.caption.fontSize,
     fontWeight: '700',
-    marginBottom: spacing.sm,
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   title: {
@@ -161,6 +189,27 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     lineHeight: typography.body.lineHeight,
   },
+  statRow: {
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  statText: {
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
   footer: {
     gap: spacing.md,
   },
@@ -173,11 +222,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   dotActive: {
-    width: 22,
-    backgroundColor: colors.accentTeal,
+    width: 26,
+    backgroundColor: colors.primaryStrong,
   },
 });
 

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Card from '../../components/Card';
 import Badge from '../../components/Badge';
 import ScreenBackground from '../../components/ScreenBackground';
@@ -23,8 +23,8 @@ const MembersScreen = () => {
     <ScreenBackground>
       <View style={styles.container}>
         <Animated.View entering={FadeIn} style={styles.header}>
-          <Text style={styles.title}>Community</Text>
-          <Text style={styles.subtitle}>Discover gatherings and stay close to your people.</Text>
+          <Text style={styles.title}>Community Discovery</Text>
+          <Text style={styles.subtitle}>Find gatherings, connect deeply, and track engagement in one flow.</Text>
         </Animated.View>
 
         <View style={styles.modeRow}>
@@ -43,14 +43,14 @@ const MembersScreen = () => {
             renderItem={({ item }) => (
               <Card padding="lg" blurVariant="strong" style={styles.listItem}>
                 <View style={styles.eventBanner}>
-                  <MaterialCommunityIcons name="calendar-star" size={18} color={colors.accentGold} />
-                  <Text style={styles.eventChip}>Featured</Text>
+                  <Feather name="calendar" size={16} color={colors.primaryStrong} />
+                  <Text style={styles.eventChip}>Featured Experience</Text>
                 </View>
                 <Text style={styles.eventTitle}>{item.title}</Text>
                 <Text style={styles.eventMeta}>{item.time} • {item.location}</Text>
                 <View style={styles.eventActionRow}>
                   <Badge label="Register" variant="info" />
-                  <MaterialCommunityIcons name="arrow-right" size={18} color={colors.textSecondary} />
+                  <Feather name="arrow-right" size={18} color={colors.textSecondary} />
                 </View>
               </Card>
             )}
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeButtonActive: {
-    backgroundColor: 'rgba(157,141,255,0.35)',
+    backgroundColor: 'rgba(255,122,26,0.28)',
   },
   modeText: {
     color: colors.textSecondary,
@@ -153,8 +153,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(82,210,198,0.25)',
-    borderColor: 'rgba(82,210,198,0.4)',
+    backgroundColor: 'rgba(53,208,127,0.22)',
+    borderColor: 'rgba(53,208,127,0.45)',
   },
   filterText: {
     color: colors.textSecondary,
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   eventChip: {
-    color: colors.accentGold,
+    color: colors.primaryStrong,
     fontSize: typography.caption.fontSize,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(121,168,255,0.26)',
+    backgroundColor: 'rgba(255,122,26,0.26)',
     alignItems: 'center',
     justifyContent: 'center',
   },

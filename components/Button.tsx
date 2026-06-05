@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, gradients, radius, spacing, typography } from '../lib/theme';
+import { colors, gradients, radius, shadows, spacing, typography } from '../lib/theme';
 
 interface ButtonProps {
   onPress: () => void;
@@ -68,7 +68,7 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={variant === 'primary' ? '#061021' : colors.textPrimary} />
+          <ActivityIndicator color={variant === 'primary' ? '#1A120B' : colors.textPrimary} />
         ) : isGradient ? (
           <LinearGradient colors={gradients.cta} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             {content}
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   label_primary: {
-    color: '#061021',
+    color: '#1A120B',
   },
   label_secondary: {
     color: colors.textPrimary,
@@ -115,11 +115,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   label_danger: {
-    color: '#FFE9EE',
+    color: '#FFEFEB',
   },
   button_primary: {
     backgroundColor: 'transparent',
-    borderColor: 'rgba(255,255,255,0.32)',
+    borderColor: 'rgba(255,122,26,0.55)',
+    ...shadows.glow,
   },
   button_secondary: {
     backgroundColor: colors.surfaceStrong,
@@ -130,8 +131,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
   },
   button_danger: {
-    backgroundColor: 'rgba(255,127,147,0.18)',
-    borderColor: 'rgba(255,127,147,0.4)',
+    backgroundColor: 'rgba(255,110,98,0.2)',
+    borderColor: 'rgba(255,110,98,0.45)',
   },
   button_sm: {
     paddingVertical: spacing.xs,

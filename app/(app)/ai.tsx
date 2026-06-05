@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Card from '@components/Card';
 import ScreenBackground from '@components/ScreenBackground';
 import { colors, radius, spacing, typography } from '../../lib/theme';
@@ -73,10 +73,21 @@ const AIChatScreen = () => {
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
           <Text style={styles.title}>AI Assistant</Text>
-          <Text style={styles.subtitle}>Scripture-led guidance for your daily walk</Text>
+          <Text style={styles.subtitle}>Beautiful scripture-led conversations for your daily walk</Text>
         </View>
 
         <ScrollView style={styles.messages} contentContainerStyle={styles.messagesContent} showsVerticalScrollIndicator={false}>
+          <Card padding="sm" blurVariant="soft" style={styles.promptCard}>
+            <Text style={styles.promptTitle}>Suggested prompts</Text>
+            <View style={styles.promptRow}>
+              {['Give me a prayer focus', 'Scripture for leadership', 'How do I serve better?'].map((prompt) => (
+                <TouchableOpacity key={prompt} style={styles.promptPill} onPress={() => setInputValue(prompt)}>
+                  <Text style={styles.promptText}>{prompt}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Card>
+
           {messages.map((message) => (
             <Animated.View
               key={message.id}
@@ -107,14 +118,14 @@ const AIChatScreen = () => {
               style={styles.input}
               value={inputValue}
               onChangeText={setInputValue}
-              placeholder="Ask about faith, prayer, community..."
+              placeholder="Ask about faith, prayer, leadership..."
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={500}
               editable={!isLoading}
             />
             <TouchableOpacity style={[styles.send, (!inputValue.trim() || isLoading) && styles.sendDisabled]} onPress={handleSendMessage} disabled={!inputValue.trim() || isLoading}>
-              <MaterialCommunityIcons name="send" size={17} color={colors.background} />
+              <Feather name="send" size={17} color={colors.black} />
             </TouchableOpacity>
           </View>
         </View>
@@ -150,6 +161,34 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
   },
+  promptCard: {
+    marginBottom: spacing.xs,
+  },
+  promptTitle: {
+    color: colors.primaryStrong,
+    fontSize: typography.caption.fontSize,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  promptRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  promptPill: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,122,26,0.36)',
+    backgroundColor: 'rgba(255,122,26,0.16)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  promptText: {
+    color: colors.textPrimary,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '600',
+  },
   bubbleWrap: {
     maxWidth: '88%',
   },
@@ -160,14 +199,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   userBubble: {
-    backgroundColor: 'rgba(121,168,255,0.25)',
-    borderColor: 'rgba(121,168,255,0.4)',
+    backgroundColor: 'rgba(255,122,26,0.22)',
+    borderColor: 'rgba(255,122,26,0.42)',
   },
   assistantBubble: {
     backgroundColor: 'rgba(255,255,255,0.09)',
   },
   scriptureTag: {
-    color: colors.accentGold,
+    color: colors.accentGreen,
     fontSize: typography.caption.fontSize,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -213,7 +252,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.accentTeal,
+    backgroundColor: colors.primaryStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
