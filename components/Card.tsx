@@ -69,20 +69,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundElevated,
   },
   blur_soft: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   blur_strong: {
-    backgroundColor: colors.surfaceStrong,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   card_default: {
     borderColor: colors.borderSoft,
+    ...shadows.soft,
   },
   card_outlined: {
     borderColor: colors.border,
     backgroundColor: 'transparent',
   },
   card_elevated: {
-    borderColor: colors.border,
+    borderColor: 'rgba(255,122,26,0.3)',
     ...shadows.strong,
   },
 });

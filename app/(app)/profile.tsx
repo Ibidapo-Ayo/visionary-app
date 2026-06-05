@@ -1,8 +1,8 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import Card from '@components/Card';
 import Button from '@components/Button';
@@ -40,7 +40,7 @@ const ProfileScreen = () => {
 
         <Animated.View entering={SlideInUp.delay(60)}>
           <Card padding="lg" blurVariant="soft">
-            <Text style={styles.sectionTitle}>Spiritual Journey</Text>
+            <Text style={styles.sectionTitle}>Growth Milestones</Text>
             <View style={styles.metricRow}>
               <View style={styles.metricItem}>
                 <Text style={styles.metricValue}>45</Text>
@@ -63,13 +63,13 @@ const ProfileScreen = () => {
             <Text style={styles.sectionTitle}>Preferences</Text>
             <View style={styles.settingRow}>
               <View style={styles.settingLabelWrap}>
-                <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textSecondary} />
+                <Feather name="bell" size={18} color={colors.textSecondary} />
                 <Text style={styles.settingLabel}>Push notifications</Text>
               </View>
               <Switch
                 value={notifications}
                 onValueChange={setNotifications}
-                trackColor={{ false: 'rgba(255,255,255,0.2)', true: 'rgba(82,210,198,0.6)' }}
+                trackColor={{ false: 'rgba(255,255,255,0.2)', true: 'rgba(53,208,127,0.6)' }}
                 thumbColor={colors.textPrimary}
               />
             </View>
@@ -102,9 +102,9 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(121,168,255,0.28)',
+    backgroundColor: 'rgba(255,122,26,0.28)',
     borderWidth: 1,
-    borderColor: 'rgba(121,168,255,0.5)',
+    borderColor: 'rgba(255,122,26,0.52)',
   },
   avatarText: {
     color: colors.textPrimary,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySm.fontSize,
   },
   role: {
-    color: colors.accentGold,
+    color: colors.accentGreen,
     fontSize: typography.caption.fontSize,
     fontWeight: '700',
     marginTop: 4,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricValue: {
-    color: colors.accentTeal,
+    color: colors.primaryStrong,
     fontSize: typography.h2.fontSize,
     fontWeight: '700',
   },

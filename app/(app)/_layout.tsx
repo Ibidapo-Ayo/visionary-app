@@ -1,15 +1,53 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { StyleSheet, Text } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { colors, radius, spacing, typography } from '../../lib/theme';
 
-const iconMap: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
-  home: 'home-outline',
-  scan: 'qrcode-scan',
-  ai: 'message-processing-outline',
-  members: 'account-group-outline',
-  profile: 'account-circle-outline',
+const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
+  home: 'home',
+  scan: 'maximize',
+  ai: 'message-square',
+  members: 'users',
+  profile: 'user',
+};
+
+const labelMap: Record<string, string> = {
+  home: 'Home',
+  scan: 'Scan',
+  ai: 'AI',
+  members: 'Events',
+  profile: 'Profile',
+};
+
+const TabIcon = ({
+  focused,
+  icon,
+  label,
+}: {
+  focused: boolean;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  label: string;
+}) => {
+  const scale = useSharedValue(focused ? 1 : 0.94);
+  const translateY = useSharedValue(focused ? -2 : 0);
+
+  React.useEffect(() => {
+    scale.value = withSpring(focused ? 1 : 0.94, { damping: 14, stiffness: 170 });
+    translateY.value = withSpring(focused ? -2 : 0, { damping: 15, stiffness: 180 });
+  }, [focused, scale, translateY]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.iconShell, focused && styles.iconShellActive, animStyle]}>
+      <Feather name={icon} size={19} color={focused ? colors.primaryStrong : colors.textMuted} />
+      <Text style={[styles.iconLabel, focused && styles.iconLabelActive]}>{label}</Text>
+    </Animated.View>
+  );
 };
 
 const AppLayout = () => {
@@ -18,14 +56,12 @@ const AppLayout = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.label,
-        tabBarActiveTintColor: colors.textPrimary,
+        tabBarLabelStyle: styles.hidden,
+        tabBarShowLabel: false,
+        tabBarItemStyle: styles.tabItem,
+        tabBarActiveTintColor: colors.primaryStrong,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ focused, color, size }) => (
-          <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-            <MaterialCommunityIcons name={iconMap[route.name]} size={size ?? 22} color={focused ? colors.textPrimary : color} />
-          </View>
-        ),
+        tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={iconMap[route.name]} label={labelMap[route.name]} />,
       })}
     >
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
@@ -43,24 +79,39 @@ const styles = StyleSheet.create({
     left: spacing.md,
     right: spacing.md,
     bottom: spacing.md,
-    height: 72,
+    height: 82,
     borderRadius: radius.xl,
-    paddingTop: spacing.xs,
-    backgroundColor: 'rgba(18,33,68,0.86)',
+    paddingVertical: spacing.xs,
+    backgroundColor: 'rgba(20,18,15,0.92)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,122,26,0.22)',
   },
-  label: {
+  tabItem: {
+    paddingVertical: 2,
+  },
+  hidden: {
+    display: 'none',
     fontSize: typography.caption.fontSize,
-    marginTop: -2,
+  },
+  iconShell: {
+    minWidth: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+  },
+  iconShellActive: {
+    backgroundColor: 'rgba(255,122,26,0.14)',
+  },
+  iconLabel: {
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
   },
-  iconWrap: {
-    padding: 6,
-    borderRadius: 12,
-  },
-  iconWrapActive: {
-    backgroundColor: 'rgba(157,141,255,0.3)',
+  iconLabelActive: {
+    color: colors.primaryStrong,
   },
 });
 

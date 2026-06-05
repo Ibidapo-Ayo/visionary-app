@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Card from '@components/Card';
 import Button from '@components/Button';
 import { colors, radius, spacing, typography } from '../../lib/theme';
@@ -57,7 +57,7 @@ const ScanScreen = () => {
           </CameraView>
           <View style={styles.toolbar}>
             <TouchableOpacity style={styles.toolButton}>
-              <MaterialCommunityIcons name="flashlight" color={colors.textPrimary} size={20} />
+              <Feather name="zap" color={colors.textPrimary} size={20} />
             </TouchableOpacity>
           </View>
         </>
@@ -65,12 +65,12 @@ const ScanScreen = () => {
         <Animated.View entering={FadeIn} style={styles.resultWrap}>
           {isProcessing ? (
             <View style={styles.processing}>
-              <ActivityIndicator size="large" color={colors.accentTeal} />
+              <ActivityIndicator size="large" color={colors.accentGreen} />
               <Text style={styles.processingText}>Validating attendance...</Text>
             </View>
           ) : (
             <Card variant="elevated" blurVariant="strong" padding="lg" style={styles.resultCard}>
-              <MaterialCommunityIcons name="check-decagram" color={colors.success} size={54} />
+              <Feather name="check-circle" color={colors.success} size={54} />
               <Text style={styles.successTitle}>Check-in complete</Text>
               <Text style={styles.resultLine}>Event: {scannedData.eventName}</Text>
               <Text style={styles.resultLine}>Time: {scannedData.timestamp}</Text>
@@ -114,15 +114,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(5,9,20,0.45)',
+    backgroundColor: 'rgba(5,5,5,0.45)',
   },
   frame: {
     width: 260,
     height: 260,
     borderRadius: radius.lg,
     borderWidth: 2,
-    borderColor: colors.accentTeal,
-    backgroundColor: 'rgba(82,210,198,0.1)',
+    borderColor: colors.primaryStrong,
+    backgroundColor: 'rgba(255,122,26,0.12)',
   },
   helper: {
     marginTop: spacing.md,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
   },
   resultPoints: {
-    color: colors.accentGold,
+    color: colors.primaryStrong,
     fontSize: typography.bodySm.fontSize,
     fontWeight: '700',
     marginBottom: spacing.sm,

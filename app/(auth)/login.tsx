@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import Button from '@components/Button';
 import Card from '@components/Card';
@@ -66,11 +66,7 @@ const LoginScreen = () => {
                   editable={!isLoading}
                   rightNode={(
                     <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
-                      <MaterialCommunityIcons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        color={colors.textSecondary}
-                        size={18}
-                      />
+                      <Feather name={showPassword ? 'eye-off' : 'eye'} color={colors.textSecondary} size={18} />
                     </TouchableOpacity>
                   )}
                 />
@@ -107,7 +103,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   eyebrow: {
-    color: colors.accentGold,
+    color: colors.primaryStrong,
     fontSize: typography.caption.fontSize,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -148,7 +144,7 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySm.fontSize,
   },
   registerLink: {
-    color: colors.accentTeal,
+    color: colors.accentGreen,
     fontSize: typography.bodySm.fontSize,
     fontWeight: '700',
   },

@@ -2,20 +2,20 @@ import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import Card from '@components/Card';
 import Badge from '@components/Badge';
 import ScreenBackground from '@components/ScreenBackground';
-import { colors, formatDate, getTimeGreeting, spacing, typography } from '../../lib/theme';
+import { colors, formatDate, getTimeGreeting, radius, spacing, typography } from '../../lib/theme';
 import { mockDailyDigest, mockEvents } from '../../services/mockData';
 
 const roleInsightMap: Record<string, string> = {
-  MEMBER: 'Stay rooted through prayer, service, and fellowship this week.',
-  STEWARD: 'Review attendance patterns and connect with at-risk members early.',
-  LEADER: 'Lead your team with intention and close out pending follow-ups.',
-  ADMIN: 'Prioritize high-impact ministry operations and resource visibility.',
-  SUPER_ADMIN: 'Monitor organizational health and align leadership priorities.',
+  MEMBER: 'Stay rooted in prayer, serve someone intentionally, and share one word of encouragement today.',
+  STEWARD: 'Attendance confidence is trending up. Prioritize outreach to members who missed two gatherings.',
+  LEADER: 'You have high momentum this week. Focus on mentoring and multiplying leadership moments.',
+  ADMIN: 'Your ministry operations are healthy. Keep events, care pathways, and communication aligned.',
+  SUPER_ADMIN: 'Cross-team visibility is strong. Continue guiding strategic goals with clarity and compassion.',
 };
 
 const HomeScreen = () => {
@@ -29,11 +29,11 @@ const HomeScreen = () => {
   }, []);
 
   const quickActions = [
-    { id: 'scan', title: 'Check-in', icon: 'qrcode-scan', route: '/(app)/scan' },
-    { id: 'ai', title: 'Ask AI', icon: 'message-processing-outline', route: '/(app)/ai' },
-    { id: 'events', title: 'Events', icon: 'calendar-month-outline', route: '/(app)/members' },
-    { id: 'profile', title: 'Profile', icon: 'account-circle-outline', route: '/(app)/profile' },
-  ];
+    { id: 'scan', title: 'Scan Attendance', icon: 'maximize', route: '/(app)/scan' },
+    { id: 'ai', title: 'Ask AI Guide', icon: 'message-square', route: '/(app)/ai' },
+    { id: 'events', title: 'Explore Events', icon: 'calendar', route: '/(app)/members' },
+    { id: 'profile', title: 'Growth Profile', icon: 'user', route: '/(app)/profile' },
+  ] as const;
 
   return (
     <ScreenBackground>
@@ -48,44 +48,74 @@ const HomeScreen = () => {
         </Animated.View>
 
         <Animated.View entering={SlideInUp.delay(40)}>
-          <Card variant="elevated" blurVariant="strong" padding="lg">
-            <Badge label="Daily Digest" variant="primary" />
-            <Text style={styles.heroTitle}>{mockDailyDigest.devotional.title}</Text>
-            <Text style={styles.heroBody}>{mockDailyDigest.devotional.reflection}</Text>
-            <Text style={styles.heroMeta}>{mockDailyDigest.devotional.scripture}</Text>
+          <Card variant="elevated" blurVariant="strong" padding="lg" style={styles.heroCard}>
+            <View style={styles.heroTop}>
+              <Badge label="Visionary Command" variant="primary" />
+              <View style={styles.livePill}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>Live</Text>
+              </View>
+            </View>
+            <Text style={styles.heroTitle}>Your spiritual momentum is rising.</Text>
+            <Text style={styles.heroBody}>{mockDailyDigest.prayerFocus}</Text>
+            <View style={styles.metricsRow}>
+              <View style={styles.metricBox}>
+                <Text style={styles.metricValue}>92%</Text>
+                <Text style={styles.metricLabel}>Attendance</Text>
+              </View>
+              <View style={styles.metricBox}>
+                <Text style={styles.metricValue}>7</Text>
+                <Text style={styles.metricLabel}>Growth Streak</Text>
+              </View>
+              <View style={styles.metricBox}>
+                <Text style={styles.metricValue}>4</Text>
+                <Text style={styles.metricLabel}>Open Actions</Text>
+              </View>
+            </View>
           </Card>
         </Animated.View>
 
         <Animated.View entering={SlideInUp.delay(80)} style={styles.grid}>
           {quickActions.map((action) => (
             <TouchableOpacity key={action.id} style={styles.gridItem} onPress={() => router.push(action.route as any)} activeOpacity={0.86}>
-              <Card padding="md" blurVariant="soft" animated={false}>
-                <MaterialCommunityIcons name={action.icon as any} size={24} color={colors.accentTeal} />
+              <Card padding="md" blurVariant="soft" animated={false} style={styles.actionCard}>
+                <View style={styles.actionIconWrap}>
+                  <Feather name={action.icon} size={18} color={colors.primaryStrong} />
+                </View>
                 <Text style={styles.gridLabel}>{action.title}</Text>
+                <Feather name="arrow-up-right" size={14} color={colors.textMuted} />
               </Card>
             </TouchableOpacity>
           ))}
         </Animated.View>
 
         <Animated.View entering={SlideInUp.delay(120)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming Events</Text>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Upcoming Events</Text>
+            <TouchableOpacity onPress={() => router.push('/(app)/members')}>
+              <Text style={styles.sectionLink}>View all</Text>
+            </TouchableOpacity>
+          </View>
           {mockEvents.map((event) => (
             <Card key={event.id} padding="md" blurVariant="soft" style={styles.eventCard}>
               <View style={styles.eventRow}>
-                <View>
+                <View style={styles.eventMetaWrap}>
                   <Text style={styles.eventTitle}>{event.title}</Text>
                   <Text style={styles.eventMeta}>{event.time} • {event.location}</Text>
                 </View>
-                <Badge label="Open" variant="info" />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
             </Card>
           ))}
         </Animated.View>
 
         <Animated.View entering={SlideInUp.delay(160)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Spiritual Insight</Text>
+          <Text style={styles.sectionTitle}>Daily Devotional Highlight</Text>
           <Card padding="lg" blurVariant="strong">
-            <Text style={styles.insightText}>{roleInsightMap[user?.role || 'MEMBER']}</Text>
+            <Text style={styles.insightTitle}>{mockDailyDigest.devotional.title}</Text>
+            <Text style={styles.insightText}>{mockDailyDigest.devotional.reflection}</Text>
+            <Text style={styles.insightVerse}>{mockDailyDigest.devotional.scripture}</Text>
+            <Text style={styles.insightBody}>{roleInsightMap[user?.role || 'MEMBER']}</Text>
           </Card>
         </Animated.View>
       </ScrollView>
@@ -113,6 +143,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: typography.bodySm.fontSize,
   },
+  heroCard: {
+    borderColor: 'rgba(255,122,26,0.4)',
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(53,208,127,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(53,208,127,0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+    backgroundColor: colors.accentGreen,
+  },
+  liveText: {
+    color: colors.accentGreen,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+  },
   heroTitle: {
     color: colors.textPrimary,
     fontSize: typography.h2.fontSize,
@@ -126,11 +186,30 @@ const styles = StyleSheet.create({
     lineHeight: typography.body.lineHeight,
     marginTop: spacing.xs,
   },
-  heroMeta: {
-    color: colors.accentGold,
-    fontSize: typography.bodySm.fontSize,
+  metricsRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  metricBox: {
+    flex: 1,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  metricValue: {
+    color: colors.primaryStrong,
+    fontSize: typography.h3.fontSize,
+    fontWeight: '700',
+  },
+  metricLabel: {
+    color: colors.textMuted,
+    fontSize: typography.caption.fontSize,
     fontWeight: '600',
-    marginTop: spacing.sm,
   },
   grid: {
     flexDirection: 'row',
@@ -140,20 +219,41 @@ const styles = StyleSheet.create({
   gridItem: {
     width: '48%',
   },
+  actionCard: {
+    minHeight: 110,
+    justifyContent: 'space-between',
+  },
+  actionIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,122,26,0.16)',
+  },
   gridLabel: {
     color: colors.textPrimary,
     fontSize: typography.bodySm.fontSize,
-    marginTop: spacing.sm,
     fontWeight: '600',
   },
   section: {
     gap: spacing.sm,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
     color: colors.textPrimary,
     fontSize: typography.h3.fontSize,
     lineHeight: typography.h3.lineHeight,
     fontWeight: '700',
+  },
+  sectionLink: {
+    color: colors.primaryStrong,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '600',
   },
   eventCard: {
     marginBottom: spacing.xs,
@@ -162,6 +262,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  eventMetaWrap: {
+    flex: 1,
   },
   eventTitle: {
     color: colors.textPrimary,
@@ -173,10 +277,30 @@ const styles = StyleSheet.create({
     fontSize: typography.bodySm.fontSize,
     marginTop: 2,
   },
+  insightTitle: {
+    color: colors.primaryStrong,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
   insightText: {
+    color: colors.textPrimary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+  },
+  insightVerse: {
+    color: colors.accentGreen,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  insightBody: {
     color: colors.textSecondary,
     fontSize: typography.body.fontSize,
     lineHeight: typography.body.lineHeight,
+    marginTop: spacing.sm,
   },
 });
 
