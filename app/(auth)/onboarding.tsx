@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAppStore } from '../../store/app.store';
-import { Button } from '../../components/common/Button';
-import { colors } from '../../utils/colors';
-import { spacing, typography } from '../../utils/spacing';
+import { useAppStore } from '../../store/appStore';
+import Button from '../../components/Button';
 
 const { width, height } = Dimensions.get('window');
 
@@ -89,7 +87,7 @@ const OnboardingScreen = () => {
       {/* Slide Content */}
       <Animated.View
         style={[styles.content, { backgroundColor: slide.color }]}
-        entering={FadeIn.duration(400)}
+        entering={FadeIn}
         key={`slide-${currentSlide}`}
       >
         <Text style={styles.title}>{slide.title}</Text>
@@ -97,13 +95,13 @@ const OnboardingScreen = () => {
       </Animated.View>
 
       {/* Navigation Buttons */}
-      <Animated.View style={styles.buttons} entering={SlideInUp.duration(400)}>
+      <Animated.View style={styles.buttons} entering={SlideInUp}>
         {currentSlide > 0 && (
           <TouchableOpacity
             style={styles.dotButton}
             onPress={() => setCurrentSlide(currentSlide - 1)}
           >
-            <Text style={styles.dotText}>←</Text>
+            <Text style={styles.dotText}>{'<'}</Text>
           </TouchableOpacity>
         )}
 
@@ -224,3 +222,4 @@ const styles = StyleSheet.create({
 });
 
 export default OnboardingScreen;
+

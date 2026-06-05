@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, {
   FadeIn,
   FadeOut,
-  ScaleIn,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -118,13 +117,13 @@ const ScanScreen = () => {
           {/* Torch Toggle */}
           <View style={styles.torchContainer}>
             <TouchableOpacity style={styles.torchButton}>
-              <Text style={styles.torchIcon}>💡</Text>
+              <Text style={styles.torchIcon}>LIGHT</Text>
             </TouchableOpacity>
           </View>
         </>
       ) : (
         <Animated.View
-          style={[styles.resultContainer, { entering: ScaleIn.duration(400) }]}
+          style={[styles.resultContainer, { entering: FadeIn }]}
         >
           {isProcessing ? (
             <View style={styles.processingContainer}>
@@ -135,9 +134,9 @@ const ScanScreen = () => {
             <Card variant="elevated">
               <Animated.View
                 style={styles.successContent}
-                entering={FadeIn.duration(300)}
+                entering={FadeIn}
               >
-                <Text style={styles.successEmoji}>✅</Text>
+                <Text style={styles.successEmoji}>OK</Text>
                 <Text style={styles.successTitle}>Check-In Successful!</Text>
 
                 <View style={styles.detailsContainer}>
@@ -340,3 +339,4 @@ const styles = StyleSheet.create({
 });
 
 export default ScanScreen;
+

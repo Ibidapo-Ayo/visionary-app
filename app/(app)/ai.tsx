@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -62,10 +62,10 @@ const AIChatScreen = () => {
   };
 
   const quickQuestions = [
-    '📖 Share a scripture about faith',
-    '💪 How to overcome challenges',
-    '🙏 Prayer for today',
-    '👥 Serving the community',
+    '[Scripture] Share a scripture about faith',
+    '[Strength] How to overcome challenges',
+    '[Prayer] Prayer for today',
+    '[Community] Serving the community',
   ];
 
   return (
@@ -75,7 +75,7 @@ const AIChatScreen = () => {
         style={styles.keyboardView}
       >
         {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn.duration(400)}>
+        <Animated.View style={styles.header} entering={FadeIn}>
           <Text style={styles.title}>Visionary AI</Text>
           <Text style={styles.subtitle}>Your Spiritual Guide</Text>
         </Animated.View>
@@ -89,7 +89,7 @@ const AIChatScreen = () => {
           {messages.length === 1 && (
             <Animated.View
               style={styles.quickQuestionsSection}
-              entering={SlideInUp.duration(500).delay(200)}
+              entering={SlideInUp}
             >
               <Text style={styles.quickTitle}>Quick Questions</Text>
               <View style={styles.quickButtonsGrid}>
@@ -120,7 +120,7 @@ const AIChatScreen = () => {
                   ? styles.userMessageWrapper
                   : styles.assistantMessageWrapper,
               ]}
-              entering={FadeIn.duration(300).delay(index * 50)}
+              entering={FadeIn}
             >
               <Card
                 variant={
@@ -153,7 +153,7 @@ const AIChatScreen = () => {
           {isLoading && (
             <Animated.View
               style={styles.typingIndicator}
-              entering={FadeIn.duration(300)}
+              entering={FadeIn}
             >
               <Card variant="outlined" animated={false}>
                 <View style={styles.typingDots}>
@@ -169,7 +169,7 @@ const AIChatScreen = () => {
         {/* Input */}
         <Animated.View
           style={styles.inputContainer}
-          entering={SlideInUp.duration(500)}
+          entering={SlideInUp}
         >
           <View style={styles.inputWrapper}>
             <TextInput
@@ -190,7 +190,7 @@ const AIChatScreen = () => {
               onPress={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
             >
-              <Text style={styles.sendIcon}>→</Text>
+              <Text style={styles.sendIcon}>></Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimerText}>
@@ -346,3 +346,4 @@ const styles = StyleSheet.create({
 });
 
 export default AIChatScreen;
+
