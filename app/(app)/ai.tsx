@@ -190,7 +190,7 @@ const AIChatScreen = () => {
               onPress={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
             >
-              <Text style={styles.sendIcon}>></Text>
+              <Text style={styles.sendIcon}>{'>'}</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimerText}>
@@ -346,4 +346,3 @@ const styles = StyleSheet.create({
 });
 
 export default AIChatScreen;
-
