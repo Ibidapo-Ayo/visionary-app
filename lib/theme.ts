@@ -19,10 +19,10 @@ export const colors = {
 };
 
 export const gradients = {
-  screen: ['#060B1B', '#0B1530', '#111F3F'],
-  hero: ['rgba(121,168,255,0.45)', 'rgba(157,141,255,0.2)', 'rgba(82,210,198,0.05)'],
-  cta: ['#8DAEFF', '#7A7BFF', '#59D0C8'],
-  warm: ['#F8C66D', '#F19A63'],
+  screen: ['#060B1B', '#0B1530', '#111F3F'] as const,
+  hero: ['rgba(121,168,255,0.45)', 'rgba(157,141,255,0.2)', 'rgba(82,210,198,0.05)'] as const,
+  cta: ['#8DAEFF', '#7A7BFF', '#59D0C8'] as const,
+  warm: ['#F8C66D', '#F19A63'] as const,
 };
 
 export const spacing = {
