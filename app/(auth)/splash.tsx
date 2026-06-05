@@ -68,7 +68,7 @@ const SplashScreen = () => {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} className="bg-[#111226]">
       {/* Glow effect background */}
       <Animated.View style={[styles.glow, glowAnimatedStyle]} />
 
@@ -77,7 +77,9 @@ const SplashScreen = () => {
         style={[styles.content, textAnimatedStyle]}
       >
         <Text style={styles.title}>VISIONARY</Text>
-        <Text style={styles.subtitle}>Ministry Operating System</Text>
+        <Text style={styles.subtitle} className="text-slate-400">
+          Ministry Operating System
+        </Text>
       </Animated.View>
 
       {/* Loading indicator */}
