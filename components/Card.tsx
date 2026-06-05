@@ -13,6 +13,7 @@ interface CardProps {
   style?: ViewStyle;
   onPress?: (event: GestureResponderEvent) => void;
   variant?: 'default' | 'outlined' | 'elevated';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
   animated?: boolean;
 }
 
@@ -23,6 +24,7 @@ const Card = React.forwardRef<View, CardProps>(
       style,
       onPress,
       variant = 'default',
+      padding = 'md',
       animated = true,
     },
     ref
@@ -30,6 +32,7 @@ const Card = React.forwardRef<View, CardProps>(
     const containerStyle = [
       styles.card,
       styles[`card_${variant}`],
+      styles[`padding_${padding}`],
       style,
     ];
 
@@ -57,8 +60,19 @@ Card.displayName = 'Card';
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    padding: 16,
     marginVertical: 8,
+  },
+  padding_none: {
+    padding: 0,
+  },
+  padding_sm: {
+    padding: 12,
+  },
+  padding_md: {
+    padding: 16,
+  },
+  padding_lg: {
+    padding: 20,
   },
   card_default: {
     backgroundColor: '#1a1f3a',

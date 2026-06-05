@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,15 @@ import { useAppStore } from '@store/appStore';
 import Card from '@components/Card';
 import Button from '@components/Button';
 
+type ChatMessage = {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+};
+
 const AIChatScreen = () => {
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'assistant' as const,
@@ -62,10 +69,10 @@ const AIChatScreen = () => {
   };
 
   const quickQuestions = [
-    '📖 Share a scripture about faith',
-    '💪 How to overcome challenges',
-    '🙏 Prayer for today',
-    '👥 Serving the community',
+    '[Scripture] Share a scripture about faith',
+    '[Strength] How to overcome challenges',
+    '[Prayer] Prayer for today',
+    '[Community] Serving the community',
   ];
 
   return (
@@ -75,7 +82,7 @@ const AIChatScreen = () => {
         style={styles.keyboardView}
       >
         {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn.duration(400)}>
+        <Animated.View style={styles.header} entering={FadeIn}>
           <Text style={styles.title}>Visionary AI</Text>
           <Text style={styles.subtitle}>Your Spiritual Guide</Text>
         </Animated.View>
@@ -89,7 +96,7 @@ const AIChatScreen = () => {
           {messages.length === 1 && (
             <Animated.View
               style={styles.quickQuestionsSection}
-              entering={SlideInUp.duration(500).delay(200)}
+              entering={SlideInUp}
             >
               <Text style={styles.quickTitle}>Quick Questions</Text>
               <View style={styles.quickButtonsGrid}>
@@ -120,7 +127,7 @@ const AIChatScreen = () => {
                   ? styles.userMessageWrapper
                   : styles.assistantMessageWrapper,
               ]}
-              entering={FadeIn.duration(300).delay(index * 50)}
+              entering={FadeIn}
             >
               <Card
                 variant={
@@ -153,7 +160,7 @@ const AIChatScreen = () => {
           {isLoading && (
             <Animated.View
               style={styles.typingIndicator}
-              entering={FadeIn.duration(300)}
+              entering={FadeIn}
             >
               <Card variant="outlined" animated={false}>
                 <View style={styles.typingDots}>
@@ -169,7 +176,7 @@ const AIChatScreen = () => {
         {/* Input */}
         <Animated.View
           style={styles.inputContainer}
-          entering={SlideInUp.duration(500)}
+          entering={SlideInUp}
         >
           <View style={styles.inputWrapper}>
             <TextInput
@@ -190,7 +197,7 @@ const AIChatScreen = () => {
               onPress={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
             >
-              <Text style={styles.sendIcon}>→</Text>
+              <Text style={styles.sendIcon}>{'>'}</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.disclaimerText}>
