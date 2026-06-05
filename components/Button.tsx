@@ -22,7 +22,7 @@ interface ButtonProps {
   icon?: React.ReactNode;
 }
 
-const Button = React.forwardRef<TouchableOpacity, ButtonProps>(
+const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, ButtonProps>(
   (
     {
       onPress,

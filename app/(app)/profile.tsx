@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -28,42 +28,42 @@ const ProfileScreen = () => {
 
   const menuItems = [
     {
-      icon: '📝',
+      icon: 'Edit',
       label: 'Edit Profile',
       onPress: () => {
         // Navigate to edit profile
       },
     },
     {
-      icon: '🔔',
+      icon: 'Bell',
       label: 'Notifications',
       toggle: true,
       value: notifications,
       onToggle: setNotifications,
     },
     {
-      icon: '🌙',
+      icon: 'Theme',
       label: 'Dark Mode',
       toggle: true,
       value: darkMode,
       onToggle: setDarkMode,
     },
     {
-      icon: '🔐',
+      icon: 'Lock',
       label: 'Change Password',
       onPress: () => {
         // Navigate to change password
       },
     },
     {
-      icon: '📚',
+      icon: 'Help',
       label: 'Help & Support',
       onPress: () => {
         // Navigate to help
       },
     },
     {
-      icon: '📋',
+      icon: 'Terms',
       label: 'Terms & Privacy',
       onPress: () => {
         // Navigate to terms
@@ -75,9 +75,9 @@ const ProfileScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
-        <Animated.View style={styles.headerSection} entering={FadeIn.duration(400)}>
+        <Animated.View style={styles.headerSection} entering={FadeIn}>
           <View style={styles.profileCard}>
-            <Text style={styles.avatar}>👤</Text>
+            <Text style={styles.avatar}>USER</Text>
             <Text style={styles.profileName}>
               {user?.firstName} {user?.lastName}
             </Text>
@@ -91,7 +91,7 @@ const ProfileScreen = () => {
         {/* Stats */}
         <Animated.View
           style={styles.statsSection}
-          entering={SlideInUp.duration(500).delay(100)}
+          entering={SlideInUp}
         >
           <Card variant="outlined">
             <View style={styles.statsGrid}>
@@ -116,7 +116,7 @@ const ProfileScreen = () => {
         {/* Member Info */}
         <Animated.View
           style={styles.section}
-          entering={SlideInUp.duration(500).delay(200)}
+          entering={SlideInUp}
         >
           <Text style={styles.sectionTitle}>Member Information</Text>
           <Card variant="outlined">
@@ -140,7 +140,7 @@ const ProfileScreen = () => {
         {/* Settings */}
         <Animated.View
           style={styles.section}
-          entering={SlideInUp.duration(500).delay(300)}
+          entering={SlideInUp}
         >
           <Text style={styles.sectionTitle}>Settings</Text>
           {menuItems.map((item, index) => (
@@ -164,7 +164,7 @@ const ProfileScreen = () => {
                       thumbColor="#fff"
                     />
                   ) : (
-                    <Text style={styles.menuArrow}>→</Text>
+                    <Text style={styles.menuArrow}>{'>'}</Text>
                   )}
                 </View>
               </Card>
@@ -175,7 +175,7 @@ const ProfileScreen = () => {
         {/* Danger Zone */}
         <Animated.View
           style={styles.section}
-          entering={SlideInUp.duration(500).delay(400)}
+          entering={SlideInUp}
         >
           <Button
             onPress={handleLogout}
@@ -330,3 +330,4 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
+

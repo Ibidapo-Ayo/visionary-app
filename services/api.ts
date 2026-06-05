@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { ApiResponse } from '@types/index';
+import { ApiResponse } from '@/types/index';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 

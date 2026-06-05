@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -50,7 +50,7 @@ const LoginScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn.duration(400)}>
+        <Animated.View style={styles.header} entering={FadeIn}>
           <Text style={styles.logo}>VISIONARY</Text>
           <Text style={styles.subtitle}>Welcome Back</Text>
         </Animated.View>
@@ -58,7 +58,7 @@ const LoginScreen = () => {
         {/* Form Card */}
         <Animated.View
           style={styles.formContainer}
-          entering={SlideInUp.duration(600)}
+          entering={SlideInUp}
         >
           <Card variant="outlined">
             {/* Email Input */}
@@ -82,7 +82,7 @@ const LoginScreen = () => {
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
-                  placeholder="••••••••"
+                  placeholder="********"
                   placeholderTextColor="#64748b"
                   value={password}
                   onChangeText={setPassword}
@@ -94,7 +94,7 @@ const LoginScreen = () => {
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Text style={styles.toggleText}>
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    {showPassword ? 'Show' : 'Hide'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -104,7 +104,7 @@ const LoginScreen = () => {
             {error && (
               <Animated.View
                 style={styles.errorContainer}
-                entering={FadeIn.duration(300)}
+                entering={FadeIn}
               >
                 <Text style={styles.errorText}>{error}</Text>
               </Animated.View>
@@ -129,7 +129,7 @@ const LoginScreen = () => {
         </Animated.View>
 
         {/* Register Link */}
-        <Animated.View style={styles.registerContainer} entering={FadeIn.duration(800)}>
+        <Animated.View style={styles.registerContainer} entering={FadeIn}>
           <Text style={styles.registerText}>Don't have an account? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
             <Text style={styles.registerLink}>Sign Up</Text>
@@ -251,3 +251,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+

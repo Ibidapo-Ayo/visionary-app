@@ -46,14 +46,13 @@ const RootLayout = () => {
         <Stack
           screenOptions={{
             headerShown: false,
-            animationEnabled: true,
-            animationTypeForReplace: 'fade',
+            animation: 'fade',
           }}
         >
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
           <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
         </Stack>
-        <StatusBar barStyle="light-content" backgroundColor="#111226" />
+        <StatusBar style="light" backgroundColor="#111226" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

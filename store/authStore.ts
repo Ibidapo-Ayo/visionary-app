@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, AuthState } from '@types/index';
+import { User, AuthState } from '@/types/index';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 

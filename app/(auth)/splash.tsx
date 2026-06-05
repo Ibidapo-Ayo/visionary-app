@@ -2,9 +2,6 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
-  FadeIn,
-  FadeOut,
-  ScaleIn,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -14,8 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAuthStore } from '@store/authStore';
 import { useAppStore } from '@store/appStore';
-
-const { width, height } = Dimensions.get('window');
 
 const SplashScreen = () => {
   const router = useRouter();
@@ -80,7 +75,6 @@ const SplashScreen = () => {
       {/* Logo & Text */}
       <Animated.View
         style={[styles.content, textAnimatedStyle]}
-        entering={ScaleIn.duration(1000)}
       >
         <Text style={styles.title}>VISIONARY</Text>
         <Text style={styles.subtitle}>Ministry Operating System</Text>

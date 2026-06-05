@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Event, Member, FollowUp, Conversation } from '@types/index';
+import { Event, Member, FollowUp, Conversation } from '@/types/index';
 
 interface AppStore {
   // UI State

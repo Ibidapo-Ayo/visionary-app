@@ -7,11 +7,10 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import { Card } from '../../components/common/Card';
-import { Badge } from '../../components/common/Badge';
-import { colors } from '../../utils/colors';
-import { spacing, typography } from '../../utils/spacing';
-import { mockMembers } from '../../services/api/mockData';
+import Card from '../../components/Card';
+import Badge from '../../components/Badge';
+import { colors, spacing, typography } from '../../lib/theme';
+import { mockMembers, MockMember } from '../../services/mockData';
 
 const MembersScreen = () => {
   const [selectedTab, setSelectedTab] = useState('all');
@@ -24,7 +23,7 @@ const MembersScreen = () => {
   ];
 
   const filteredMembers =
-    selectedTab === 'all' ? mockMembers : mockMembers.filter((m) => m.status === selectedTab);
+    selectedTab === 'all' ? mockMembers : mockMembers.filter((m: MockMember) => m.status === selectedTab);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
