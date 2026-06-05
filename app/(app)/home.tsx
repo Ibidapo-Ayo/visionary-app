@@ -1,288 +1,183 @@
-﻿import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native';
+import React from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import Card from '@components/Card';
-import Button from '@components/Button';
-import Badge from '../../components/Badge';
-import {
-  colors,
-  spacing,
-  typography,
-  getTimeGreeting,
-  formatDate,
-} from '../../lib/theme';
+import Badge from '@components/Badge';
+import ScreenBackground from '@components/ScreenBackground';
+import { colors, formatDate, getTimeGreeting, spacing, typography } from '../../lib/theme';
 import { mockDailyDigest, mockEvents } from '../../services/mockData';
+
+const roleInsightMap: Record<string, string> = {
+  MEMBER: 'Stay rooted through prayer, service, and fellowship this week.',
+  STEWARD: 'Review attendance patterns and connect with at-risk members early.',
+  LEADER: 'Lead your team with intention and close out pending follow-ups.',
+  ADMIN: 'Prioritize high-impact ministry operations and resource visibility.',
+  SUPER_ADMIN: 'Monitor organizational health and align leadership priorities.',
+};
 
 const HomeScreen = () => {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
   const [refreshing, setRefreshing] = React.useState(false);
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
-  };
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    setTimeout(() => setRefreshing(false), 900);
   }, []);
 
   const quickActions = [
-    { id: 'scan', title: 'Check-In', icon: 'Scan', route: '/(app)/scan' },
-    { id: 'ai', title: 'AI Chat', icon: 'Chat', route: '/(app)/ai' },
-    { id: 'members', title: 'Members', icon: 'People', route: '/(app)/members' },
-    { id: 'prayer', title: 'Prayers', icon: 'Pray', route: '/(app)/ai' },
+    { id: 'scan', title: 'Check-in', icon: 'qrcode-scan', route: '/(app)/scan' },
+    { id: 'ai', title: 'Ask AI', icon: 'message-processing-outline', route: '/(app)/ai' },
+    { id: 'events', title: 'Events', icon: 'calendar-month-outline', route: '/(app)/members' },
+    { id: 'profile', title: 'Profile', icon: 'account-circle-outline', route: '/(app)/profile' },
   ];
 
-  const upcomingEvents = mockEvents.slice(0, 2);
-
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenBackground>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
       >
-        {/* Header Section */}
-        <Animated.View style={styles.headerSection} entering={FadeIn}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.greeting}>{getTimeGreeting()}, {user?.firstName}!</Text>
-              <Text style={styles.date}>{formatDate(new Date())}</Text>
-            </View>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutText}>Settings</Text>
+        <Animated.View entering={FadeIn} style={styles.header}>
+          <Text style={styles.greeting}>{getTimeGreeting()}, {user?.firstName}</Text>
+          <Text style={styles.date}>{formatDate(new Date())}</Text>
+        </Animated.View>
+
+        <Animated.View entering={SlideInUp.delay(40)}>
+          <Card variant="elevated" blurVariant="strong" padding="lg">
+            <Badge label="Daily Digest" variant="primary" />
+            <Text style={styles.heroTitle}>{mockDailyDigest.devotional.title}</Text>
+            <Text style={styles.heroBody}>{mockDailyDigest.devotional.reflection}</Text>
+            <Text style={styles.heroMeta}>{mockDailyDigest.devotional.scripture}</Text>
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={SlideInUp.delay(80)} style={styles.grid}>
+          {quickActions.map((action) => (
+            <TouchableOpacity key={action.id} style={styles.gridItem} onPress={() => router.push(action.route as any)} activeOpacity={0.86}>
+              <Card padding="md" blurVariant="soft" animated={false}>
+                <MaterialCommunityIcons name={action.icon as any} size={24} color={colors.accentTeal} />
+                <Text style={styles.gridLabel}>{action.title}</Text>
+              </Card>
             </TouchableOpacity>
-          </View>
+          ))}
         </Animated.View>
 
-        {/* Hero Card - Next Event */}
-        <Animated.View style={styles.heroContainer} entering={SlideInUp}>
-          <Card variant="elevated" padding="lg">
-            <View style={styles.heroContent}>
-              <Badge label="Next Event" variant="primary" />
-              <Text style={styles.heroTitle}>Sunday Service</Text>
-              <Text style={styles.heroSubtitle}>10:00 AM at Main Sanctuary</Text>
-              <Button title="View Details" onPress={() => {}} size="sm" />
-            </View>
-          </Card>
-        </Animated.View>
-
-        {/* Quick Actions */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.actionCard}
-                onPress={() => router.push(action.route)}
-              >
-                <Text style={styles.actionIcon}>{action.icon}</Text>
-                <Text style={styles.actionLabel}>{action.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
-
-        {/* Daily Digest */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Text style={styles.sectionTitle}>Today's Digest</Text>
-          <Card padding="md">
-            <Text style={styles.digestLabel}>Daily Devotional</Text>
-            <Text style={styles.digestTitle}>{mockDailyDigest.devotional.title}</Text>
-            <Text style={styles.digestScripture}>{mockDailyDigest.devotional.scripture}</Text>
-            <Text style={styles.digestText}>{mockDailyDigest.devotional.reflection}</Text>
-            <Button title="Read More" variant="tertiary" size="sm" onPress={() => {}} />
-          </Card>
-        </Animated.View>
-
-        {/* Upcoming Events */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
+        <Animated.View entering={SlideInUp.delay(120)} style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Events</Text>
-          {upcomingEvents.map((event) => (
-            <Card key={event.id} padding="md" style={{ marginBottom: spacing.md }}>
-              <View style={styles.eventCard}>
+          {mockEvents.map((event) => (
+            <Card key={event.id} padding="md" blurVariant="soft" style={styles.eventCard}>
+              <View style={styles.eventRow}>
                 <View>
                   <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventDetail}>Time: {event.time}</Text>
-                  <Text style={styles.eventDetail}>Location: {event.location}</Text>
+                  <Text style={styles.eventMeta}>{event.time} • {event.location}</Text>
                 </View>
-                <Badge label="Register" variant="info" />
+                <Badge label="Open" variant="info" />
               </View>
             </Card>
           ))}
         </Animated.View>
 
-        {/* Prayer Focus */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Card padding="md">
-            <Text style={styles.prayerLabel}>Prayer Focus</Text>
-            <Text style={styles.prayerText}>{mockDailyDigest.prayerFocus}</Text>
+        <Animated.View entering={SlideInUp.delay(160)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Spiritual Insight</Text>
+          <Card padding="lg" blurVariant="strong">
+            <Text style={styles.insightText}>{roleInsightMap[user?.role || 'MEMBER']}</Text>
           </Card>
         </Animated.View>
-
-        {/* Bottom Padding */}
-        <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: 120,
+    gap: spacing.lg,
   },
-  headerSection: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  greeting: {
-    fontSize: typography.heading.h2.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  date: {
-    fontSize: typography.body.small.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  logoutButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutText: {
-    fontSize: 20,
-  },
-  heroContainer: {
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.lg,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: typography.heading.h1.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  header: {
     marginTop: spacing.md,
   },
-  heroSubtitle: {
-    fontSize: typography.body.medium.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  section: {
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.heading.h2.fontSize,
-    fontWeight: '700',
+  greeting: {
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+    fontSize: typography.h1.fontSize,
+    lineHeight: typography.h1.lineHeight,
+    fontWeight: '700',
   },
-  actionsGrid: {
+  date: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
+  },
+  heroTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  heroBody: {
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+    marginTop: spacing.xs,
+  },
+  heroMeta: {
+    color: colors.accentGold,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '600',
+    marginTop: spacing.sm,
+  },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  actionCard: {
-    flex: 1,
-    minWidth: '22%',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  gridItem: {
+    width: '48%',
   },
-  actionIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  actionLabel: {
-    fontSize: typography.caption.medium.fontSize,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  digestLabel: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.primary,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  digestTitle: {
-    fontSize: typography.heading.h3.fontSize,
-    fontWeight: '700',
+  gridLabel: {
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  digestScripture: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.secondary,
-    fontStyle: 'italic',
-    marginBottom: spacing.md,
+    fontSize: typography.bodySm.fontSize,
+    marginTop: spacing.sm,
     fontWeight: '600',
   },
-  digestText: {
-    fontSize: typography.body.medium.fontSize,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.md,
+  section: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.h3.fontSize,
+    lineHeight: typography.h3.lineHeight,
+    fontWeight: '700',
   },
   eventCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  eventTitle: {
-    fontSize: typography.heading.h3.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  eventDetail: {
-    fontSize: typography.body.small.fontSize,
-    color: colors.textSecondary,
     marginBottom: spacing.xs,
   },
-  prayerLabel: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.secondary,
-    fontWeight: '700',
-    marginBottom: spacing.md,
+  eventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  prayerText: {
-    fontSize: typography.body.medium.fontSize,
+  eventTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.body.fontSize,
+    fontWeight: '700',
+  },
+  eventMeta: {
     color: colors.textSecondary,
-    lineHeight: 22,
+    fontSize: typography.bodySm.fontSize,
+    marginTop: 2,
+  },
+  insightText: {
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
   },
 });
 
 export default HomeScreen;
-

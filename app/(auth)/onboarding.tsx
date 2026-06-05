@@ -1,225 +1,184 @@
-﻿import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppStore } from '../../store/appStore';
 import Button from '../../components/Button';
+import Card from '../../components/Card';
+import ScreenBackground from '../../components/ScreenBackground';
+import { colors, radius, spacing, typography } from '../../lib/theme';
 
-const { width, height } = Dimensions.get('window');
-
-const OnboardingSlides = [
+const slides = [
   {
-    title: 'Welcome to Visionary',
-    description: 'Transform how your ministry connects, serves, and grows together',
-    color: '#1e40af',
+    title: 'Belong in every moment',
+    description: 'A cinematic welcome into your church community with clarity, warmth, and spiritual depth.',
+    icon: 'star-four-points-outline',
+    chip: 'Community',
   },
   {
-    title: 'Track Attendance',
-    description: 'QR code check-ins make it easy to monitor who\'s engaged',
-    color: '#7c3aed',
+    title: 'Stay present with your gatherings',
+    description: 'Track events and attendance with confidence so no one in your community goes unseen.',
+    icon: 'calendar-heart',
+    chip: 'Attendance',
   },
   {
-    title: 'AI-Powered Chat',
-    description: 'Get instant spiritual guidance and scripture references',
-    color: '#059669',
+    title: 'Receive guided spiritual support',
+    description: 'Get scripture-led insights through a calm AI companion built for ministry moments.',
+    icon: 'brain',
+    chip: 'AI Assistant',
   },
   {
-    title: 'Member Follow-ups',
-    description: 'Never miss an opportunity to care for your community',
-    color: '#dc2626',
-  },
-  {
-    title: 'Prayer & Giving',
-    description: 'Foster deeper connection through unified prayer and generosity',
-    color: '#f59e0b',
-  },
-  {
-    title: 'Ready to Begin?',
-    description: 'Let\'s build something great together',
-    color: '#fbbf24',
+    title: 'Lead with compassion and action',
+    description: 'Coordinate follow-ups, care paths, and ministry operations in one elegant experience.',
+    icon: 'hand-heart',
+    chip: 'Leadership',
   },
 ];
 
 const OnboardingScreen = () => {
   const router = useRouter();
   const setOnboardingComplete = useAppStore((state) => state.setOnboardingComplete);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [index, setIndex] = useState(0);
 
-  const handleNext = () => {
-    if (currentSlide < OnboardingSlides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
-    } else {
-      setOnboardingComplete(true);
-      router.replace('/(auth)/login');
-    }
-  };
+  const current = slides[index];
+  const progress = useMemo(() => ((index + 1) / slides.length) * 100, [index]);
 
-  const handleSkip = () => {
+  const finish = () => {
     setOnboardingComplete(true);
     router.replace('/(auth)/login');
   };
 
-  const slide = OnboardingSlides[currentSlide];
-  const progress = ((currentSlide + 1) / OnboardingSlides.length) * 100;
-
   return (
-    <View style={styles.container}>
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <Animated.View
-          style={[
-            styles.progressBar,
-            {
-              width: `${progress}%`,
-              backgroundColor: slide.color,
-            },
-          ]}
-        />
-      </View>
-
-      {/* Slide Content */}
-      <Animated.View
-        style={[styles.content, { backgroundColor: slide.color }]}
-        entering={FadeIn}
-        key={`slide-${currentSlide}`}
-      >
-        <Text style={styles.title}>{slide.title}</Text>
-        <Text style={styles.description}>{slide.description}</Text>
-      </Animated.View>
-
-      {/* Navigation Buttons */}
-      <Animated.View style={styles.buttons} entering={SlideInUp}>
-        {currentSlide > 0 && (
-          <TouchableOpacity
-            style={styles.dotButton}
-            onPress={() => setCurrentSlide(currentSlide - 1)}
-          >
-            <Text style={styles.dotText}>{'<'}</Text>
+    <ScreenBackground>
+      <View style={styles.container}>
+        <View style={styles.topBar}>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressValue, { width: `${progress}%` }]} />
+          </View>
+          <TouchableOpacity onPress={finish}>
+            <Text style={styles.skip}>Skip</Text>
           </TouchableOpacity>
-        )}
-
-        <View style={styles.dots}>
-          {OnboardingSlides.map((_, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    index === currentSlide ? '#fbbf24' : '#64748b',
-                },
-              ]}
-              onPress={() => setCurrentSlide(index)}
-            />
-          ))}
         </View>
 
-        {currentSlide < OnboardingSlides.length - 1 ? (
-          <>
-            <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-              <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
+        <Animated.View key={current.title} entering={SlideInRight.duration(280)} exiting={FadeOut.duration(180)}>
+          <Card variant="elevated" padding="lg" blurVariant="strong" style={styles.heroCard}>
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons name={current.icon as any} color={colors.textPrimary} size={24} />
+            </View>
+            <Text style={styles.chip}>{current.chip}</Text>
+            <Text style={styles.title}>{current.title}</Text>
+            <Text style={styles.description}>{current.description}</Text>
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeIn.duration(360)} style={styles.footer}>
+          <View style={styles.pagination}>
+            {slides.map((slide, slideIndex) => (
+              <TouchableOpacity key={slide.title} onPress={() => setIndex(slideIndex)} style={[styles.dot, slideIndex === index && styles.dotActive]} />
+            ))}
+          </View>
+
+          {index < slides.length - 1 ? (
             <Button
-              onPress={handleNext}
-              title="Next"
-              variant="secondary"
-              size="sm"
-              style={styles.nextButton}
+              title="Continue"
+              onPress={() => setIndex((prev) => prev + 1)}
+              icon={<MaterialCommunityIcons name="arrow-right" color="#061021" size={17} />}
+              fullWidth
             />
-          </>
-        ) : (
-          <Button
-            onPress={handleNext}
-            title="Get Started"
-            variant="primary"
-            fullWidth
-          />
-        )}
-      </Animated.View>
-    </View>
+          ) : (
+            <Button title="Enter Visionary" onPress={finish} fullWidth />
+          )}
+        </Animated.View>
+      </View>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111226',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: 'space-between',
   },
-  progressContainer: {
-    height: 4,
-    backgroundColor: '#2d3a5a',
-    width: '100%',
+  topBar: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
   },
-  progressBar: {
+  progressValue: {
     height: '100%',
+    backgroundColor: colors.accentTeal,
+    borderRadius: radius.pill,
   },
-  content: {
-    flex: 1,
+  skip: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '600',
+  },
+  heroCard: {
+    minHeight: 380,
     justifyContent: 'center',
+    marginTop: spacing.xl,
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  chip: {
+    color: colors.accentGold,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   title: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 16,
-    letterSpacing: 0.5,
+    color: colors.textPrimary,
+    fontSize: typography.h1.fontSize,
+    lineHeight: typography.h1.lineHeight,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
   description: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    lineHeight: 24,
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
   },
-  buttons: {
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    gap: 12,
+  footer: {
+    gap: spacing.md,
   },
-  skipButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  skipText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  nextButton: {
-    marginBottom: 8,
-  },
-  dots: {
+  pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
-    marginVertical: 16,
+    gap: spacing.xs,
   },
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
-  dotButton: {
-    paddingVertical: 12,
-  },
-  dotText: {
-    fontSize: 20,
-    color: '#fbbf24',
-    textAlign: 'center',
+  dotActive: {
+    width: 22,
+    backgroundColor: colors.accentTeal,
   },
 });
 
 export default OnboardingScreen;
-

@@ -9,7 +9,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
 import 'react-native-gesture-handler';
 
-// Keep splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 const RootLayout = () => {
@@ -18,18 +17,15 @@ const RootLayout = () => {
   useEffect(() => {
     async function prepare() {
       try {
-        // Load fonts if they exist (for optional custom fonts)
         try {
           await Font.loadAsync({
             'geist-sans': require('../assets/fonts/Geist-Regular.ttf'),
             'geist-sans-bold': require('../assets/fonts/Geist-Bold.ttf'),
           });
         } catch {
-          // Fonts may not exist yet, that's fine
           console.log('[v0] Custom fonts not available');
         }
 
-        // Load user session
         await loadUser();
       } catch (e) {
         console.warn('[v0] Initialization error:', e);
@@ -47,13 +43,14 @@ const RootLayout = () => {
         <Stack
           screenOptions={{
             headerShown: false,
-            animation: 'fade',
+            animation: 'ios_from_right',
+            contentStyle: { backgroundColor: '#060B1B' },
           }}
         >
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
           <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
         </Stack>
-        <StatusBar style="light" backgroundColor="#111226" />
+        <StatusBar style="light" translucent backgroundColor="transparent" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,19 +1,14 @@
-﻿import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@store/authStore';
 import Button from '@components/Button';
 import Card from '@components/Card';
+import GlassInput from '@components/GlassInput';
+import ScreenBackground from '@components/ScreenBackground';
+import { colors, spacing, typography } from '../../lib/theme';
 
 const LoginScreen = () => {
   const router = useRouter();
@@ -41,214 +36,122 @@ const LoginScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn}>
-          <Text style={styles.logo}>VISIONARY</Text>
-          <Text style={styles.subtitle}>Welcome Back</Text>
-        </Animated.View>
+    <ScreenBackground>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Animated.View style={styles.header} entering={FadeIn}>
+            <Text style={styles.eyebrow}>Welcome back</Text>
+            <Text style={styles.title}>Step into your spiritual command center</Text>
+            <Text style={styles.caption}>Sign in to continue your journey with the Visionary community.</Text>
+          </Animated.View>
 
-        {/* Form Card */}
-        <Animated.View
-          style={styles.formContainer}
-          entering={SlideInUp}
-        >
-          <Card variant="outlined">
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="#64748b"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="********"
-                  placeholderTextColor="#64748b"
+          <Animated.View style={styles.formContainer} entering={SlideInUp.duration(280)}>
+            <Card variant="elevated" blurVariant="strong" padding="lg">
+              <View style={styles.formStack}>
+                <GlassInput
+                  label="Email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+                <GlassInput
+                  label="Password"
+                  placeholder="••••••••"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   editable={!isLoading}
+                  rightNode={(
+                    <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+                      <MaterialCommunityIcons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        color={colors.textSecondary}
+                        size={18}
+                      />
+                    </TouchableOpacity>
+                  )}
                 />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={styles.toggleText}>
-                    {showPassword ? 'Show' : 'Hide'}
-                  </Text>
-                </TouchableOpacity>
+                {!!error && <Text style={styles.error}>{error}</Text>}
+
+                <Button onPress={handleLogin} title="Sign In" loading={isLoading} disabled={isLoading} fullWidth />
               </View>
-            </View>
+            </Card>
+          </Animated.View>
 
-            {/* Error Message */}
-            {error && (
-              <Animated.View
-                style={styles.errorContainer}
-                entering={FadeIn}
-              >
-                <Text style={styles.errorText}>{error}</Text>
-              </Animated.View>
-            )}
-
-            {/* Login Button */}
-            <Button
-              onPress={handleLogin}
-              title="Sign In"
-              variant="primary"
-              loading={isLoading}
-              disabled={isLoading}
-              fullWidth
-              style={styles.button}
-            />
-
-            {/* Forgot Password Link */}
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+          <Animated.View style={styles.registerRow} entering={FadeIn.delay(120)}>
+            <Text style={styles.registerText}>New here?</Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+              <Text style={styles.registerLink}>Create account</Text>
             </TouchableOpacity>
-          </Card>
-        </Animated.View>
-
-        {/* Register Link */}
-        <Animated.View style={styles.registerContainer} entering={FadeIn}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.registerLink}>Sign Up</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111226',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
   },
   header: {
-    marginBottom: 40,
-    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
-  logo: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#fbbf24',
-    letterSpacing: 1,
-    marginBottom: 8,
+  eyebrow: {
+    color: colors.accentGold,
+    fontSize: typography.caption.fontSize,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    fontWeight: '300',
+  title: {
+    color: colors.textPrimary,
+    fontSize: typography.h1.fontSize,
+    lineHeight: typography.h1.lineHeight,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  caption: {
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
   },
   formContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
-  inputGroup: {
-    marginBottom: 20,
+  formStack: {
+    gap: spacing.md,
   },
-  label: {
-    fontSize: 14,
+  error: {
+    color: colors.danger,
+    fontSize: typography.bodySm.fontSize,
     fontWeight: '600',
-    color: '#e2e8f0',
-    marginBottom: 8,
-    letterSpacing: 0.3,
   },
-  input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 14,
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 14,
-  },
-  toggleText: {
-    fontSize: 16,
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  button: {
-    marginBottom: 16,
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  forgotText: {
-    color: '#fbbf24',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  registerContainer: {
+  registerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.xs,
   },
   registerText: {
-    color: '#94a3b8',
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
   },
   registerLink: {
-    color: '#fbbf24',
-    fontSize: 14,
-    fontWeight: '600',
+    color: colors.accentTeal,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '700',
   },
 });
 
 export default LoginScreen;
-

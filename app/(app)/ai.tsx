@@ -1,19 +1,19 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAppStore } from '@store/appStore';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Card from '@components/Card';
-import Button from '@components/Button';
+import ScreenBackground from '@components/ScreenBackground';
+import { colors, radius, spacing, typography } from '../../lib/theme';
 
 type ChatMessage = {
   id: string;
@@ -26,8 +26,8 @@ const AIChatScreen = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      role: 'assistant' as const,
-      content: 'Hello! I\'m Visionary AI. How can I help you today with scripture, spiritual guidance, or church matters?',
+      role: 'assistant',
+      content: 'Welcome to Visionary AI. Ask for scripture, prayer direction, or leadership insight.',
       timestamp: new Date(),
     },
   ]);
@@ -37,9 +37,9 @@ const AIChatScreen = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    const userMessage = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      role: 'user' as const,
+      role: 'user',
       content: inputValue,
       timestamp: new Date(),
     };
@@ -48,307 +48,177 @@ const AIChatScreen = () => {
     setInputValue('');
     setIsLoading(true);
 
-    // Simulate API response
     setTimeout(() => {
       const responses = [
-        'That\'s a great question! Let me share some insights...',
-        'I found several scriptures related to that topic. Would you like me to share them?',
-        'That\'s important. Here\'s what I think might help...',
+        'Consider James 1:5 and pray with expectation for wisdom before your next step.',
+        'Try this reflection: where can you practice love in action today within your community?',
+        'I recommend beginning with gratitude, then asking for clarity and courage in service.',
       ];
 
-      const aiMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-assistant`,
+          role: 'assistant',
+          content: responses[Math.floor(Math.random() * responses.length)],
+          timestamp: new Date(),
+        },
+      ]);
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
   };
 
-  const quickQuestions = [
-    '[Scripture] Share a scripture about faith',
-    '[Strength] How to overcome challenges',
-    '[Prayer] Prayer for today',
-    '[Community] Serving the community',
-  ];
-
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn}>
-          <Text style={styles.title}>Visionary AI</Text>
-          <Text style={styles.subtitle}>Your Spiritual Guide</Text>
-        </Animated.View>
+    <ScreenBackground>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.header}>
+          <Text style={styles.title}>AI Assistant</Text>
+          <Text style={styles.subtitle}>Scripture-led guidance for your daily walk</Text>
+        </View>
 
-        {/* Messages */}
-        <ScrollView
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.length === 1 && (
-            <Animated.View
-              style={styles.quickQuestionsSection}
-              entering={SlideInUp}
-            >
-              <Text style={styles.quickTitle}>Quick Questions</Text>
-              <View style={styles.quickButtonsGrid}>
-                {quickQuestions.map((question, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.quickButton}
-                    onPress={() => {
-                      setInputValue(question);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Card variant="outlined" animated={false}>
-                      <Text style={styles.quickButtonText}>{question}</Text>
-                    </Card>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {messages.map((message, index) => (
+        <ScrollView style={styles.messages} contentContainerStyle={styles.messagesContent} showsVerticalScrollIndicator={false}>
+          {messages.map((message) => (
             <Animated.View
               key={message.id}
-              style={[
-                styles.messageWrapper,
-                message.role === 'user'
-                  ? styles.userMessageWrapper
-                  : styles.assistantMessageWrapper,
-              ]}
-              entering={FadeIn}
+              entering={FadeIn.duration(220)}
+              style={[styles.bubbleWrap, message.role === 'user' ? styles.userWrap : styles.assistantWrap]}
             >
               <Card
-                variant={
-                  message.role === 'user'
-                    ? 'default'
-                    : 'outlined'
-                }
-                animated={false}
+                padding="md"
+                blurVariant={message.role === 'user' ? 'strong' : 'soft'}
+                style={message.role === 'user' ? styles.userBubble : styles.assistantBubble}
               >
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.role === 'user'
-                      ? styles.userMessageText
-                      : styles.assistantMessageText,
-                  ]}
-                >
-                  {message.content}
-                </Text>
-                <Text style={styles.messageTime}>
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
+                {message.role === 'assistant' && <Text style={styles.scriptureTag}>Guided Response</Text>}
+                <Text style={styles.messageText}>{message.content}</Text>
               </Card>
             </Animated.View>
           ))}
 
           {isLoading && (
-            <Animated.View
-              style={styles.typingIndicator}
-              entering={FadeIn}
-            >
-              <Card variant="outlined" animated={false}>
-                <View style={styles.typingDots}>
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
-                </View>
-              </Card>
-            </Animated.View>
+            <Card padding="sm" blurVariant="soft" style={styles.loadingBubble}>
+              <Text style={styles.loadingText}>Composing a reflective response...</Text>
+            </Card>
           )}
         </ScrollView>
 
-        {/* Input */}
-        <Animated.View
-          style={styles.inputContainer}
-          entering={SlideInUp}
-        >
-          <View style={styles.inputWrapper}>
+        <View style={styles.composer}>
+          <View style={styles.composerInner}>
             <TextInput
               style={styles.input}
-              placeholder="Ask me anything..."
-              placeholderTextColor="#64748b"
               value={inputValue}
               onChangeText={setInputValue}
+              placeholder="Ask about faith, prayer, community..."
+              placeholderTextColor={colors.textMuted}
               multiline
               maxLength={500}
               editable={!isLoading}
             />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!inputValue.trim() || isLoading) && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
-            >
-              <Text style={styles.sendIcon}>{'>'}</Text>
+            <TouchableOpacity style={[styles.send, (!inputValue.trim() || isLoading) && styles.sendDisabled]} onPress={handleSendMessage} disabled={!inputValue.trim() || isLoading}>
+              <MaterialCommunityIcons name="send" size={17} color={colors.background} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.disclaimerText}>
-            AI responses are powered by scripture and church wisdom
-          </Text>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111226',
-  },
-  keyboardView: {
-    flex: 1,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomColor: '#2d3a5a',
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   title: {
-    fontSize: 20,
+    color: colors.textPrimary,
+    fontSize: typography.h2.fontSize,
+    lineHeight: typography.h2.lineHeight,
     fontWeight: '700',
-    color: '#fff',
   },
   subtitle: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
   },
-  messagesContainer: {
+  messages: {
     flex: 1,
   },
-  messagesList: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  messagesContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
-  quickQuestionsSection: {
-    marginBottom: 24,
+  bubbleWrap: {
+    maxWidth: '88%',
   },
-  quickTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#e2e8f0',
-    marginBottom: 12,
-    letterSpacing: 0.3,
-  },
-  quickButtonsGrid: {
-    gap: 8,
-  },
-  quickButton: {
-    marginBottom: 4,
-  },
-  quickButtonText: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    fontWeight: '500',
-  },
-  messageWrapper: {
-    marginVertical: 8,
-    maxWidth: '85%',
-  },
-  userMessageWrapper: {
+  userWrap: {
     alignSelf: 'flex-end',
   },
-  assistantMessageWrapper: {
+  assistantWrap: {
     alignSelf: 'flex-start',
+  },
+  userBubble: {
+    backgroundColor: 'rgba(121,168,255,0.25)',
+    borderColor: 'rgba(121,168,255,0.4)',
+  },
+  assistantBubble: {
+    backgroundColor: 'rgba(255,255,255,0.09)',
+  },
+  scriptureTag: {
+    color: colors.accentGold,
+    fontSize: typography.caption.fontSize,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   messageText: {
-    fontSize: 14,
-    lineHeight: 20,
+    color: colors.textPrimary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
   },
-  userMessageText: {
-    color: '#fff',
-  },
-  assistantMessageText: {
-    color: '#cbd5e1',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 8,
-    fontWeight: '400',
-  },
-  typingIndicator: {
-    marginVertical: 8,
-    maxWidth: '50%',
+  loadingBubble: {
     alignSelf: 'flex-start',
   },
-  typingDots: {
-    flexDirection: 'row',
-    gap: 4,
-    paddingVertical: 8,
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: typography.bodySm.fontSize,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fbbf24',
+  composer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 102,
+    paddingTop: spacing.sm,
   },
-  inputContainer: {
-    borderTopColor: '#2d3a5a',
-    borderTopWidth: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  inputWrapper: {
+  composerInner: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: spacing.xs,
   },
   input: {
     flex: 1,
-    color: '#fff',
-    fontSize: 14,
-    maxHeight: 100,
-    paddingVertical: 8,
+    color: colors.textPrimary,
+    maxHeight: 110,
+    paddingVertical: spacing.xs,
+    fontSize: typography.body.fontSize,
   },
-  sendButton: {
+  send: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#fbbf24',
-    justifyContent: 'center',
+    backgroundColor: colors.accentTeal,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: '#64748b',
-    opacity: 0.5,
-  },
-  sendIcon: {
-    fontSize: 16,
-    color: '#111226',
-    fontWeight: '700',
-  },
-  disclaimerText: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 8,
-    fontStyle: 'italic',
+  sendDisabled: {
+    opacity: 0.4,
   },
 });
 

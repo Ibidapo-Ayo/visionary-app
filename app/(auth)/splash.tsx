@@ -1,143 +1,103 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
+  Extrapolation,
   interpolate,
-  Extrapolate,
   runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { useAuthStore } from '@store/authStore';
 import { useAppStore } from '@store/appStore';
+import ScreenBackground from '../../components/ScreenBackground';
+import { colors, spacing, typography } from '../../lib/theme';
 
 const SplashScreen = () => {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isOnboardingComplete = useAppStore((state) => state.isOnboardingComplete);
-  const animationProgress = useSharedValue(0);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    animationProgress.value = withTiming(1, { duration: 3000 }, () => {
-      runOnJS(handleNavigate)();
-    });
+    progress.value = withTiming(1, { duration: 2600 }, () => runOnJS(navigate)());
   }, []);
 
-  const handleNavigate = () => {
+  const navigate = () => {
     if (isAuthenticated) {
       router.replace('/(app)/home');
-    } else if (isOnboardingComplete) {
-      router.replace('/(auth)/login');
-    } else {
-      router.replace('/(auth)/onboarding');
+      return;
     }
+    if (isOnboardingComplete) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    router.replace('/(auth)/onboarding');
   };
 
-  const textAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      animationProgress.value,
-      [0, 0.3, 1],
-      [0, 1, 1],
-      Extrapolate.CLAMP
-    );
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.35, 1], [0, 1, 1], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.9, 1.04], Extrapolation.CLAMP) }],
+  }));
 
-    return {
-      opacity,
-    };
-  });
-
-  const glowAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      animationProgress.value,
-      [0, 1],
-      [0.8, 1.1],
-      Extrapolate.CLAMP
-    );
-    const opacity = interpolate(
-      animationProgress.value,
-      [0, 0.5, 1],
-      [0.3, 0.6, 0.3],
-      Extrapolate.CLAMP
-    );
-
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  });
+  const captionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0.2, 0.8], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(progress.value, [0, 1], [10, 0], Extrapolation.CLAMP) }],
+  }));
 
   return (
-    <View style={styles.container} className="bg-[#111226]">
-      {/* Glow effect background */}
-      <Animated.View style={[styles.glow, glowAnimatedStyle]} />
-
-      {/* Logo & Text */}
-      <Animated.View
-        style={[styles.content, textAnimatedStyle]}
-      >
-        <Text style={styles.title}>VISIONARY</Text>
-        <Text style={styles.subtitle} className="text-slate-400">
-          Ministry Operating System
-        </Text>
-      </Animated.View>
-
-      {/* Loading indicator */}
-      <Animated.View style={[styles.dots, textAnimatedStyle]}>
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-      </Animated.View>
-    </View>
+    <ScreenBackground>
+      <View style={styles.container}>
+        <Animated.View style={[styles.logoWrap, logoStyle]}>
+          <Text style={styles.logo}>VISIONARY</Text>
+          <Text style={styles.tagline}>A living digital spiritual ecosystem</Text>
+        </Animated.View>
+        <Animated.View style={[styles.footer, captionStyle]}>
+          <Text style={styles.footerText}>Centering your community experience...</Text>
+        </Animated.View>
+      </View>
+    </ScreenBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111226',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
   },
-  glow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    top: '50%',
-    left: '50%',
-    marginLeft: -150,
-    marginTop: -150,
-  },
-  content: {
+  logoWrap: {
+    marginTop: '48%',
     alignItems: 'center',
-    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: '#fbbf24',
+  logo: {
+    color: colors.textPrimary,
+    fontSize: typography.display.fontSize,
+    lineHeight: typography.display.lineHeight,
+    fontWeight: '800',
     letterSpacing: 2,
-    marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    letterSpacing: 0.5,
-    fontWeight: '300',
+  tagline: {
+    marginTop: spacing.xs,
+    color: colors.accentGold,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: '600',
   },
-  dots: {
-    position: 'absolute',
-    bottom: 60,
-    flexDirection: 'row',
-    gap: 8,
+  footer: {
+    alignItems: 'center',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fbbf24',
+  footerText: {
+    color: colors.textMuted,
+    fontSize: typography.bodySm.fontSize,
   },
 });
 
