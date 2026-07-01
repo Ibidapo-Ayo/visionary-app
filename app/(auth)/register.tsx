@@ -1,173 +1,145 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAuthStore } from '@store/authStore';
-import Button from '@components/Button';
-import Card from '@components/Card';
-import GlassInput from '@components/GlassInput';
-import ScreenBackground from '@components/ScreenBackground';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Mail, Phone, User } from 'lucide-react-native';
 import { z } from 'zod';
-import { colors, spacing, typography } from '../../lib/theme';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
+import { useAuthStore } from '@store/authStore';
+import AuthScaffold from '@components/auth/AuthScaffold';
+import AuthTopBar from '@components/auth/AuthTopBar';
+import Button from '@components/auth/Button';
+import PasswordField from '@components/auth/PasswordField';
+import PasswordRequirementCard from '@components/auth/PasswordRequirementCard';
+import SectionHeader from '@components/auth/SectionHeader';
+import SocialButton from '@components/auth/SocialButton';
+import TextField from '@components/auth/TextField';
 
 const registrationSchema = z
   .object({
-    firstName: z.string().min(2, 'First name required'),
-    lastName: z.string().min(2, 'Last name required'),
-    email: z.string().email('Valid email required'),
-    phone: z.string().min(10, 'Valid phone required'),
-    password: z.string().min(6, 'Password must be 6+ characters'),
-    confirmPassword: z.string(),
+    fullName: z.string().min(2, 'Full name is required'),
+    email: z.string().email('A valid email is required'),
+    phone: z.string().min(10, 'A valid phone is required'),
+    password: z
+      .string()
+      .min(8, 'At least 8 characters')
+      .regex(/[A-Z]/, 'Requires one uppercase letter')
+      .regex(/[0-9]/, 'Requires one number'),
   })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  });
+  .strict();
 
 type RegistrationData = z.infer<typeof registrationSchema>;
-type RegistrationErrors = Partial<Record<keyof RegistrationData, string>>;
 
 const RegisterScreen = () => {
   const router = useRouter();
   const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegistrationData>({
+    resolver: zodResolver(registrationSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+    },
   });
 
-  const [errors, setErrors] = useState<RegistrationErrors>({});
-  const [generalError, setGeneralError] = useState('');
-
-  const updateField = (field: keyof RegistrationData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleRegister = async () => {
-    setErrors({});
-    setGeneralError('');
-
-    try {
-      const validatedData = registrationSchema.parse(formData);
-      await register(validatedData);
-      router.replace('/(app)/home');
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        const nextErrors: RegistrationErrors = {};
-        err.errors.forEach((issue) => {
-          const key = issue.path[0] as keyof RegistrationData;
-          nextErrors[key] = issue.message;
-        });
-        setErrors(nextErrors);
-        return;
-      }
-      setGeneralError(err.message || 'Registration failed. Please try again.');
-    }
+  const handleRegister = async (values: RegistrationData) => {
+    const names = values.fullName.trim().split(' ');
+    await register({
+      firstName: names[0] ?? values.fullName,
+      lastName: names.slice(1).join(' ') || 'Member',
+      email: values.email,
+      phone: values.phone,
+      password: values.password,
+    });
+    router.replace('/(auth)/login-success');
   };
 
   return (
-    <ScreenBackground>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Animated.View style={styles.header} entering={FadeIn}>
-            <Text style={styles.eyebrow}>Join Visionary</Text>
-            <Text style={styles.title}>Create your ministry identity</Text>
-            <Text style={styles.caption}>We’ll personalize your spiritual dashboard in a few secure steps.</Text>
-          </Animated.View>
+    <AuthScaffold>
+      <AuthTopBar />
 
-          <Animated.View style={styles.formContainer} entering={SlideInUp.duration(300)}>
-            <Card variant="elevated" blurVariant="strong" padding="lg">
-              <View style={styles.formGrid}>
-                <GlassInput label="First name" placeholder="John" value={formData.firstName} onChangeText={(v) => updateField('firstName', v)} error={errors.firstName} editable={!isLoading} />
-                <GlassInput label="Last name" placeholder="Doe" value={formData.lastName} onChangeText={(v) => updateField('lastName', v)} error={errors.lastName} editable={!isLoading} />
-                <GlassInput label="Email" placeholder="you@example.com" value={formData.email} onChangeText={(v) => updateField('email', v)} error={errors.email} editable={!isLoading} autoCapitalize="none" keyboardType="email-address" />
-                <GlassInput label="Phone" placeholder="+1 (555) 123-4567" value={formData.phone} onChangeText={(v) => updateField('phone', v)} error={errors.phone} editable={!isLoading} keyboardType="phone-pad" />
-                <GlassInput label="Password" placeholder="••••••••" value={formData.password} onChangeText={(v) => updateField('password', v)} error={errors.password} editable={!isLoading} secureTextEntry />
-                <GlassInput label="Confirm password" placeholder="••••••••" value={formData.confirmPassword} onChangeText={(v) => updateField('confirmPassword', v)} error={errors.confirmPassword} editable={!isLoading} secureTextEntry />
+      <SectionHeader title="Create Account" subtitle="Let&apos;s get you started on your spiritual journey." />
 
-                {!!generalError && <Text style={styles.error}>{generalError}</Text>}
-                <Button onPress={handleRegister} title="Create Account" loading={isLoading} disabled={isLoading} fullWidth />
-              </View>
-            </Card>
-          </Animated.View>
+      <Animated.View entering={FadeInDown.delay(80)} className="mt-8 gap-4">
+        <Controller
+          control={control}
+          name="fullName"
+          render={({ field: { onChange, value } }) => (
+            <TextField value={value} onChangeText={onChange} placeholder="Full Name" icon={User} error={errors.fullName?.message} />
+          )}
+        />
 
-          <Animated.View style={styles.footer} entering={FadeIn.delay(120)}>
-            <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-              <Text style={styles.footerLink}>Sign in</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ScreenBackground>
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Email Address"
+              icon={Mail}
+              keyboardType="email-address"
+              error={errors.email?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="phone"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Phone Number"
+              icon={Phone}
+              keyboardType="phone-pad"
+              error={errors.phone?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <PasswordField value={value} onChangeText={onChange} placeholder="Password" error={errors.password?.message} />
+          )}
+        />
+
+        <PasswordRequirementCard />
+
+        <Button label="Sign Up" onPress={handleSubmit(handleRegister)} iconRight disabled={isLoading} />
+      </Animated.View>
+
+      <View className="mt-7 flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+        <Text className="text-[13px] text-[#B7B7B7]">or continue with</Text>
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+      </View>
+
+      <Animated.View entering={FadeInDown.delay(120)} className="mt-5 flex-row items-center justify-center gap-3">
+        <SocialButton brand="apple" />
+        <SocialButton brand="google" />
+        <SocialButton brand="facebook" />
+      </Animated.View>
+
+      <View className="mt-8 flex-row items-center justify-center gap-1.5">
+        <Text className="text-[13px] text-[#B7B7B7]">Already have an account?</Text>
+        <Pressable onPress={() => router.replace('/(auth)/login')}>
+          <Text className="text-[13px] font-semibold text-[#FF7A00]">Sign In</Text>
+        </Pressable>
+      </View>
+    </AuthScaffold>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-  },
-  header: {
-    marginBottom: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.accentGold,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: typography.h1.fontSize,
-    lineHeight: typography.h1.lineHeight,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  caption: {
-    color: colors.textSecondary,
-    fontSize: typography.body.fontSize,
-    lineHeight: typography.body.lineHeight,
-  },
-  formContainer: {
-    marginBottom: spacing.md,
-  },
-  formGrid: {
-    gap: spacing.sm,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginVertical: spacing.md,
-  },
-  footerText: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-  footerLink: {
-    color: colors.accentTeal,
-    fontWeight: '700',
-    fontSize: typography.bodySm.fontSize,
-  },
-});
 
 export default RegisterScreen;

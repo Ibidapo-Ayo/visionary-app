@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import Card from '@components/Card';
 import Button from '@components/Button';
-import { colors, radius, spacing, typography } from '../../lib/theme';
+import { colors } from '../../lib/theme';
 
 const ScanScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
@@ -31,10 +31,10 @@ const ScanScreen = () => {
 
   if (!permission || !permission.granted) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionWrap}>
-          <Text style={styles.permissionTitle}>Camera access needed</Text>
-          <Text style={styles.permissionBody}>Enable camera permission for fast, touchless check-in.</Text>
+      <SafeAreaView className="flex-1 bg-[#EEF4F0]">
+        <View className="flex-1 items-center justify-center gap-[18px] px-9">
+          <Text className="text-center text-[26px] font-extrabold text-black">Camera access needed</Text>
+          <Text className="text-center text-[16px] leading-6 text-[#718078]">Enable camera permission for fast, touchless check-in.</Text>
           <Button title="Allow Camera" onPress={requestPermission} />
         </View>
       </SafeAreaView>
@@ -42,39 +42,39 @@ const ScanScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-[#EEF4F0]">
       {!scanned ? (
         <>
           <CameraView
-            style={styles.camera}
+            style={{ flex: 1 }}
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
           >
-            <View style={styles.overlay}>
-              <View style={styles.frame} />
-              <Text style={styles.helper}>Align the QR code inside the frame</Text>
+            <View className="flex-1 items-center justify-center bg-[rgba(0,0,0,0.35)]">
+              <View className="h-[260px] w-[260px] rounded-3xl border-2 border-[#FF6B09] bg-[rgba(255,107,9,0.08)]" />
+              <Text className="mt-[18px] text-[14px] font-semibold text-white">Align QR in frame</Text>
             </View>
           </CameraView>
-          <View style={styles.toolbar}>
-            <TouchableOpacity style={styles.toolButton}>
-              <Feather name="zap" color={colors.textPrimary} size={20} />
+          <View className="absolute bottom-[102px] right-7">
+            <TouchableOpacity className="h-[46px] w-[46px] items-center justify-center rounded-full border border-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.18)]">
+              <Feather name="aperture" color={colors.textPrimary} size={20} />
             </TouchableOpacity>
           </View>
         </>
       ) : (
-        <Animated.View entering={FadeIn} style={styles.resultWrap}>
+        <Animated.View entering={FadeIn} className="flex-1 items-center justify-center px-7">
           {isProcessing ? (
-            <View style={styles.processing}>
+            <View className="items-center gap-[14px]">
               <ActivityIndicator size="large" color={colors.accentGreen} />
-              <Text style={styles.processingText}>Validating attendance...</Text>
+              <Text className="text-[16px] text-[#718078]">Validating attendance...</Text>
             </View>
           ) : (
-            <Card variant="elevated" blurVariant="strong" padding="lg" style={styles.resultCard}>
+            <Card variant="elevated" blurVariant="strong" padding="lg" style={{ width: '100%', alignItems: 'center', gap: 8 }}>
               <Feather name="check-circle" color={colors.success} size={54} />
-              <Text style={styles.successTitle}>Check-in complete</Text>
-              <Text style={styles.resultLine}>Event: {scannedData.eventName}</Text>
-              <Text style={styles.resultLine}>Time: {scannedData.timestamp}</Text>
-              <Text style={styles.resultPoints}>+{scannedData.points} engagement points</Text>
+              <Text className="text-[26px] font-extrabold text-black">Check-in complete</Text>
+              <Text className="text-[16px] text-[#718078]">Event: {scannedData.eventName}</Text>
+              <Text className="text-[16px] text-[#718078]">Time: {scannedData.timestamp}</Text>
+              <Text className="mb-[14px] text-[14px] font-bold text-[#FF6B09]">+{scannedData.points} engagement points</Text>
               <Button title="Scan Another" onPress={reset} fullWidth />
             </Card>
           )}
@@ -83,102 +83,5 @@ const ScanScreen = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  permissionWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
-  },
-  permissionTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.h2.fontSize,
-    fontWeight: '700',
-  },
-  permissionBody: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontSize: typography.body.fontSize,
-    lineHeight: typography.body.lineHeight,
-  },
-  camera: {
-    flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(5,5,5,0.45)',
-  },
-  frame: {
-    width: 260,
-    height: 260,
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: colors.primaryStrong,
-    backgroundColor: 'rgba(255,122,26,0.12)',
-  },
-  helper: {
-    marginTop: spacing.md,
-    color: colors.textPrimary,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '600',
-  },
-  toolbar: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: 102,
-  },
-  toolButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  resultWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  processing: {
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  processingText: {
-    color: colors.textSecondary,
-    fontSize: typography.body.fontSize,
-  },
-  resultCard: {
-    width: '100%',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  successTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.h2.fontSize,
-    fontWeight: '700',
-  },
-  resultLine: {
-    color: colors.textSecondary,
-    fontSize: typography.body.fontSize,
-  },
-  resultPoints: {
-    color: colors.primaryStrong,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-});
 
 export default ScanScreen;

@@ -56,7 +56,7 @@ const ScreenBackground = ({ children, style }: ScreenBackgroundProps) => {
         key: `particle-${index}`,
         top: 70 + index * 72,
         left: index % 2 === 0 ? `${8 + index * 8}%` : `${56 - index * 2}%`,
-        size: index % 3 === 0 ? 4 : 3,
+        size: index % 3 === 0 ? 5 : 4,
       })),
     []
   );
@@ -91,28 +91,28 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(5,5,5,0.56)',
+    backgroundColor: 'rgba(255,255,255,0.82)',
   },
   orbOne: {
     position: 'absolute',
-    width: 320,
-    height: 320,
+    width: 340,
+    height: 340,
     borderRadius: 220,
-    top: -80,
-    right: -90,
+    top: -120,
+    right: -110,
   },
   orbTwo: {
     position: 'absolute',
-    width: 270,
-    height: 270,
+    width: 280,
+    height: 280,
     borderRadius: 200,
-    bottom: -90,
-    left: -80,
+    bottom: -110,
+    left: -90,
   },
   particle: {
     position: 'absolute',
     borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(10,147,54,0.12)',
   },
 });
 

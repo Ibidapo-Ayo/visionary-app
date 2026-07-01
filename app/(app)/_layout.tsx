@@ -1,14 +1,14 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { colors, radius, spacing, typography } from '../../lib/theme';
+import { colors, spacing } from '../../lib/theme';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
-  home: 'home',
-  scan: 'maximize',
-  ai: 'message-square',
+  home: 'grid',
+  scan: 'camera',
+  ai: 'star',
   members: 'users',
   profile: 'user',
 };
@@ -17,7 +17,7 @@ const labelMap: Record<string, string> = {
   home: 'Home',
   scan: 'Scan',
   ai: 'AI',
-  members: 'Events',
+  members: 'People',
   profile: 'Profile',
 };
 
@@ -43,9 +43,10 @@ const TabIcon = ({
   }));
 
   return (
-    <Animated.View style={[styles.iconShell, focused && styles.iconShellActive, animStyle]}>
-      <Feather name={icon} size={19} color={focused ? colors.primaryStrong : colors.textMuted} />
-      <Text style={[styles.iconLabel, focused && styles.iconLabelActive]}>{label}</Text>
+    <Animated.View style={animStyle} className="min-w-[58px] items-center justify-center gap-1 rounded-[18px] px-2 py-2">
+      <Feather name={icon} size={18} color={focused ? colors.accentOrange : '#DBF6E5'} />
+      <Text className={`text-[11px] font-semibold ${focused ? 'text-[#FF6B09]' : 'text-[#DBF6E5]'}`}>{label}</Text>
+      {focused ? <View className="mt-0.5 h-[3px] w-[18px] rounded-full bg-[#FF6B09]" /> : null}
     </Animated.View>
   );
 };
@@ -55,10 +56,26 @@ const AppLayout = () => {
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.hidden,
+        tabBarStyle: {
+          position: 'absolute',
+          left: spacing.md,
+          right: spacing.md,
+          bottom: spacing.md,
+          height: 84,
+          borderRadius: 24,
+          paddingVertical: spacing.xs,
+          backgroundColor: colors.primary,
+          borderWidth: 1,
+          borderColor: 'rgba(10,147,54,0.38)',
+          shadowColor: '#065A22',
+          shadowOpacity: 0.22,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 8,
+        },
+        tabBarLabelStyle: { display: 'none' },
         tabBarShowLabel: false,
-        tabBarItemStyle: styles.tabItem,
+        tabBarItemStyle: { paddingVertical: 2 },
         tabBarActiveTintColor: colors.primaryStrong,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: ({ focused }) => <TabIcon focused={focused} icon={iconMap[route.name]} label={labelMap[route.name]} />,
@@ -67,52 +84,10 @@ const AppLayout = () => {
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
       <Tabs.Screen name="ai" options={{ title: 'AI' }} />
-      <Tabs.Screen name="members" options={{ title: 'Events' }} />
+      <Tabs.Screen name="members" options={{ title: 'People' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 };
-
-const styles = StyleSheet.create({
-  tabBar: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    height: 82,
-    borderRadius: radius.xl,
-    paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(20,18,15,0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,122,26,0.22)',
-  },
-  tabItem: {
-    paddingVertical: 2,
-  },
-  hidden: {
-    display: 'none',
-    fontSize: typography.caption.fontSize,
-  },
-  iconShell: {
-    minWidth: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-  },
-  iconShellActive: {
-    backgroundColor: 'rgba(255,122,26,0.14)',
-  },
-  iconLabel: {
-    color: colors.textMuted,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '600',
-  },
-  iconLabelActive: {
-    color: colors.primaryStrong,
-  },
-});
 
 export default AppLayout;

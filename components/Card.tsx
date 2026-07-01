@@ -69,10 +69,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundElevated,
   },
   blur_soft: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.92)',
   },
   blur_strong: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#FFFFFF',
   },
   card_default: {
     borderColor: colors.borderSoft,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   card_elevated: {
-    borderColor: 'rgba(255,122,26,0.3)',
+    borderColor: 'rgba(10,147,54,0.24)',
     ...shadows.strong,
   },
 });

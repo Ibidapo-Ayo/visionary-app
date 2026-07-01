@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
+import { colors } from '../lib/theme';
 import 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
@@ -38,13 +39,13 @@ const RootLayout = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
         <Stack
           screenOptions={{
             headerShown: false,
             animation: 'ios_from_right',
-            contentStyle: { backgroundColor: '#060B1B' },
+            contentStyle: { backgroundColor: colors.background },
           }}
         >
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />

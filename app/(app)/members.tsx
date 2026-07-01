@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import Card from '../../components/Card';
-import Badge from '../../components/Badge';
-import ScreenBackground from '../../components/ScreenBackground';
-import { colors, radius, spacing, typography } from '../../lib/theme';
+import Card from '@components/Card';
+import Badge from '@components/Badge';
+import ScreenBackground from '@components/ScreenBackground';
+import { colors } from '../../lib/theme';
 import { mockEvents, mockMembers, MockMember } from '../../services/mockData';
 
 const statusFilters = ['all', 'new', 'active', 'at-risk', 'inactive'] as const;
@@ -21,16 +21,16 @@ const MembersScreen = () => {
 
   return (
     <ScreenBackground>
-      <View style={styles.container}>
-        <Animated.View entering={FadeIn} style={styles.header}>
-          <Text style={styles.title}>Community Discovery</Text>
-          <Text style={styles.subtitle}>Find gatherings, connect deeply, and track engagement in one flow.</Text>
+      <View className="flex-1 px-7 pb-[18px] pt-9">
+        <Animated.View entering={FadeIn.duration(280)} className="mb-[18px] mt-[18px]">
+          <Text className="text-[34px] font-extrabold leading-[42px] text-black">Community</Text>
+          <Text className="text-[14px] text-[#718078]">Events and people in one clean workspace.</Text>
         </Animated.View>
 
-        <View style={styles.modeRow}>
+        <View className="mb-[18px] flex-row rounded-[18px] border border-[#E5EEE8] bg-[#EAF3ED] p-1">
           {(['events', 'people'] as const).map((value) => (
-            <TouchableOpacity key={value} style={[styles.modeButton, mode === value && styles.modeButtonActive]} onPress={() => setMode(value)}>
-              <Text style={[styles.modeText, mode === value && styles.modeTextActive]}>{value === 'events' ? 'Events' : 'People'}</Text>
+            <TouchableOpacity key={value} className={`flex-1 items-center rounded-[14px] py-2 ${mode === value ? 'bg-[#D85A16]' : ''}`} onPress={() => setMode(value)}>
+              <Text className={`text-[14px] font-bold ${mode === value ? 'text-white' : 'text-[#718078]'}`}>{value === 'events' ? 'Events' : 'People'}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -39,28 +39,25 @@ const MembersScreen = () => {
           <FlatList
             data={mockEvents}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={{ paddingBottom: 140 }}
             renderItem={({ item }) => (
-              <Card padding="lg" blurVariant="strong" style={styles.listItem}>
-                <View style={styles.eventBanner}>
-                  <Feather name="calendar" size={16} color={colors.primaryStrong} />
-                  <Text style={styles.eventChip}>Featured Experience</Text>
+              <Card padding="md" blurVariant="strong" style={{ marginBottom: 14 }}>
+                <View className="mb-[14px] flex-row items-center justify-between">
+                  <Badge label="Featured" variant="primary" />
+                  <Feather name="arrow-up-right" size={15} color={colors.accentOrange} />
                 </View>
-                <Text style={styles.eventTitle}>{item.title}</Text>
-                <Text style={styles.eventMeta}>{item.time} • {item.location}</Text>
-                <View style={styles.eventActionRow}>
-                  <Badge label="Register" variant="info" />
-                  <Feather name="arrow-right" size={18} color={colors.textSecondary} />
-                </View>
+                <Text className="text-[20px] font-bold leading-7 text-black">{item.title}</Text>
+                <Text className="mt-0.5 text-[14px] text-[#718078]">{item.time}</Text>
+                <Text className="mt-0.5 text-[14px] text-[#718078]">{item.location}</Text>
               </Card>
             )}
           />
         ) : (
           <>
-            <View style={styles.filterRow}>
+            <View className="mb-[14px] flex-row flex-wrap gap-2">
               {statusFilters.map((status) => (
-                <TouchableOpacity key={status} style={[styles.filterChip, filter === status && styles.filterChipActive]} onPress={() => setFilter(status)}>
-                  <Text style={[styles.filterText, filter === status && styles.filterTextActive]}>{status === 'all' ? 'All' : status}</Text>
+                <TouchableOpacity key={status} className={`rounded-full border px-[14px] py-1.5 ${filter === status ? 'border-[#FF6B09] bg-[rgba(255,107,9,0.1)]' : 'border-[#D5E1D8] bg-white'}`} onPress={() => setFilter(status)}>
+                  <Text className={`text-[11px] font-bold capitalize ${filter === status ? 'text-[#FF6B09]' : 'text-[#718078]'}`}>{status === 'all' ? 'All' : status}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -68,16 +65,16 @@ const MembersScreen = () => {
             <FlatList
               data={filteredMembers}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={{ paddingBottom: 140 }}
               renderItem={({ item }) => (
-                <Card padding="md" blurVariant="soft" style={styles.listItem}>
-                  <View style={styles.memberRow}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
+                <Card padding="md" blurVariant="strong" style={{ marginBottom: 14 }}>
+                  <View className="flex-row items-center gap-[14px]">
+                    <View className="h-11 w-11 items-center justify-center rounded-full bg-[rgba(10,147,54,0.12)]">
+                      <Text className="font-bold text-[#A84413]">{item.name.charAt(0).toUpperCase()}</Text>
                     </View>
-                    <View style={styles.memberMeta}>
-                      <Text style={styles.memberName}>{item.name}</Text>
-                      <Text style={styles.memberEmail}>{item.email}</Text>
+                    <View className="flex-1">
+                      <Text className="text-[16px] font-bold text-black">{item.name}</Text>
+                      <Text className="text-[14px] text-[#718078]">{item.email}</Text>
                     </View>
                     <Badge label={item.status} variant={item.status === 'new' ? 'new' : item.status === 'at-risk' ? 'at-risk' : item.status === 'active' ? 'success' : 'default'} />
                   </View>
@@ -90,145 +87,5 @@ const MembersScreen = () => {
     </ScreenBackground>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-  },
-  header: {
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: typography.h1.fontSize,
-    lineHeight: typography.h1.lineHeight,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    padding: 4,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    marginBottom: spacing.md,
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-  },
-  modeButtonActive: {
-    backgroundColor: 'rgba(255,122,26,0.28)',
-  },
-  modeText: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  modeTextActive: {
-    color: colors.textPrimary,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  filterChipActive: {
-    backgroundColor: 'rgba(53,208,127,0.22)',
-    borderColor: 'rgba(53,208,127,0.45)',
-  },
-  filterText: {
-    color: colors.textSecondary,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  filterTextActive: {
-    color: colors.textPrimary,
-  },
-  listContent: {
-    paddingBottom: 140,
-  },
-  listItem: {
-    marginBottom: spacing.sm,
-  },
-  eventBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  eventChip: {
-    color: colors.primaryStrong,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  eventTitle: {
-    color: colors.textPrimary,
-    fontSize: typography.h3.fontSize,
-    lineHeight: typography.h3.lineHeight,
-    fontWeight: '700',
-    marginTop: spacing.sm,
-  },
-  eventMeta: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-    marginTop: 2,
-  },
-  eventActionRow: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,122,26,0.26)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-  memberMeta: {
-    flex: 1,
-  },
-  memberName: {
-    color: colors.textPrimary,
-    fontSize: typography.body.fontSize,
-    fontWeight: '700',
-  },
-  memberEmail: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-});
 
 export default MembersScreen;

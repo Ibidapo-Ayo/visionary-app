@@ -22,6 +22,7 @@ interface ButtonProps {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  gradientColors?: React.ComponentProps<typeof LinearGradient>['colors'];
 }
 
 const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, ButtonProps>(
@@ -37,6 +38,7 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
       textStyle,
       fullWidth = false,
       icon,
+      gradientColors = gradients.cta,
     },
     ref
   ) => {
@@ -61,16 +63,16 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
         style={[
           styles.base,
           styles[`button_${variant}`],
-          sizeStyle,
+          (!isGradient || loading) && sizeStyle,
           fullWidth && styles.fullWidth,
           (disabled || loading) && styles.disabled,
           style,
         ]}
       >
         {loading ? (
-          <ActivityIndicator color={variant === 'primary' ? '#1A120B' : colors.textPrimary} />
+          <ActivityIndicator color={variant === 'primary' ? colors.white : colors.textPrimary} />
         ) : isGradient ? (
-          <LinearGradient colors={gradients.cta} style={styles.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <LinearGradient colors={gradientColors} style={[styles.gradient, sizeStyle]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             {content}
           </LinearGradient>
         ) : (
@@ -92,8 +94,6 @@ const styles = StyleSheet.create({
   },
   gradient: {
     borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
   },
   content: {
     flexDirection: 'row',
@@ -106,33 +106,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   label_primary: {
-    color: '#1A120B',
+    color: colors.white,
   },
   label_secondary: {
-    color: colors.textPrimary,
+    color: colors.primaryStrong,
   },
   label_tertiary: {
     color: colors.textSecondary,
   },
   label_danger: {
-    color: '#FFEFEB',
+    color: colors.danger,
   },
   button_primary: {
     backgroundColor: 'transparent',
-    borderColor: 'rgba(255,122,26,0.55)',
+    borderColor: 'rgba(10,147,54,0.45)',
     ...shadows.glow,
   },
   button_secondary: {
-    backgroundColor: colors.surfaceStrong,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(10,147,54,0.1)',
+    borderColor: 'rgba(10,147,54,0.3)',
   },
   button_tertiary: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.borderSoft,
+    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
   },
   button_danger: {
-    backgroundColor: 'rgba(255,110,98,0.2)',
-    borderColor: 'rgba(255,110,98,0.45)',
+    backgroundColor: 'rgba(217,78,0,0.1)',
+    borderColor: 'rgba(217,78,0,0.3)',
   },
   button_sm: {
     paddingVertical: spacing.xs,

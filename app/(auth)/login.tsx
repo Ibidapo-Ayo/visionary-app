@@ -1,153 +1,110 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { Feather } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Mail } from 'lucide-react-native';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
 import { useAuthStore } from '@store/authStore';
-import Button from '@components/Button';
-import Card from '@components/Card';
-import GlassInput from '@components/GlassInput';
-import ScreenBackground from '@components/ScreenBackground';
-import { colors, spacing, typography } from '../../lib/theme';
+import AuthScaffold from '@components/auth/AuthScaffold';
+import AuthTopBar from '@components/auth/AuthTopBar';
+import Button from '@components/auth/Button';
+import PasswordField from '@components/auth/PasswordField';
+import SectionHeader from '@components/auth/SectionHeader';
+import SocialButton from '@components/auth/SocialButton';
+import TextField from '@components/auth/TextField';
+
+const signInSchema = z.object({
+  identity: z.string().min(1, 'Email or phone is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type SignInForm = z.infer<typeof signInSchema>;
 
 const LoginScreen = () => {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInForm>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      identity: '',
+      password: '',
+    },
+  });
 
-  const handleLogin = async () => {
-    setError('');
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    try {
-      await login(email, password);
-      router.replace('/(app)/home');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
-    }
+  const onSubmit = async (values: SignInForm) => {
+    await login(values.identity, values.password);
+    router.replace('/(auth)/login-success');
   };
 
   return (
-    <ScreenBackground>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Animated.View style={styles.header} entering={FadeIn}>
-            <Text style={styles.eyebrow}>Welcome back</Text>
-            <Text style={styles.title}>Step into your spiritual command center</Text>
-            <Text style={styles.caption}>Sign in to continue your journey with the Visionary community.</Text>
-          </Animated.View>
+    <AuthScaffold>
+      <AuthTopBar />
 
-          <Animated.View style={styles.formContainer} entering={SlideInUp.duration(280)}>
-            <Card variant="elevated" blurVariant="strong" padding="lg">
-              <View style={styles.formStack}>
-                <GlassInput
-                  label="Email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  editable={!isLoading}
-                />
-                <GlassInput
-                  label="Password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  editable={!isLoading}
-                  rightNode={(
-                    <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
-                      <Feather name={showPassword ? 'eye-off' : 'eye'} color={colors.textSecondary} size={18} />
-                    </TouchableOpacity>
-                  )}
-                />
-                {!!error && <Text style={styles.error}>{error}</Text>}
+      <SectionHeader title="Sign In" subtitle="Welcome back! Glad to have you again." />
 
-                <Button onPress={handleLogin} title="Sign In" loading={isLoading} disabled={isLoading} fullWidth />
-              </View>
-            </Card>
-          </Animated.View>
+      <Animated.View entering={FadeInDown.delay(80)} className="mt-8 gap-4">
+        <Controller
+          control={control}
+          name="identity"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Email or Phone Number"
+              icon={Mail}
+              error={errors.identity?.message}
+            />
+          )}
+        />
 
-          <Animated.View style={styles.registerRow} entering={FadeIn.delay(120)}>
-            <Text style={styles.registerText}>New here?</Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-              <Text style={styles.registerLink}>Create account</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ScreenBackground>
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <PasswordField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Password"
+              error={errors.password?.message}
+            />
+          )}
+        />
+
+        <Pressable onPress={() => router.push('/(auth)/forgot-password')} className="items-end">
+          <Text className="text-[13px] font-medium text-[#FF7A00]">Forgot Password?</Text>
+        </Pressable>
+
+        <Button label="Sign In" onPress={handleSubmit(onSubmit)} iconRight disabled={isLoading} />
+      </Animated.View>
+
+      <View className="mt-7 flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+        <Text className="text-[13px] text-[#B7B7B7]">or continue with</Text>
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+      </View>
+
+      <Animated.View entering={FadeInDown.delay(120)} className="mt-5 flex-row items-center justify-center gap-3">
+        <SocialButton brand="apple" />
+        <SocialButton brand="google" />
+        <SocialButton brand="facebook" />
+      </Animated.View>
+
+      <View className="mt-8 flex-row items-center justify-center gap-1.5">
+        <Text className="text-[13px] text-[#B7B7B7]">Don&apos;t have an account?</Text>
+        <Pressable onPress={() => router.push('/(auth)/register')}>
+          <Text className="text-[13px] font-semibold text-[#FF7A00]">Sign Up</Text>
+        </Pressable>
+      </View>
+    </AuthScaffold>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-  },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  eyebrow: {
-    color: colors.primaryStrong,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: typography.h1.fontSize,
-    lineHeight: typography.h1.lineHeight,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  caption: {
-    color: colors.textSecondary,
-    fontSize: typography.body.fontSize,
-    lineHeight: typography.body.lineHeight,
-  },
-  formContainer: {
-    marginBottom: spacing.lg,
-  },
-  formStack: {
-    gap: spacing.md,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '600',
-  },
-  registerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  registerText: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-  registerLink: {
-    color: colors.accentGreen,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '700',
-  },
-});
 
 export default LoginScreen;

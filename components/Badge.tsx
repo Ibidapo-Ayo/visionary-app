@@ -31,16 +31,16 @@ const styles = StyleSheet.create({
   },
   badge_default: { backgroundColor: colors.surfaceMuted, borderColor: colors.borderSoft },
   label_default: { color: colors.textSecondary },
-  badge_new: { backgroundColor: 'rgba(53,208,127,0.18)', borderColor: 'rgba(53,208,127,0.4)' },
+  badge_new: { backgroundColor: 'rgba(10,147,54,0.12)', borderColor: 'rgba(10,147,54,0.28)' },
   label_new: { color: colors.accentGreen },
-  'badge_at-risk': { backgroundColor: 'rgba(255,110,98,0.2)', borderColor: 'rgba(255,110,98,0.45)' },
+  'badge_at-risk': { backgroundColor: 'rgba(255,107,9,0.12)', borderColor: 'rgba(255,107,9,0.3)' },
   'label_at-risk': { color: colors.danger },
-  badge_success: { backgroundColor: 'rgba(53,208,127,0.2)', borderColor: 'rgba(53,208,127,0.4)' },
+  badge_success: { backgroundColor: 'rgba(10,147,54,0.12)', borderColor: 'rgba(10,147,54,0.28)' },
   label_success: { color: colors.success },
-  badge_info: { backgroundColor: 'rgba(255,122,26,0.2)', borderColor: 'rgba(255,122,26,0.46)' },
-  label_info: { color: colors.primaryStrong },
-  badge_primary: { backgroundColor: 'rgba(255,122,26,0.18)', borderColor: 'rgba(255,122,26,0.4)' },
-  label_primary: { color: colors.primary },
+  badge_info: { backgroundColor: 'rgba(255,107,9,0.12)', borderColor: 'rgba(255,107,9,0.32)' },
+  label_info: { color: colors.accentOrange },
+  badge_primary: { backgroundColor: 'rgba(10,147,54,0.12)', borderColor: 'rgba(10,147,54,0.28)' },
+  label_primary: { color: colors.primaryStrong },
 });
 
 export default Badge;

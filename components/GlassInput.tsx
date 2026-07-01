@@ -39,13 +39,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderColor: colors.borderSoft,
     borderWidth: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
   },
   inputShellError: {
-    borderColor: 'rgba(255,127,147,0.55)',
+    borderColor: 'rgba(217,78,0,0.45)',
   },
   input: {
     flex: 1,

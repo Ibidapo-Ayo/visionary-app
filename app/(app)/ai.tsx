@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -13,7 +12,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import Card from '@components/Card';
 import ScreenBackground from '@components/ScreenBackground';
-import { colors, radius, spacing, typography } from '../../lib/theme';
+import { colors } from '../../lib/theme';
 
 type ChatMessage = {
   id: string;
@@ -70,52 +69,54 @@ const AIChatScreen = () => {
 
   return (
     <ScreenBackground>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.header}>
-          <Text style={styles.title}>AI Assistant</Text>
-          <Text style={styles.subtitle}>Beautiful scripture-led conversations for your daily walk</Text>
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View className="px-7 pb-[14px] pt-9">
+          <Text className="text-[26px] font-extrabold leading-[34px] text-black">AI Assistant</Text>
+          <Text className="text-[14px] text-[#718078]">Ask, decide, and act faster.</Text>
         </View>
 
-        <ScrollView style={styles.messages} contentContainerStyle={styles.messagesContent} showsVerticalScrollIndicator={false}>
-          <Card padding="sm" blurVariant="soft" style={styles.promptCard}>
-            <Text style={styles.promptTitle}>Suggested prompts</Text>
-            <View style={styles.promptRow}>
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
+          <View className="gap-[14px] px-7">
+            <Card padding="sm" blurVariant="strong" style={{ marginBottom: 8 }}>
+              <Text className="mb-2 text-[11px] font-bold uppercase text-[#D85A16]">Suggested prompts</Text>
+              <View className="flex-row flex-wrap gap-2">
               {['Give me a prayer focus', 'Scripture for leadership', 'How do I serve better?'].map((prompt) => (
-                <TouchableOpacity key={prompt} style={styles.promptPill} onPress={() => setInputValue(prompt)}>
-                  <Text style={styles.promptText}>{prompt}</Text>
+                <TouchableOpacity key={prompt} className="rounded-full border border-[#D5E1D8] bg-[#F8FBF9] px-2.5 py-1.5" onPress={() => setInputValue(prompt)}>
+                  <Text className="text-[11px] font-semibold text-[#2D3A33]">{prompt}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
-          </Card>
-
-          {messages.map((message) => (
-            <Animated.View
-              key={message.id}
-              entering={FadeIn.duration(220)}
-              style={[styles.bubbleWrap, message.role === 'user' ? styles.userWrap : styles.assistantWrap]}
-            >
-              <Card
-                padding="md"
-                blurVariant={message.role === 'user' ? 'strong' : 'soft'}
-                style={message.role === 'user' ? styles.userBubble : styles.assistantBubble}
-              >
-                {message.role === 'assistant' && <Text style={styles.scriptureTag}>Guided Response</Text>}
-                <Text style={styles.messageText}>{message.content}</Text>
-              </Card>
-            </Animated.View>
-          ))}
-
-          {isLoading && (
-            <Card padding="sm" blurVariant="soft" style={styles.loadingBubble}>
-              <Text style={styles.loadingText}>Composing a reflective response...</Text>
+              </View>
             </Card>
-          )}
+
+            {messages.map((message) => (
+              <Animated.View
+                key={message.id}
+                entering={FadeIn.duration(220)}
+                className={`max-w-[88%] ${message.role === 'user' ? 'self-end' : 'self-start'}`}
+              >
+                <Card
+                  padding="md"
+                  blurVariant="strong"
+                  style={message.role === 'user' ? { backgroundColor: 'rgba(255,107,9,0.1)', borderColor: 'rgba(255,107,9,0.22)' } : { backgroundColor: '#FFFFFF' }}
+                >
+                  {message.role === 'assistant' && <Text className="mb-1 text-[11px] font-bold uppercase tracking-[0.5px] text-[#0A9336]">Guided Response</Text>}
+                  <Text className="text-[16px] leading-6 text-black">{message.content}</Text>
+                </Card>
+              </Animated.View>
+            ))}
+
+            {isLoading && (
+              <Card padding="sm" blurVariant="soft" style={{ alignSelf: 'flex-start' }}>
+                <Text className="text-[14px] text-[#718078]">Composing a reflective response...</Text>
+              </Card>
+            )}
+            </View>
         </ScrollView>
 
-        <View style={styles.composer}>
-          <View style={styles.composerInner}>
+        <View className="px-7 pb-[102px] pt-2">
+          <View className="flex-row items-end gap-2 rounded-3xl border border-[#D5E1D8] bg-white px-[14px] py-2">
             <TextInput
-              style={styles.input}
+              style={{ flex: 1, color: colors.black, maxHeight: 110, paddingVertical: 8, fontSize: 16 }}
               value={inputValue}
               onChangeText={setInputValue}
               placeholder="Ask about faith, prayer, leadership..."
@@ -124,7 +125,7 @@ const AIChatScreen = () => {
               maxLength={500}
               editable={!isLoading}
             />
-            <TouchableOpacity style={[styles.send, (!inputValue.trim() || isLoading) && styles.sendDisabled]} onPress={handleSendMessage} disabled={!inputValue.trim() || isLoading}>
+            <TouchableOpacity className={`h-9 w-9 items-center justify-center rounded-full bg-[#FF6B09] ${(!inputValue.trim() || isLoading) ? 'opacity-40' : ''}`} onPress={handleSendMessage} disabled={!inputValue.trim() || isLoading}>
               <Feather name="send" size={17} color={colors.black} />
             </TouchableOpacity>
           </View>
@@ -133,132 +134,5 @@ const AIChatScreen = () => {
     </ScreenBackground>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: typography.h2.fontSize,
-    lineHeight: typography.h2.lineHeight,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-  messages: {
-    flex: 1,
-  },
-  messagesContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  promptCard: {
-    marginBottom: spacing.xs,
-  },
-  promptTitle: {
-    color: colors.primaryStrong,
-    fontSize: typography.caption.fontSize,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  promptRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  promptPill: {
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(255,122,26,0.36)',
-    backgroundColor: 'rgba(255,122,26,0.16)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  promptText: {
-    color: colors.textPrimary,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '600',
-  },
-  bubbleWrap: {
-    maxWidth: '88%',
-  },
-  userWrap: {
-    alignSelf: 'flex-end',
-  },
-  assistantWrap: {
-    alignSelf: 'flex-start',
-  },
-  userBubble: {
-    backgroundColor: 'rgba(255,122,26,0.22)',
-    borderColor: 'rgba(255,122,26,0.42)',
-  },
-  assistantBubble: {
-    backgroundColor: 'rgba(255,255,255,0.09)',
-  },
-  scriptureTag: {
-    color: colors.accentGreen,
-    fontSize: typography.caption.fontSize,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  messageText: {
-    color: colors.textPrimary,
-    fontSize: typography.body.fontSize,
-    lineHeight: typography.body.lineHeight,
-  },
-  loadingBubble: {
-    alignSelf: 'flex-start',
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-  },
-  composer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 102,
-    paddingTop: spacing.sm,
-  },
-  composerInner: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
-  input: {
-    flex: 1,
-    color: colors.textPrimary,
-    maxHeight: 110,
-    paddingVertical: spacing.xs,
-    fontSize: typography.body.fontSize,
-  },
-  send: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendDisabled: {
-    opacity: 0.4,
-  },
-});
 
 export default AIChatScreen;
