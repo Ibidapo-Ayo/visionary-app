@@ -36,7 +36,7 @@ const ForgotPasswordScreen = () => {
 
   return (
     <AuthScaffold>
-      <AuthTopBar />
+      <AuthTopBar fallbackHref="/(auth)/login" />
 
       <SectionHeader
         title="Forgot Password?"

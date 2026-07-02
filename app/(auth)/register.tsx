@@ -64,7 +64,7 @@ const RegisterScreen = () => {
 
   return (
     <AuthScaffold>
-      <AuthTopBar />
+      <AuthTopBar fallbackHref="/(auth)/login" />
 
       <SectionHeader title="Create Account" subtitle="Let&apos;s get you started on your spiritual journey." />
 

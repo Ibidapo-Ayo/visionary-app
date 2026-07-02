@@ -49,7 +49,7 @@ const CreateNewPasswordScreen = () => {
 
   return (
     <AuthScaffold>
-      <AuthTopBar />
+      <AuthTopBar fallbackHref="/(auth)/otp-verification" />
 
       <SectionHeader title="Create New Password" subtitle="Your new password must be different from your previous password." />
 

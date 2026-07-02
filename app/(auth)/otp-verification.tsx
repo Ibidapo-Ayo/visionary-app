@@ -25,7 +25,7 @@ const OTPVerificationScreen = () => {
 
   return (
     <AuthScaffold>
-      <AuthTopBar />
+      <AuthTopBar fallbackHref="/(auth)/forgot-password" />
 
       <SectionHeader
         title="Verify Your Identity"

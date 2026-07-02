@@ -41,12 +41,12 @@ const LoginScreen = () => {
 
   const onSubmit = async (values: SignInForm) => {
     await login(values.identity, values.password);
-    router.replace('/(auth)/login-success');
+    router.replace('/(app)/home');
   };
 
   return (
     <AuthScaffold>
-      <AuthTopBar />
+      <AuthTopBar fallbackHref="/(auth)/onboarding" />
 
       <SectionHeader title="Sign In" subtitle="Welcome back! Glad to have you again." />
 
