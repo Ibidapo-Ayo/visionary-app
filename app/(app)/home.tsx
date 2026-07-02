@@ -1,71 +1,108 @@
-import React, { useMemo } from 'react';
-import { ImageBackground, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, ImageBackground, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { useAuthStore } from '@store/authStore';
 import Card from '@components/Card';
+import BibleJourneyProgressCard from '@components/BibleJourneyProgressCard';
+import { mockBibleJourneyProgress, mockBibleJourneyReadings, mockEvents } from '@services/mockData';
+import { useAuthStore } from '@store/authStore';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 
-type ActionItem = {
-  id: string;
-  label: string;
-  subtitle: string;
-  icon: React.ComponentProps<typeof Feather>['name'];
-  route: '/(app)/scan' | '/(app)/ai' | '/(app)/digest' | '/(app)/members';
-  iconColor: string;
-  glowColor: string;
+const getInitials = (firstName?: string, lastName?: string, email?: string) => {
+  const firstInitial = firstName?.trim()?.charAt(0) ?? '';
+  const lastInitial = lastName?.trim()?.charAt(0) ?? '';
+
+  if (firstInitial || lastInitial) {
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+  }
+
+  return (email?.trim()?.charAt(0) ?? 'V').toUpperCase();
 };
 
-const quickActions: ActionItem[] = [
-  {
-    id: 'scan',
-    label: 'Fast Check-In',
-    subtitle: 'Scan attendance QR in one tap',
-    icon: 'aperture',
-    route: '/(app)/scan',
-    iconColor: '#FF9B3D',
-    glowColor: 'rgba(255,122,0,0.24)',
-  },
-  {
-    id: 'ai',
-    label: 'Prayer Mode',
-    subtitle: 'Talk with your AI counselor',
-    icon: 'cpu',
-    route: '/(app)/ai',
-    iconColor: '#77DB95',
-    glowColor: 'rgba(22,163,74,0.24)',
-  },
-  {
-    id: 'digest',
-    label: 'Daily Digest',
-    subtitle: 'Get a 4-minute spiritual reset',
-    icon: 'book-open',
-    route: '/(app)/digest',
-    iconColor: '#FFB56D',
-    glowColor: 'rgba(255,122,0,0.2)',
-  },
-  {
-    id: 'members',
-    label: 'People Pulse',
-    subtitle: 'See who showed up this week',
-    icon: 'users',
-    route: '/(app)/members',
-    iconColor: '#B5D9BF',
-    glowColor: 'rgba(181,217,191,0.16)',
-  },
-];
+const getCountdownParts = (eventStartAt: string, now: Date) => {
+  const eventDate = new Date(eventStartAt);
+  const diffMs = eventDate.getTime() - now.getTime();
 
-const momentumStats = [
-  { id: 'streak', label: 'Prayer Streak', value: '07 days', icon: 'sunrise' as const, tint: '#FF7A00' },
-  { id: 'focus', label: 'Focus Time', value: '24 mins', icon: 'clock' as const, tint: '#3FC86C' },
-  { id: 'checkins', label: 'This Week', value: '3 check-ins', icon: 'check-circle' as const, tint: '#F2B878' },
-];
+  if (diffMs <= 0) {
+    return { badge: 'Live now', subtext: 'Event has started' };
+  }
+
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days === 0) {
+    if (hours === 0) {
+      return { badge: 'Today', subtext: `Starts in ${minutes}m` };
+    }
+
+    return { badge: 'Today', subtext: `Starts in ${hours}h ${minutes}m` };
+  }
+
+  if (days === 1) {
+    return { badge: 'Tomorrow', subtext: `Starts in ${hours}h ${minutes}m` };
+  }
+
+  return { badge: `In ${days} days`, subtext: `${hours}h ${minutes}m remaining` };
+};
+
+const formatEventDateTime = (eventStartAt: string) => {
+  const date = new Date(eventStartAt);
+
+  const formattedDate = date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+
+  const formattedTime = date.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+  return `${formattedDate} • ${formattedTime}`;
+};
 
 const HomeScreen = () => {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const firstName = useMemo(() => user?.firstName || 'David', [user?.firstName]);
+  const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const [now, setNow] = useState(() => new Date());
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const upcomingEvent = useMemo(() => {
+    const sortedEvents = [...mockEvents].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+
+    return sortedEvents.find((event) => new Date(event.startAt).getTime() >= now.getTime()) || sortedEvents[0];
+  }, [now]);
+
+  const countdown = useMemo(() => {
+    if (!upcomingEvent) {
+      return { badge: 'No events', subtext: 'No upcoming event scheduled yet' };
+    }
+
+    return getCountdownParts(upcomingEvent.startAt, now);
+  }, [upcomingEvent, now]);
+
+  const streakStats = getStreakStats();
+  const currentStreak = streakStats.currentStreak;
+
+  const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
+  const firstName = fullName.split(' ')[0] || 'Visionary';
+  const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
+  const profileImage = user?.profileImage?.trim() ?? '';
+  const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
 
   return (
     <LinearGradient colors={['#040404', '#0A0A0A', '#121110']} className="flex-1">
@@ -75,17 +112,55 @@ const HomeScreen = () => {
       <View className="absolute -left-20 top-64 h-56 w-56 rounded-full bg-[#16A34A]/15" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 128 }} className="px-5 pt-8">
-        <Animated.View entering={FadeIn.duration(260)} className="mb-4 flex-row items-center justify-between">
-          <View>
-            <Text className="text-[11px] font-semibold uppercase tracking-[0.9px] text-[#B4B4B4]">Visionary Nation</Text>
-            <Text className="mt-1 text-[30px] font-black text-[#FAFAFA]">{firstName}, rise bold.</Text>
-          </View>
-          <TouchableOpacity className="h-10 w-10 items-center justify-center rounded-full border border-[#2E2E2E] bg-[#151515]">
-            <Feather name="bell" size={16} color="#F4F4F4" />
+        <Animated.View entering={FadeIn.duration(240)} className="mb-4 flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/profile')}
+            activeOpacity={0.9}
+            className="flex-row items-center rounded-full border border-[#312419] bg-[rgba(20,20,20,0.86)] px-2 py-2"
+          >
+            <View className="h-11 w-11 overflow-hidden rounded-full border border-[#5A4634] bg-[#1A130E]">
+              {shouldShowProfileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                  onError={() => setAvatarLoadFailed(true)}
+                />
+              ) : (
+                <View className="h-full w-full items-center justify-center">
+                  <Text className="text-[16px] font-black text-[#FF7A00]">{userInitials}</Text>
+                </View>
+              )}
+            </View>
+
+            <View className="ml-2.5 pr-2">
+              <Text className="text-[10px] uppercase tracking-[0.7px] text-[#9E9E9E]">Welcome back</Text>
+              <Text className="mt-0.5 text-[13px] font-bold text-[#F6F6F6]">{firstName}</Text>
+            </View>
           </TouchableOpacity>
+
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/bible-journey')}
+              activeOpacity={0.85}
+              className="flex-row items-center rounded-full border border-[#2E442F] bg-[#132015] px-3 py-2"
+            >
+              <Feather name="zap" size={13} color="#8EE3A8" />
+              <Text className="ml-1.5 text-[11px] font-semibold text-[#D8F9E2]">{currentStreak} day streak</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/digest')}
+              activeOpacity={0.85}
+              className="relative h-10 w-10 items-center justify-center rounded-full border border-[#3D2E20] bg-[#17130F]"
+            >
+              <Feather name="bell" size={16} color="#FFB16A" />
+              <View className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-[#FF7A00]" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
-        <Animated.View entering={SlideInUp.duration(320)} className="overflow-hidden rounded-[30px] border border-[#3B3128]">
+        <Animated.View entering={FadeIn.duration(260)} className="overflow-hidden rounded-[30px] border border-[#3B3128]">
           <ImageBackground
             source={require('../../assets/images/home-page-image.jpg')}
             resizeMode="cover"
@@ -96,13 +171,8 @@ const HomeScreen = () => {
               colors={['rgba(12,9,6,0.36)', 'rgba(16,12,8,0.72)', 'rgba(8,8,8,0.92)']}
               className="min-h-[284px] px-5 pb-5 pt-4"
             >
-              <View className="flex-row items-center justify-between">
-                <View className="rounded-full border border-[#5A4634] bg-[rgba(0,0,0,0.4)] px-3 py-1.5">
-                  <Text className="text-[10px] font-semibold uppercase tracking-[0.9px] text-[#FFD6B1]">This week momentum</Text>
-                </View>
-                <View className="rounded-full border border-[#2F5B39] bg-[rgba(12,26,16,0.66)] px-3 py-1.5">
-                  <Text className="text-[11px] font-semibold text-[#9BE0AE]">Prayer streak +2</Text>
-                </View>
+              <View className="rounded-full self-start border border-[#5A4634] bg-[rgba(0,0,0,0.4)] px-3 py-1.5">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.9px] text-[#FFD6B1]">Faith in Motion</Text>
               </View>
 
               <View className="mt-14">
@@ -112,108 +182,38 @@ const HomeScreen = () => {
                   Your spiritual rhythm is building. Keep pressing in and let today become your evidence.
                 </Text>
               </View>
-
-              <View className="mt-5 flex-row items-center gap-2">
-                <TouchableOpacity className="rounded-full bg-[#FF7A00] px-4 py-2.5" onPress={() => router.push('/(app)/ai')}>
-                  <View className="flex-row items-center gap-2">
-                    <Feather name="message-circle" size={14} color="#17120D" />
-                    <Text className="text-[12px] font-bold text-[#1B1309]">Start Prayer</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity className="rounded-full border border-[#3A3A3A] bg-[rgba(0,0,0,0.45)] px-4 py-2.5" onPress={() => router.push('/(app)/digest')}>
-                  <View className="flex-row items-center gap-2">
-                    <Feather name="book-open" size={14} color="#EFEFEF" />
-                    <Text className="text-[12px] font-semibold text-[#EAEAEA]">Read Digest</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
             </LinearGradient>
           </ImageBackground>
         </Animated.View>
 
-        <Animated.View entering={SlideInUp.delay(70).duration(320)} className="mt-4">
-          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Faith Momentum</Text>
-          <View className="mt-2 flex-row gap-2">
-            {momentumStats.map((item) => (
-              <Card
-                key={item.id}
-                animated={false}
-                padding="sm"
-                blurVariant="none"
-                style={{
-                  flex: 1,
-                  borderColor: '#2C2C2C',
-                  backgroundColor: '#141414',
-                }}
-              >
-                <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${item.tint}20` }}>
-                  <Feather name={item.icon} size={14} color={item.tint} />
-                </View>
-                <Text className="mt-2 text-[17px] font-bold text-[#FAFAFA]">{item.value}</Text>
-                <Text className="mt-0.5 text-[10px] font-medium text-[#9B9B9B]">{item.label}</Text>
-              </Card>
-            ))}
-          </View>
-        </Animated.View>
-
         <Animated.View entering={SlideInUp.delay(120).duration(320)} className="mt-4">
-          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Quick Actions</Text>
-          <View className="mt-2 flex-row flex-wrap justify-between">
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                className="mb-2.5 w-[48.5%] overflow-hidden rounded-[20px] border border-[#2C2C2C] bg-[#141414] p-3"
-                onPress={() => router.push(action.route)}
-              >
-                <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: action.glowColor }}>
-                  <Feather name={action.icon} size={17} color={action.iconColor} />
+          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Bible Journey</Text>
+          <TouchableOpacity className="mt-2" onPress={() => router.push('/(app)/bible-journey')}>
+            <BibleJourneyProgressCard
+              year={mockBibleJourneyProgress.year}
+              cyclesCompleted={mockBibleJourneyProgress.cyclesCompleted}
+              cyclesTarget={mockBibleJourneyProgress.cyclesTarget}
+              completedReadings={mockBibleJourneyProgress.completedReadings}
+              totalReadings={mockBibleJourneyProgress.totalReadings}
+            />
+
+            <View className="mt-2 rounded-[16px] border border-[#2B2B2B] bg-[#121212] p-3.5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-[11px] font-semibold uppercase tracking-[0.9px] text-[#8F8F8F]">Today's Readings</Text>
+                  <Text className="mt-1 text-[12px] text-[#E7E7E7]">Morning: {mockBibleJourneyReadings[0]?.reference}</Text>
+                  <Text className="mt-1 text-[12px] text-[#E7E7E7]">Evening: {mockBibleJourneyReadings[1]?.reference}</Text>
                 </View>
-                <Text className="mt-3 text-[13px] font-bold text-[#F4F4F4]">{action.label}</Text>
-                <Text className="mt-1 text-[10px] leading-4 text-[#969696]">{action.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-[#1E2A20]">
+                  <Feather name="arrow-up-right" size={16} color="#8EE3A8" />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={SlideInUp.delay(170).duration(320)} className="mt-1">
-          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Scripture Spotlight</Text>
-          <Card
-            animated={false}
-            padding="none"
-            blurVariant="none"
-            style={{
-              marginTop: 8,
-              borderColor: '#2B2B2B',
-              backgroundColor: '#121212',
-            }}
-          >
-            <ImageBackground
-              source={require('../../assets/images/bible_verse_of_the_day.jpg')}
-              resizeMode="cover"
-              imageStyle={{ opacity: 0.2, borderRadius: 16 }}
-              className="overflow-hidden rounded-[16px] px-4 py-4"
-            >
-              <View className="flex-row items-start justify-between">
-                <Text className="mr-3 flex-1 text-[14px] leading-6 text-[#F3F3F3]">
-                  "For I know the plans I have for you," declares the Lord, "plans to prosper you and not to harm
-                  you, plans to give you hope and a future."
-                </Text>
-                <TouchableOpacity className="h-8 w-8 items-center justify-center rounded-full border border-[#323232] bg-[#191919]">
-                  <Feather name="bookmark" size={14} color="#FF7A00" />
-                </TouchableOpacity>
-              </View>
-              <View className="mt-3 flex-row items-center justify-between">
-                <Text className="text-[11px] font-semibold tracking-[0.4px] text-[#FFB56D]">Jeremiah 29:11</Text>
-                <TouchableOpacity className="rounded-full border border-[#303030] bg-[#161616] px-3 py-1.5">
-                  <Text className="text-[10px] font-semibold text-[#E2E2E2]">Share Verse</Text>
-                </TouchableOpacity>
-              </View>
-            </ImageBackground>
-          </Card>
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(220).duration(320)} className="mt-4">
-          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Tonight at Visionary Nation</Text>
+        <Animated.View entering={SlideInUp.delay(180).duration(320)} className="mt-4">
+          <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#919191]">Upcoming Events</Text>
           <Card
             animated={false}
             padding="md"
@@ -226,22 +226,16 @@ const HomeScreen = () => {
           >
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-2">
-                <Text className="text-[16px] font-bold text-[#FAFAFA]">Prayer and Prophetic Declarations</Text>
-                <Text className="mt-1 text-[11px] text-[#A2A2A2]">8:00 PM • Main Sanctuary</Text>
-                <Text className="mt-2 text-[11px] leading-5 text-[#BCBCBC]">Come expectant. We are gathering for breakthrough prayers and bold declarations.</Text>
+                <Text className="text-[16px] font-bold text-[#FAFAFA]">{upcomingEvent?.title ?? 'No upcoming event'}</Text>
+                <Text className="mt-1 text-[11px] text-[#A2A2A2]">{upcomingEvent ? formatEventDateTime(upcomingEvent.startAt) : 'Date to be announced'}</Text>
+                <Text className="mt-1 text-[11px] text-[#A2A2A2]">{upcomingEvent?.location ?? 'Location to be announced'}</Text>
+                <Text className="mt-2 text-[11px] leading-5 text-[#BCBCBC]">{upcomingEvent?.description ?? 'No event details available yet.'}</Text>
               </View>
               <View className="rounded-xl border border-[#315337] bg-[#132014] px-2.5 py-2">
-                <Text className="text-[10px] font-semibold text-[#8FDCA5]">LIVE IN</Text>
-                <Text className="mt-0.5 text-[14px] font-black text-[#D7F7E0]">02:41:13</Text>
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.5px] text-[#8FDCA5]">{countdown.badge}</Text>
+                <Text className="mt-0.5 text-[12px] font-bold text-[#D7F7E0]">{countdown.subtext}</Text>
               </View>
             </View>
-
-            <TouchableOpacity className="mt-4 rounded-full bg-[#FF7A00] px-4 py-2.5" onPress={() => router.push('/(app)/members')}>
-              <View className="flex-row items-center justify-center gap-2">
-                <Text className="text-[12px] font-bold text-[#1B1309]">Open Attendance</Text>
-                <Feather name="arrow-right" size={14} color="#1B1309" />
-              </View>
-            </TouchableOpacity>
           </Card>
         </Animated.View>
       </ScrollView>

@@ -11,7 +11,7 @@ const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
   home: 'grid',
   scan: 'aperture',
   ai: 'cpu',
-  members: 'users',
+  'bible-journey': 'book-open',
   profile: 'user-check',
 };
 
@@ -19,7 +19,7 @@ const labelMap: Record<string, string> = {
   home: 'Home',
   scan: 'Scan QR',
   ai: 'Counselor',
-  members: 'Attendance',
+  'bible-journey': 'Bible Journey',
   profile: 'Profile',
 };
 
@@ -63,9 +63,23 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const [containerWidth, setContainerWidth] = React.useState(0);
 
   const activeRoute = state.routes[state.index];
-  const shouldHideTabBar = activeRoute.name === 'ai' || activeRoute.name === 'digest';
+  const shouldHideTabBar =
+    activeRoute.name === 'digest' ||
+    activeRoute.name === 'edit-profile' ||
+    activeRoute.name === 'bible-journey' ||
+    activeRoute.name === 'bible-reading' ||
+    activeRoute.name === 'bible-reading-reflection' ||
+    activeRoute.name === 'bible-reflection-intro';
 
-  const visibleRoutes = state.routes.filter((route) => route.name !== 'digest');
+  const visibleRoutes = state.routes.filter(
+    (route) =>
+      route.name !== 'digest' &&
+      route.name !== 'edit-profile' &&
+      route.name !== 'bible-journey' &&
+        route.name !== 'bible-reading' &&
+        route.name !== 'bible-reading-reflection' &&
+        route.name !== 'bible-reflection-intro',
+  );
   const tabCount = visibleRoutes.length || 1;
   const horizontalPadding = 12;
   const tabWidth = containerWidth > 0 ? (containerWidth - horizontalPadding * 2) / tabCount : 0;
@@ -189,16 +203,49 @@ const AppLayout = () => {
           tabBarStyle: { display: 'none' },
         }}
       />
+      <Tabs.Screen
+        name="bible-journey"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="bible-reading"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="bible-reading-reflection"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="bible-reflection-intro"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
       <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
       <Tabs.Screen
         name="ai"
         options={{
           title: 'AI',
+        }}
+      />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null,
           tabBarStyle: { display: 'none' },
         }}
       />
-      <Tabs.Screen name="members" options={{ title: 'People' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 };
