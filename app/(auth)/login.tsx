@@ -91,10 +91,8 @@ const LoginScreen = () => {
         <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
       </View>
 
-      <Animated.View entering={FadeInDown.delay(120)} className="mt-5 flex-row items-center justify-center gap-3">
-        <SocialButton brand="apple" />
-        <SocialButton brand="google" />
-        <SocialButton brand="facebook" />
+      <Animated.View entering={FadeInDown.delay(120)} className="mt-5">
+        <SocialButton brand="google" layout="full" />
       </Animated.View>
 
       <View className="mt-8 flex-row items-center justify-center gap-1.5">
