@@ -33,6 +33,8 @@
     },
     "plugins": [
       "expo-router",
+      "@clerk/expo",
+      "expo-web-browser",
       [
         "expo-camera",
         {

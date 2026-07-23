@@ -1,10 +1,12 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@clerk/expo';
+import { useSyncClerkAuth } from '@services/auth';
 import { colors, spacing } from '../../lib/theme';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
@@ -186,6 +188,17 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 };
 
 const AppLayout = () => {
+  useSyncClerkAuth();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (!isSignedIn) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
     <Tabs
       tabBar={(props) => <AppTabBar {...props} />}

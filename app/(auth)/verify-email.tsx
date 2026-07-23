@@ -8,25 +8,19 @@ import AuthTopBar from '@components/auth/AuthTopBar';
 import Button from '@components/auth/Button';
 import OTPInput from '@components/auth/OTPInput';
 import SectionHeader from '@components/auth/SectionHeader';
-import { usePasswordReset } from '@services/auth';
+import { useAuthSignUp } from '@services/auth';
 
-/**
- * OTP verification for the password-reset flow.
- * The code entered here is *not* consumed against Clerk yet — we forward
- * it to `create-new-password` where the user supplies their new password
- * and we call `signIn.attemptFirstFactor` with `{ code, password }`.
- * Resend is wired to Clerk so users can request a fresh code.
- */
-const OTPVerificationScreen = () => {
+const VerifyEmailScreen = () => {
   const router = useRouter();
-  const { email } = useLocalSearchParams<{ email?: string; mode?: string }>();
-  const { requestReset, isLoaded } = usePasswordReset();
+  const { email } = useLocalSearchParams<{ email?: string }>();
+  const { verifyEmailCode, resendEmailCode, isLoaded } = useAuthSignUp();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(30);
+  const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const isCodeComplete = otp.every((digit) => digit.length === 1);
 
@@ -38,45 +32,52 @@ const OTPVerificationScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const onResend = async () => {
-    if (!email) {
-      setError('Missing email address. Return to Forgot Password and try again.');
+  const onVerify = async () => {
+    if (!isCodeComplete) return;
+    setFormError(null);
+    setBanner(null);
+    setSubmitting(true);
+    const result = await verifyEmailCode(otp.join(''));
+    setSubmitting(false);
+
+    if (result.complete) {
+      router.replace('/(app)/home');
       return;
     }
-    setError(null);
+
+    if (result.error) {
+      setFormError(result.error.message);
+    }
+  };
+
+  const onResend = async () => {
+    if (countdown > 0) return;
+    setFormError(null);
     setBanner(null);
     setResending(true);
-    const result = await requestReset(email);
+    const error = await resendEmailCode();
     setResending(false);
 
-    if (result.sent) {
-      setBanner('A new reset code has been sent.');
-      setCountdown(30);
+    if (error) {
+      setFormError(error.message);
       return;
     }
-    if (result.error) {
-      setError(result.error.message);
-    }
+    setBanner('A new verification code has been sent.');
+    setCountdown(30);
   };
 
-  const onContinue = () => {
-    if (!isCodeComplete) return;
-    router.push({
-      pathname: '/(auth)/create-new-password',
-      params: { email, code: otp.join('') },
-    });
-  };
+  const busy = submitting || resending || !isLoaded;
 
   return (
     <AuthScaffold>
-      <AuthTopBar fallbackHref="/(auth)/forgot-password" />
+      <AuthTopBar fallbackHref="/(auth)/register" />
 
       <SectionHeader
-        title="Verify Your Identity"
+        title="Verify Your Email"
         subtitle={
           email
-            ? `Enter the 6-digit code sent to ${email}.`
-            : 'Enter the 6-digit code sent to your email.'
+            ? `Enter the 6-digit code we sent to ${email}.`
+            : 'Enter the 6-digit code we just sent to your email.'
         }
       />
 
@@ -95,13 +96,13 @@ const OTPVerificationScreen = () => {
       {banner ? (
         <Text className="mt-4 text-center text-[12px] font-medium text-[#16A34A]">{banner}</Text>
       ) : null}
-      {error ? (
-        <Text className="mt-4 text-center text-[12px] font-medium text-[#F87171]">{error}</Text>
+      {formError ? (
+        <Text className="mt-4 text-center text-[12px] font-medium text-[#F87171]">{formError}</Text>
       ) : null}
 
       <View className="mt-6 flex-row items-center justify-center gap-1.5">
         <Text className="text-[13px] text-[#B7B7B7]">Didn&apos;t receive code?</Text>
-        <Pressable onPress={onResend} disabled={countdown > 0 || resending || !isLoaded}>
+        <Pressable onPress={onResend} disabled={countdown > 0 || busy}>
           <Text
             className={`text-[13px] font-medium ${countdown > 0 ? 'text-[#7A7A7A]' : 'text-[#FF7A00]'}`}
           >
@@ -116,10 +117,15 @@ const OTPVerificationScreen = () => {
       </View>
 
       <View className="mt-8">
-        <Button label="Verify Code" onPress={onContinue} iconRight disabled={!isCodeComplete} />
+        <Button
+          label={submitting ? 'Verifying…' : 'Verify Email'}
+          onPress={onVerify}
+          iconRight
+          disabled={!isCodeComplete || busy}
+        />
       </View>
     </AuthScaffold>
   );
 };
 
-export default OTPVerificationScreen;
+export default VerifyEmailScreen;

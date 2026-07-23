@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useAuthStore } from '@store/authStore';
+import { useSignOut } from '@services/auth';
 import ProfileHeader from '@components/profile/ProfileHeader';
 import SpiritualProgressOverview from '@components/profile/SpiritualProgressOverview';
 import AchievementStreaks from '@components/profile/AchievementStreaks';
@@ -26,7 +27,7 @@ const ProfileScreen = () => {
   const isDark = scheme !== 'light';
 
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const logout = useSignOut();
 
   const [notifications, setNotifications] = React.useState(true);
   const [appearance, setAppearance] = React.useState<'light' | 'dark' | 'system'>('system');
@@ -40,7 +41,11 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
+    const result = await logout();
+    if (!result.success && result.error) {
+      Alert.alert('Sign Out Failed', result.error.message);
+      return;
+    }
     router.replace('/(auth)/login');
   };
 

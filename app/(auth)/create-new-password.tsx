@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { ShieldCheck } from 'lucide-react-native';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import AuthTopBar from '@components/auth/AuthTopBar';
 import Button from '@components/auth/Button';
 import PasswordField from '@components/auth/PasswordField';
 import SectionHeader from '@components/auth/SectionHeader';
+import { usePasswordReset } from '@services/auth';
 
 const resetPasswordSchema = z
   .object({
@@ -30,10 +31,14 @@ type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
 const CreateNewPasswordScreen = () => {
   const router = useRouter();
+  const { code } = useLocalSearchParams<{ email?: string; code?: string }>();
+  const { resetPassword, isLoaded } = usePasswordReset();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
@@ -43,8 +48,30 @@ const CreateNewPasswordScreen = () => {
     },
   });
 
-  const onSubmit = async () => {
-    router.replace('/(auth)/login-success');
+  const onSubmit = async (values: ResetPasswordForm) => {
+    if (!code) {
+      setFormError('Missing reset code. Restart the password reset flow.');
+      return;
+    }
+    setFormError(null);
+    const result = await resetPassword(code, values.password);
+
+    if (result.complete) {
+      router.replace('/(app)/home');
+      return;
+    }
+
+    if (result.error) {
+      if (result.error.field === 'password') {
+        setError('password', { type: 'server', message: result.error.message });
+        return;
+      }
+      if (result.error.code === 'form_code_incorrect' || result.error.code === 'verification_expired') {
+        setFormError(`${result.error.message} Return to the previous step to request a new code.`);
+        return;
+      }
+      setFormError(result.error.message);
+    }
   };
 
   return (
@@ -88,11 +115,20 @@ const CreateNewPasswordScreen = () => {
           )}
         />
 
-        <Button label="Update Password" onPress={handleSubmit(onSubmit)} iconRight disabled={isSubmitting} />
+        {formError ? (
+          <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
+        ) : null}
+
+        <Button
+          label={isSubmitting ? 'Updating…' : 'Update Password'}
+          onPress={handleSubmit(onSubmit)}
+          iconRight
+          disabled={isSubmitting || !isLoaded}
+        />
       </Animated.View>
 
       <Text className="mt-8 text-center text-[13px] text-[#B7B7B7]">
-        After updating your password, you will be returned to sign in.
+        After updating your password, you&apos;ll be signed in automatically.
       </Text>
     </AuthScaffold>
   );

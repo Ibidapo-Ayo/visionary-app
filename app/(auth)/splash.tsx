@@ -15,7 +15,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useAuthStore } from '@store/authStore';
+import { useAuth } from '@clerk/expo';
 import { useAppStore } from '@store/appStore';
 
 const ORANGE = '#FF7A00';
@@ -99,7 +99,7 @@ const EnergyWave = () => {
 
 const SplashScreen = () => {
   const router = useRouter();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isLoaded, isSignedIn } = useAuth();
   const isOnboardingComplete = useAppStore((state) => state.isOnboardingComplete);
   const entrance = useSharedValue(0);
   const pulse = useSharedValue(0);
@@ -107,7 +107,10 @@ const SplashScreen = () => {
   const ambientParticles = useMemo(() => particles, []);
 
   const navigate = () => {
-    if (isAuthenticated) {
+    if (!isLoaded) {
+      return;
+    }
+    if (isSignedIn) {
       router.replace('/(app)/home');
       return;
     }

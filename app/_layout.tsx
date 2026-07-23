@@ -6,15 +6,22 @@ import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useAuthStore } from '@store/authStore';
+import { ClerkLoaded, ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
 import { colors } from '../lib/theme';
 import 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
 
-const RootLayout = () => {
-  const loadUser = useAuthStore((state) => state.loadUser);
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+if (!publishableKey) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to your .env (see .env.example).',
+  );
+}
+
+const RootLayout = () => {
   useEffect(() => {
     async function prepare() {
       try {
@@ -26,8 +33,6 @@ const RootLayout = () => {
         } catch {
           console.log('[v0] Custom fonts not available');
         }
-
-        await loadUser();
       } catch (e) {
         console.warn('[v0] Initialization error:', e);
       } finally {
@@ -39,21 +44,25 @@ const RootLayout = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView className="flex-1">
-      <SafeAreaProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'ios_from_right',
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
-        </Stack>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkLoaded>
+        <GestureHandlerRootView className="flex-1">
+          <SafeAreaProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'ios_from_right',
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            >
+              <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
+            </Stack>
+            <StatusBar style="light" translucent backgroundColor="transparent" />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </ClerkLoaded>
+    </ClerkProvider>
   );
 };
 

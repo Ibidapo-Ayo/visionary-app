@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -6,7 +6,6 @@ import { Mail, Phone, User } from 'lucide-react-native';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import { useAuthStore } from '@store/authStore';
 import AuthScaffold from '@components/auth/AuthScaffold';
 import AuthTopBar from '@components/auth/AuthTopBar';
 import Button from '@components/auth/Button';
@@ -15,6 +14,7 @@ import PasswordRequirementCard from '@components/auth/PasswordRequirementCard';
 import SectionHeader from '@components/auth/SectionHeader';
 import SocialButton from '@components/auth/SocialButton';
 import TextField from '@components/auth/TextField';
+import { useAuthSignUp, useGoogleAuth } from '@services/auth';
 
 const registrationSchema = z
   .object({
@@ -33,12 +33,17 @@ type RegistrationData = z.infer<typeof registrationSchema>;
 
 const RegisterScreen = () => {
   const router = useRouter();
-  const register = useAuthStore((state) => state.register);
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const { startSignUp, isLoaded } = useAuthSignUp();
+  const { signInWithGoogle } = useGoogleAuth();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<RegistrationData>({
     resolver: zodResolver(registrationSchema),
@@ -51,16 +56,63 @@ const RegisterScreen = () => {
   });
 
   const handleRegister = async (values: RegistrationData) => {
+    setFormError(null);
     const names = values.fullName.trim().split(' ');
-    await register({
-      firstName: names[0] ?? values.fullName,
-      lastName: names.slice(1).join(' ') || 'Member',
-      email: values.email,
+    const firstName = names[0] ?? values.fullName;
+    const lastName = names.slice(1).join(' ') || firstName;
+
+    setSubmitting(true);
+    const result = await startSignUp({
+      firstName,
+      lastName,
+      emailAddress: values.email,
       phone: values.phone,
       password: values.password,
     });
-    router.replace('/(auth)/login-success');
+    setSubmitting(false);
+
+    if (result.needsEmailVerification) {
+      router.push({
+        pathname: '/(auth)/verify-email',
+        params: { email: values.email },
+      });
+      return;
+    }
+
+    if (result.complete) {
+      router.replace('/(app)/home');
+      return;
+    }
+
+    if (result.error) {
+      const field = result.error.field;
+      if (field === 'email_address' || field === 'emailAddress') {
+        setError('email', { type: 'server', message: result.error.message });
+        return;
+      }
+      if (field === 'password') {
+        setError('password', { type: 'server', message: result.error.message });
+        return;
+      }
+      setFormError(result.error.message);
+    }
   };
+
+  const onGoogle = async () => {
+    setFormError(null);
+    setGoogleSubmitting(true);
+    const result = await signInWithGoogle();
+    setGoogleSubmitting(false);
+    if (result.complete) {
+      router.replace('/(app)/home');
+      return;
+    }
+    if (result.error) {
+      setFormError(result.error.message);
+    }
+  };
+
+  const busy = submitting || googleSubmitting;
 
   return (
     <AuthScaffold>
@@ -117,7 +169,19 @@ const RegisterScreen = () => {
 
         <PasswordRequirementCard />
 
-        <Button label="Sign Up" onPress={handleSubmit(handleRegister)} iconRight disabled={isLoading} />
+        {formError ? (
+          <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
+        ) : null}
+
+        {/* Clerk bot-protection captcha target (required for sign-up) */}
+        <View nativeID="clerk-captcha" />
+
+        <Button
+          label={submitting ? 'Creating account…' : 'Sign Up'}
+          onPress={handleSubmit(handleRegister)}
+          iconRight
+          disabled={busy}
+        />
       </Animated.View>
 
       <View className="mt-7 flex-row items-center gap-3">
@@ -127,7 +191,7 @@ const RegisterScreen = () => {
       </View>
 
       <Animated.View entering={FadeInDown.delay(120)} className="mt-5">
-        <SocialButton brand="google" layout="full" />
+        <SocialButton brand="google" layout="full" onPress={onGoogle} />
       </Animated.View>
 
       <View className="mt-8 flex-row items-center justify-center gap-1.5">

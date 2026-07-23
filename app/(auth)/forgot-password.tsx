@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -12,26 +12,51 @@ import Button from '@components/auth/Button';
 import SectionHeader from '@components/auth/SectionHeader';
 import SupportCard from '@components/auth/SupportCard';
 import TextField from '@components/auth/TextField';
+import { usePasswordReset } from '@services/auth';
 
 const forgotSchema = z.object({
-  identity: z.string().min(1, 'Email or phone is required'),
+  identity: z.string().email('Enter the email you signed up with'),
 });
 
 type ForgotForm = z.infer<typeof forgotSchema>;
 
 const ForgotPasswordScreen = () => {
   const router = useRouter();
+  const { requestReset, isLoaded } = usePasswordReset();
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<ForgotForm>({
     resolver: zodResolver(forgotSchema),
     defaultValues: { identity: '' },
   });
 
-  const onSubmit = () => {
-    router.push('/(auth)/otp-verification');
+  const onSubmit = async (values: ForgotForm) => {
+    setFormError(null);
+    setSubmitting(true);
+    const result = await requestReset(values.identity);
+    setSubmitting(false);
+
+    if (result.sent) {
+      router.push({
+        pathname: '/(auth)/otp-verification',
+        params: { email: values.identity, mode: 'reset' },
+      });
+      return;
+    }
+
+    if (result.error) {
+      if (result.error.field === 'identifier' || result.error.field === 'email_address') {
+        setError('identity', { type: 'server', message: result.error.message });
+        return;
+      }
+      setFormError(result.error.message);
+    }
   };
 
   return (
@@ -40,7 +65,7 @@ const ForgotPasswordScreen = () => {
 
       <SectionHeader
         title="Forgot Password?"
-        subtitle="No worries! Enter your email or phone number to reset your password."
+        subtitle="No worries! Enter your email and we&apos;ll send you a reset code."
       />
 
       <Animated.View entering={FadeInUp.delay(80)} className="mt-8 items-center">
@@ -61,13 +86,22 @@ const ForgotPasswordScreen = () => {
             <TextField
               value={value}
               onChangeText={onChange}
-              placeholder="Email or Phone Number"
+              placeholder="Email Address"
               icon={Mail}
+              keyboardType="email-address"
               error={errors.identity?.message}
             />
           )}
         />
-        <Button label="Send Reset Link" onPress={handleSubmit(onSubmit)} iconRight />
+        {formError ? (
+          <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
+        ) : null}
+        <Button
+          label={submitting ? 'Sending…' : 'Send Reset Link'}
+          onPress={handleSubmit(onSubmit)}
+          iconRight
+          disabled={submitting || !isLoaded}
+        />
       </Animated.View>
 
       <View className="mt-8">
