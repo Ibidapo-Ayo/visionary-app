@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View, useColorScheme } from 'react-native';
+import { View, useColorScheme } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
@@ -70,10 +70,10 @@ const ComingSoonHeroIllustration = ({ accentColor = '#FF7A00' }: ComingSoonHeroI
   }));
 
   return (
-    <View style={styles.wrapper}>
+    <View className="h-[230px] items-center justify-center">
       <Animated.View
         style={[
-          styles.glowOrb,
+          { position: 'absolute', width: 190, height: 190, borderRadius: 999 },
           glowStyle,
           {
             backgroundColor: isDark ? 'rgba(255,122,0,0.22)' : 'rgba(255,122,0,0.25)',
@@ -81,9 +81,9 @@ const ComingSoonHeroIllustration = ({ accentColor = '#FF7A00' }: ComingSoonHeroI
         ]}
       />
 
-      <Animated.View style={[styles.pulseRing, pulseRingStyle, { borderColor: `${accentColor}66` }]} />
+      <Animated.View style={[{ position: 'absolute', width: 174, height: 174, borderRadius: 999, borderWidth: 1 }, pulseRingStyle, { borderColor: `${accentColor}66` }]} />
 
-      <Animated.View style={[styles.mainOrb, floatStyle]}>
+      <Animated.View className="h-36 w-36 overflow-hidden rounded-full" style={floatStyle}>
         <LinearGradient
           colors={
             isDark
@@ -92,11 +92,11 @@ const ComingSoonHeroIllustration = ({ accentColor = '#FF7A00' }: ComingSoonHeroI
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.mainGradient}
+          className="flex-1 items-center justify-center"
         >
           <View
+            className="h-[72px] w-[72px] items-center justify-center rounded-3xl border"
             style={[
-              styles.innerChip,
               {
                 backgroundColor: isDark ? 'rgba(17,17,17,0.7)' : 'rgba(255,255,255,0.74)',
                 borderColor: isDark ? 'rgba(255,255,255,0.14)' : 'rgba(17,17,17,0.08)',
@@ -108,71 +108,16 @@ const ComingSoonHeroIllustration = ({ accentColor = '#FF7A00' }: ComingSoonHeroI
         </LinearGradient>
       </Animated.View>
 
-      <View style={[styles.satellite, styles.satelliteLeft, { backgroundColor: isDark ? 'rgba(22,163,74,0.26)' : 'rgba(22,163,74,0.2)' }]} />
-      <View style={[styles.satellite, styles.satelliteRight, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(17,17,17,0.09)' }]} />
+      <View
+        className="absolute left-[24%] top-[60px] h-4 w-4 rounded-full"
+        style={{ backgroundColor: isDark ? 'rgba(22,163,74,0.26)' : 'rgba(22,163,74,0.2)' }}
+      />
+      <View
+        className="absolute bottom-[68px] right-[26%] h-3 w-3 rounded-full"
+        style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(17,17,17,0.09)' }}
+      />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  wrapper: {
-    height: 230,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glowOrb: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 999,
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 174,
-    height: 174,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  mainOrb: {
-    width: 144,
-    height: 144,
-    borderRadius: 999,
-    overflow: 'hidden',
-    shadowColor: '#FF7A00',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  mainGradient: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  innerChip: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  satellite: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  satelliteLeft: {
-    width: 16,
-    height: 16,
-    top: 60,
-    left: '24%',
-  },
-  satelliteRight: {
-    width: 12,
-    height: 12,
-    right: '26%',
-    bottom: 68,
-  },
-});
 
 export default ComingSoonHeroIllustration;

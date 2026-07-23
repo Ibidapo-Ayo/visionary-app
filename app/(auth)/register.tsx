@@ -112,7 +112,7 @@ const RegisterScreen = () => {
     }
   };
 
-  const busy = submitting || googleSubmitting;
+  const busy = submitting || googleSubmitting || !isLoaded;
 
   return (
     <AuthScaffold>

@@ -1,13 +1,11 @@
 import React from 'react';
 import {
   View,
-  StyleSheet,
   ViewStyle,
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { colors, radius, shadows, spacing } from '../lib/theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -18,6 +16,25 @@ interface CardProps {
   animated?: boolean;
   blurVariant?: 'none' | 'soft' | 'strong';
 }
+
+const cardVariantClass: Record<NonNullable<CardProps['variant']>, string> = {
+  default: 'border-[#E5EEE8]',
+  outlined: 'border-[#D5E1D8] bg-transparent',
+  elevated: 'border-[rgba(10,147,54,0.24)]',
+};
+
+const paddingClass: Record<NonNullable<CardProps['padding']>, string> = {
+  none: 'p-0',
+  sm: 'p-3.5',
+  md: 'p-[18px]',
+  lg: 'p-7',
+};
+
+const blurClass: Record<NonNullable<CardProps['blurVariant']>, string> = {
+  none: 'bg-white',
+  soft: 'bg-[rgba(255,255,255,0.92)]',
+  strong: 'bg-white',
+};
 
 const Card = React.forwardRef<View, CardProps>(
   (
@@ -37,13 +54,8 @@ const Card = React.forwardRef<View, CardProps>(
     return (
       <Animated.View ref={ref as any} entering={animated ? FadeIn.duration(240) : undefined}>
         <Component
-          style={[
-            styles.card,
-            styles[`card_${variant}`],
-            styles[`padding_${padding}`],
-            styles[`blur_${blurVariant}`],
-            style,
-          ]}
+          className={`rounded-3xl border ${cardVariantClass[variant]} ${paddingClass[padding]} ${blurClass[blurVariant]}`}
+          style={style}
           onPress={onPress}
           activeOpacity={onPress ? 0.9 : 1}
         >
@@ -55,37 +67,5 @@ const Card = React.forwardRef<View, CardProps>(
 );
 
 Card.displayName = 'Card';
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  padding_none: { padding: 0 },
-  padding_sm: { padding: spacing.sm },
-  padding_md: { padding: spacing.md },
-  padding_lg: { padding: spacing.lg },
-  blur_none: {
-    backgroundColor: colors.backgroundElevated,
-  },
-  blur_soft: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-  },
-  blur_strong: {
-    backgroundColor: '#FFFFFF',
-  },
-  card_default: {
-    borderColor: colors.borderSoft,
-    ...shadows.soft,
-  },
-  card_outlined: {
-    borderColor: colors.border,
-    backgroundColor: 'transparent',
-  },
-  card_elevated: {
-    borderColor: 'rgba(10,147,54,0.24)',
-    ...shadows.strong,
-  },
-});
 
 export default Card;

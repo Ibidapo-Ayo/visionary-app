@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
-import { colors, radius, spacing, typography } from '../lib/theme';
+import { Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { colors } from '../lib/theme';
 
 interface GlassInputProps extends TextInputProps {
   label: string;
@@ -11,53 +11,20 @@ interface GlassInputProps extends TextInputProps {
 
 const GlassInput = ({ label, error, containerStyle, rightNode, ...props }: GlassInputProps) => {
   return (
-    <View style={[styles.group, containerStyle]}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputShell, error && styles.inputShellError]}>
+    <View className="gap-2" style={containerStyle}>
+      <Text className="text-sm font-semibold text-[#2D3A33]">{label}</Text>
+      <View className={`flex-row items-center rounded-[18px] border bg-white px-[18px] ${error ? 'border-[rgba(217,78,0,0.45)]' : 'border-[#E5EEE8]'}`}>
         <TextInput
           {...props}
-          style={[styles.input, props.style]}
+          className="flex-1 py-3.5 text-base text-black"
+          style={props.style}
           placeholderTextColor={colors.textMuted}
         />
         {rightNode}
       </View>
-      {!!error && <Text style={styles.error}>{error}</Text>}
+      {!!error && <Text className="text-[11px] font-semibold text-[#D94E00]">{error}</Text>}
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  group: {
-    gap: spacing.xs,
-  },
-  label: {
-    color: colors.textSecondary,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: '600',
-  },
-  inputShell: {
-    borderRadius: radius.md,
-    borderColor: colors.borderSoft,
-    borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputShellError: {
-    borderColor: 'rgba(217,78,0,0.45)',
-  },
-  input: {
-    flex: 1,
-    color: colors.textPrimary,
-    paddingVertical: spacing.sm,
-    fontSize: typography.body.fontSize,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: typography.caption.fontSize,
-    fontWeight: '600',
-  },
-});
 
 export default GlassInput;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, gradients } from '../lib/theme';
+import { gradients } from '../lib/theme';
 
 interface ScreenBackgroundProps {
   children: React.ReactNode;
@@ -62,58 +62,26 @@ const ScreenBackground = ({ children, style }: ScreenBackgroundProps) => {
   );
 
   return (
-    <View style={[styles.container, style]}>
-      <LinearGradient colors={gradients.screen} style={StyleSheet.absoluteFillObject} />
-      <Animated.View style={[styles.orbOne, orbAStyle]}>
-        <LinearGradient colors={gradients.hero} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+    <View className="flex-1 bg-[#F4F7F5]" style={style}>
+      <LinearGradient colors={gradients.screen} className="absolute inset-0" />
+      <Animated.View className="absolute -right-[110px] -top-[120px] h-[340px] w-[340px] rounded-[220px]" style={orbAStyle}>
+        <LinearGradient colors={gradients.hero} className="absolute inset-0" start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
       </Animated.View>
-      <Animated.View style={[styles.orbTwo, orbBStyle]}>
-        <LinearGradient colors={gradients.warm} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+      <Animated.View className="absolute -bottom-[110px] -left-[90px] h-[280px] w-[280px] rounded-[200px]" style={orbBStyle}>
+        <LinearGradient colors={gradients.warm} className="absolute inset-0" start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
       </Animated.View>
       {particles.map((particle) => (
         <View
           key={particle.key}
+          className="absolute rounded-full bg-[rgba(10,147,54,0.12)]"
           style={[
-            styles.particle,
             { top: particle.top, left: particle.left as any, width: particle.size, height: particle.size },
           ]}
         />
       ))}
-      <View style={styles.overlay}>{children}</View>
+      <View className="flex-1 bg-[rgba(255,255,255,0.82)]">{children}</View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.82)',
-  },
-  orbOne: {
-    position: 'absolute',
-    width: 340,
-    height: 340,
-    borderRadius: 220,
-    top: -120,
-    right: -110,
-  },
-  orbTwo: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 200,
-    bottom: -110,
-    left: -90,
-  },
-  particle: {
-    position: 'absolute',
-    borderRadius: 99,
-    backgroundColor: 'rgba(10,147,54,0.12)',
-  },
-});
 
 export default ScreenBackground;

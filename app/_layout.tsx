@@ -27,8 +27,18 @@ const RootLayout = () => {
       try {
         try {
           await Font.loadAsync({
-            'geist-sans': require('../assets/fonts/Geist-Regular.ttf'),
-            'geist-sans-bold': require('../assets/fonts/Geist-Bold.ttf'),
+            Poppins_400Regular: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf',
+            },
+            Poppins_500Medium: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf',
+            },
+            Poppins_600SemiBold: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf',
+            },
+            Poppins_700Bold: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf',
+            },
           });
         } catch {
           console.log('[v0] Custom fonts not available');
