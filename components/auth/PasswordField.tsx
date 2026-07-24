@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Eye, EyeOff, Lock } from 'lucide-react-native';
 
 interface PasswordFieldProps {
@@ -12,15 +12,18 @@ interface PasswordFieldProps {
 const PasswordField = ({ value, onChangeText, placeholder, error }: PasswordFieldProps) => {
   const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(true);
+  const borderColor = focused ? '#D0D5DD' : '#E6E8EC';
 
   return (
     <View className="gap-1.5">
       <View
-        className={`h-14 flex-row items-center rounded-[18px] border px-4 ${
-          focused ? 'border-[#FF7A00] bg-[#1F1308]' : 'border-[rgba(255,255,255,0.08)] bg-[#1A1A1A]'
-        }`}
+        className="h-14 flex-row items-center rounded-2xl px-4"
+        style={{
+          borderColor,
+          borderWidth: StyleSheet.hairlineWidth,
+        }}
       >
-        <Lock size={20} color="#FFFFFF" strokeWidth={2} />
+        <Lock size={20} color="#8E8E8E" strokeWidth={2} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -29,10 +32,10 @@ const PasswordField = ({ value, onChangeText, placeholder, error }: PasswordFiel
           secureTextEntry={secure}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="ml-3 flex-1 text-[15px] font-medium text-white"
+          className="ml-3 flex-1 text-[15px] font-medium text-[#111111]"
         />
         <Pressable onPress={() => setSecure((prev) => !prev)} accessibilityRole="button" accessibilityLabel="Toggle password visibility">
-          {secure ? <Eye size={20} color="#FFFFFF" strokeWidth={2} /> : <EyeOff size={20} color="#FFFFFF" strokeWidth={2} />}
+          {secure ? <Eye size={20} color="#8E8E8E" strokeWidth={2} /> : <EyeOff size={20} color="#8E8E8E" strokeWidth={2} />}
         </Pressable>
       </View>
       {error ? <Text className="text-[13px] text-[#EF4444]">{error}</Text> : null}

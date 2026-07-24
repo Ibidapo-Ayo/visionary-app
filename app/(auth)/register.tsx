@@ -10,7 +10,7 @@ import AuthScaffold from '@components/auth/AuthScaffold';
 import AuthTopBar from '@components/auth/AuthTopBar';
 import Button from '@components/auth/Button';
 import PasswordField from '@components/auth/PasswordField';
-import PasswordRequirementCard from '@components/auth/PasswordRequirementCard';
+import PasswordRequirementCard, { getPasswordRequirements } from '@components/auth/PasswordRequirementCard';
 import SectionHeader from '@components/auth/SectionHeader';
 import SocialButton from '@components/auth/SocialButton';
 import TextField from '@components/auth/TextField';
@@ -44,6 +44,7 @@ const RegisterScreen = () => {
     control,
     handleSubmit,
     setError,
+    watch,
     formState: { errors },
   } = useForm<RegistrationData>({
     resolver: zodResolver(registrationSchema),
@@ -113,6 +114,8 @@ const RegisterScreen = () => {
   };
 
   const busy = submitting || googleSubmitting || !isLoaded;
+  const passwordValue = watch('password') ?? '';
+  const isPasswordValid = getPasswordRequirements(passwordValue).every((requirement) => requirement.met);
 
   return (
     <AuthScaffold>
@@ -167,7 +170,7 @@ const RegisterScreen = () => {
           )}
         />
 
-        <PasswordRequirementCard />
+        <PasswordRequirementCard password={passwordValue} />
 
         {formError ? (
           <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
@@ -180,7 +183,7 @@ const RegisterScreen = () => {
           label={submitting ? 'Creating account…' : 'Sign Up'}
           onPress={handleSubmit(handleRegister)}
           iconRight
-          disabled={busy}
+          disabled={busy || !isPasswordValid}
         />
       </Animated.View>
 

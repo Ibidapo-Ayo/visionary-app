@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -79,13 +79,20 @@ const SocialButton = ({ icon: Icon, brand = 'google', layout = 'icon', onPress }
         onPressOut={() => {
           scale.value = withTiming(1, { duration: 120 });
         }}
-        style={animatedStyle}
-        className="h-[54px] w-full flex-row items-center justify-center rounded-[27px] border border-[rgba(255,255,255,0.16)] bg-white"
+        className="h-[52px] w-full flex-row items-center justify-center rounded-[12px] bg-white"
+        style={[
+          animatedStyle,
+          {
+            borderColor: '#E6E8EC',
+            borderWidth: StyleSheet.hairlineWidth,
+          },
+        ]}
         accessibilityRole="button"
         accessibilityLabel={`Continue with ${BRAND_NAMES[brand]}`}
       >
-        <View className="absolute left-6 h-6 w-6 items-center justify-center">{renderIcon()}</View>
-        <Text className="text-[15px] font-semibold text-[#111111]">Sign in with Google</Text>
+        <View className="w-10 items-center justify-center">{renderIcon()}</View>
+        <Text className="flex-1 text-center text-[15px] font-semibold text-[#111111]">Continue with Google</Text>
+        <View className="w-10" />
       </AnimatedPressable>
     );
   }

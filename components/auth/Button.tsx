@@ -36,7 +36,7 @@ const Button = ({
 
   return (
     <AnimatedPressable
-      className={`${fullWidth ? 'w-full' : ''} ${isPrimary ? 'bg-[#FF7A00]' : 'bg-transparent'} h-[54px] flex-row items-center justify-center rounded-[14px] border ${isPrimary ? 'border-[#FF7A00]' : 'border-[rgba(255,255,255,0.16)]'} ${disabled ? 'opacity-60' : ''}`}
+      className={`shadow-lgshadow-orange-200 ${fullWidth ? 'w-full' : ''} ${isPrimary ? 'bg-[#FF7A00]' : 'bg-transparent'} h-[54px] flex-row items-center justify-center rounded-2xl border ${isPrimary ? 'border-[#FF7A00]' : 'border-[rgba(255,255,255,0.16)]'} ${disabled ? 'opacity-60' : ''}`}
       style={animatedStyle}
       onPress={onPress}
       onPressIn={() => {

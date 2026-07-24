@@ -26,7 +26,6 @@ const LoginScreen = () => {
   const router = useRouter();
   const { doSignIn, isLoaded } = useAuthSignIn();
   const { signInWithGoogle } = useGoogleAuth();
-
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -34,7 +33,6 @@ const LoginScreen = () => {
   const {
     control,
     handleSubmit,
-    setError,
     formState: { errors },
   } = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
@@ -47,7 +45,10 @@ const LoginScreen = () => {
   const onSubmit = async (values: SignInForm) => {
     setFormError(null);
     setSubmitting(true);
-    const result = await doSignIn({ identifier: values.identity, password: values.password });
+    const result = await doSignIn({
+      identifier: values.identity,
+      password: values.password,
+    });
     setSubmitting(false);
 
     if (result.complete) {
@@ -56,14 +57,6 @@ const LoginScreen = () => {
     }
 
     if (result.error) {
-      if (result.error.field === 'identifier') {
-        setError('identity', { type: 'server', message: result.error.message });
-        return;
-      }
-      if (result.error.field === 'password') {
-        setError('password', { type: 'server', message: result.error.message });
-        return;
-      }
       setFormError(result.error.message);
     }
   };
@@ -73,7 +66,6 @@ const LoginScreen = () => {
     setGoogleSubmitting(true);
     const result = await signInWithGoogle();
     setGoogleSubmitting(false);
-
     if (result.complete) {
       router.replace('/(app)/home');
       return;
@@ -89,7 +81,7 @@ const LoginScreen = () => {
     <AuthScaffold>
       <AuthTopBar fallbackHref="/(auth)/onboarding" />
 
-      <SectionHeader title="Sign In" subtitle="Welcome back! Glad to have you again." />
+      <SectionHeader title="Welcome back!" subtitle="Sign in to continue your spiritual journey." />
 
       <Animated.View entering={FadeInDown.delay(80)} className="mt-8 gap-4">
         <Controller
@@ -123,17 +115,12 @@ const LoginScreen = () => {
           <Text className="text-[13px] font-medium text-[#FF7A00]">Forgot Password?</Text>
         </Pressable>
 
-        {formError ? (
-          <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
-        ) : null}
-
-        <Button
-          label={submitting ? 'Signing In…' : 'Sign In'}
-          onPress={handleSubmit(onSubmit)}
-          iconRight
-          disabled={busy}
-        />
+        <Button label="Sign In" onPress={handleSubmit(onSubmit)} iconRight disabled={busy} />
       </Animated.View>
+
+      {formError ? (
+        <Text className="mt-4 text-[12px] font-medium text-[#F87171]">{formError}</Text>
+      ) : null}
 
       <View className="mt-7 flex-row items-center gap-3">
         <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />

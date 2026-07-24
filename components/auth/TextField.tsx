@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
 
 interface TextFieldProps {
@@ -20,13 +20,16 @@ const TextField = ({
   error,
 }: TextFieldProps) => {
   const [focused, setFocused] = useState(false);
+  const borderColor = focused ? '#D0D5DD' : '#E6E8EC';
 
   return (
     <View className="gap-1.5">
       <View
-        className={`h-[52px] flex-row items-center rounded-[12px] border px-3.5 ${
-          focused ? 'border-[#FF7A00] bg-[#17100A]' : 'border-[rgba(255,255,255,0.10)] bg-[#101010]'
-        }`}
+        className="h-[52px] flex-row items-center rounded-2xl px-3.5"
+        style={{
+          borderColor,
+          borderWidth: StyleSheet.hairlineWidth,
+        }}
       >
         <Icon size={16} color="#8E8E8E" strokeWidth={2} />
         <TextInput
@@ -37,7 +40,7 @@ const TextField = ({
           keyboardType={keyboardType}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="ml-2.5 flex-1 text-[14px] font-medium text-white"
+          className="ml-2.5 flex-1 text-[14px] font-medium text-[#111111]"
         />
       </View>
       {error ? <Text className="text-[13px] text-[#EF4444]">{error}</Text> : null}
