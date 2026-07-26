@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
 import Button from '@components/Button';
+import { syncProfileFromStoreUser } from '@services/supabase';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
   const firstInitial = firstName?.trim()?.charAt(0) ?? '';
@@ -73,7 +74,7 @@ const EditProfileScreen = () => {
     setProfileImage(result.assets[0].uri);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) {
       Alert.alert('Error', 'No user profile found.');
       return;
@@ -89,7 +90,7 @@ const EditProfileScreen = () => {
       return;
     }
 
-    setUser({
+    const updatedUser = {
       ...user,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -98,7 +99,16 @@ const EditProfileScreen = () => {
       bio: bio.trim() || undefined,
       profileImage: trimmedImage || undefined,
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    try {
+      await syncProfileFromStoreUser(updatedUser);
+      setUser(updatedUser);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sync profile.';
+      Alert.alert('Sync failed', message);
+      return;
+    }
 
     router.back();
   };

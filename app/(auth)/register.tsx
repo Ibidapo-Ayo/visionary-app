@@ -20,7 +20,12 @@ const registrationSchema = z
   .object({
     fullName: z.string().min(2, 'Full name is required'),
     email: z.string().email('A valid email is required'),
-    phone: z.string().min(10, 'A valid phone is required'),
+    phone: z.string().refine((value) => {
+      const trimmed = value.trim();
+      return trimmed.length === 0 || trimmed.length >= 10;
+    }, {
+        message: 'Phone number must be at least 10 digits when provided',
+      }),
     password: z
       .string()
       .min(8, 'At least 8 characters')
@@ -67,7 +72,7 @@ const RegisterScreen = () => {
       firstName,
       lastName,
       emailAddress: values.email,
-      phone: values.phone,
+      phone: values.phone.trim() || undefined,
       password: values.password,
     });
     setSubmitting(false);
@@ -154,7 +159,7 @@ const RegisterScreen = () => {
             <TextField
               value={value}
               onChangeText={onChange}
-              placeholder="Phone Number"
+              placeholder="Phone Number (Optional)"
               icon={Phone}
               keyboardType="phone-pad"
               error={errors.phone?.message}

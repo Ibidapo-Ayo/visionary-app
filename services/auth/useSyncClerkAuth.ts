@@ -3,6 +3,7 @@ import { useAuth, useUser } from '@clerk/expo';
 import { useAuthStore } from '@store/authStore';
 import type { User } from '@/types/index';
 import { mapClerkUser } from './errors';
+import { syncProfileFromClerkUser } from '@services/supabase';
 
 /**
  * Bridges Clerk's `useAuth`/`useUser` into our Zustand `authStore` so
@@ -20,6 +21,8 @@ export const useSyncClerkAuth = () => {
   const reset = useAuthStore((state) => state.reset);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!authLoaded || !userLoaded) {
       setLoading(true);
       return;
@@ -54,5 +57,32 @@ export const useSyncClerkAuth = () => {
 
     setUser(projected);
     setLoading(false);
+
+    const syncWithRetry = async (attempt: number): Promise<void> => {
+      try {
+        await syncProfileFromClerkUser(clerkUser);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (attempt < 2) {
+          setTimeout(() => {
+            if (!cancelled) {
+              void syncWithRetry(attempt + 1);
+            }
+          }, 800);
+          return;
+        }
+
+        console.warn('[supabase] Profile sync failed:', error);
+      }
+    };
+
+    void syncWithRetry(1);
+
+    return () => {
+      cancelled = true;
+    };
   }, [authLoaded, userLoaded, isSignedIn, clerkUser, setUser, setLoading, reset]);
 };

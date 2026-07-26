@@ -2,9 +2,11 @@ import React from 'react';
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
+import { useSupabaseClerkAuth } from '@services/supabase';
 import { useAppStore } from '@store/appStore';
 
 const AuthLayout = () => {
+  useSupabaseClerkAuth();
   useSyncClerkAuth();
   const { isLoaded, isSignedIn } = useAuth();
   const isOnboardingComplete = useAppStore((state) => state.isOnboardingComplete);

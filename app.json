@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#111226"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTabletMode": true,
       "bundleIdentifier": "com.visionary.app",
@@ -26,7 +28,11 @@
         "backgroundColor": "#111226"
       },
       "package": "com.visionary.app",
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,7 +52,8 @@
         {
           "faceIDPermission": "Allow $(PRODUCT_NAME) to access Face ID"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "scheme": "visionary"
   }

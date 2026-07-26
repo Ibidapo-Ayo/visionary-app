@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
+import { useSupabaseClerkAuth } from '@services/supabase';
 import { colors, spacing } from '../../lib/theme';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
@@ -188,6 +189,7 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 };
 
 const AppLayout = () => {
+  useSupabaseClerkAuth();
   useSyncClerkAuth();
   const { isLoaded, isSignedIn } = useAuth();
 

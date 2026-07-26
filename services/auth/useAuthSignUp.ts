@@ -35,11 +35,14 @@ export const useAuthSignUp = () => {
       }
 
       try {
+        const normalizedPhone = input.phone?.trim();
         const createResult = await signUp.create({
           firstName: input.firstName,
           lastName: input.lastName,
           emailAddress: input.emailAddress,
-          phoneNumber: input.phone,
+          unsafeMetadata: {
+            phone_number: normalizedPhone || null,
+          },
           password: input.password,
         });
         if (createResult.error) {
