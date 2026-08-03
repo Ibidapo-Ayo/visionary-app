@@ -1,33 +1,73 @@
 import React from 'react';
-import { ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeOut, SlideInUp } from 'react-native-reanimated';
-import { Feather } from '@expo/vector-icons';
-import Card from '@components/Card';
-import BibleJourneyProgressCard from '@components/BibleJourneyProgressCard';
-import BibleJourneyStreakCard from '@components/BibleJourneyStreakCard';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockBibleJourneyProgress, mockBibleJourneySessionPlan } from '@services/mockData';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+
+type JourneyStepProps = {
+  title: string;
+  subtitle: string;
+  meta: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  accent: string;
+  complete: boolean;
+  locked?: boolean;
+  buttonLabel: string;
+  onPress: () => void;
+};
+
+const MiniStat = ({ icon, value, label, tint }: { icon: React.ComponentProps<typeof Feather>['name']; value: string; label: string; tint: string }) => (
+  <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
+    <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${tint}18` }}>
+      <Feather name={icon} size={15} color={tint} />
+    </View>
+    <Text className="mt-2 text-[17px] font-black text-[#171717]">{value}</Text>
+    <Text className="mt-0.5 text-[9px] font-bold text-[#81776D]">{label}</Text>
+  </View>
+);
+
+const JourneyStep = ({ title, subtitle, meta, icon, accent, complete, locked, buttonLabel, onPress }: JourneyStepProps) => (
+  <View className={`rounded-[22px] border px-4 py-4 ${locked ? 'border-[#E9DAC8] bg-[#F7EBDD]' : 'border-[#EFE5D8] bg-white'}`}>
+    <View className="flex-row items-start">
+      <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: locked ? '#EFE0CE' : `${accent}18` }}>
+        <Feather name={locked ? 'lock' : icon} size={18} color={locked ? '#9B7650' : accent} />
+      </View>
+
+      <View className="ml-3 flex-1">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[15px] font-black text-[#171717]">{title}</Text>
+          {complete ? <Feather name="check-circle" size={17} color="#16A34A" /> : null}
+        </View>
+        <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">{subtitle}</Text>
+        <Text className="mt-1 text-[10px] font-bold uppercase tracking-[0.5px] text-[#A0988E]">{meta}</Text>
+      </View>
+    </View>
+
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={locked}
+      activeOpacity={0.88}
+      className={`mt-4 h-11 flex-row items-center justify-center rounded-[15px] ${locked ? 'bg-[#D8C7B5]' : complete ? 'bg-[#14351E]' : 'bg-[#FF7A00]'}`}
+    >
+      <Text className={`text-[12px] font-black ${locked ? 'text-[#806349]' : 'text-white'}`}>{buttonLabel}</Text>
+      {!locked ? <Feather name="arrow-right" size={15} color="#FFFFFF" style={{ marginLeft: 8 }} /> : null}
+    </TouchableOpacity>
+  </View>
+);
 
 const BibleJourneyScreen = () => {
   const router = useRouter();
-  const scheme = useColorScheme();
-  const isDark = scheme !== 'light';
+  const insets = useSafeAreaInsets();
 
   const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
   const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
-  const getTodayProgress = useBibleJourneyStore((state) => state.getTodayProgress);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
 
-  const todayProgress = getTodayProgress();
   const streakStats = getStreakStats();
-
-  const adjustedCompletedReadings = Math.min(
-    mockBibleJourneyProgress.totalReadings,
-    mockBibleJourneyProgress.completedReadings + streakStats.totalCompletedDays,
-  );
-
   const morningCompletedChapters = getCompletedChaptersForToday('morning').filter((reference) =>
     mockBibleJourneySessionPlan.morning.includes(reference),
   ).length;
@@ -35,12 +75,32 @@ const BibleJourneyScreen = () => {
     mockBibleJourneySessionPlan.evening.includes(reference),
   ).length;
 
-  const morningReadingDone = morningCompletedChapters >= mockBibleJourneySessionPlan.morning.length;
+  const morningTotal = mockBibleJourneySessionPlan.morning.length;
+  const eveningTotal = mockBibleJourneySessionPlan.evening.length;
+  const totalTodayChapters = morningTotal + eveningTotal;
+  const totalCompletedChapters = morningCompletedChapters + eveningCompletedChapters;
+  const dayProgressPercent = totalTodayChapters ? Math.round((totalCompletedChapters / totalTodayChapters) * 100) : 0;
+  const yearlyProgressPercent = Math.round((mockBibleJourneyProgress.completedReadings / mockBibleJourneyProgress.totalReadings) * 100);
+
+  const morningReadingDone = morningCompletedChapters >= morningTotal;
   const morningReflectionDone = isReflectionCompleteForToday('morning');
   const eveningUnlocked = morningReadingDone && morningReflectionDone;
-
-  const eveningReadingDone = eveningCompletedChapters >= mockBibleJourneySessionPlan.evening.length;
+  const eveningReadingDone = eveningCompletedChapters >= eveningTotal;
   const eveningReflectionDone = isReflectionCompleteForToday('evening');
+
+  const openReading = (period: ReadingPeriod) => {
+    router.push({
+      pathname: '/(app)/bible-reading-select',
+      params: { period },
+    });
+  };
+
+  const openReflectionIntro = (period: ReadingPeriod) => {
+    router.push({
+      pathname: '/(app)/bible-reflection-intro',
+      params: { period },
+    });
+  };
 
   const handleBackPress = () => {
     if (router.canGoBack()) {
@@ -51,212 +111,130 @@ const BibleJourneyScreen = () => {
     router.replace('/(app)/home');
   };
 
-  const openReading = (period: 'morning' | 'evening') => {
-    const plan = period === 'morning' ? mockBibleJourneySessionPlan.morning : mockBibleJourneySessionPlan.evening;
-    const completed = getCompletedChaptersForToday(period);
-    const nextReference = plan.find((reference) => !completed.includes(reference)) ?? plan[0];
-
-    router.push({
-      pathname: '/(app)/bible-reading',
-      params: {
-        period,
-        reference: nextReference,
-      },
-    });
-  };
-
-  const openReflectionIntro = (period: 'morning' | 'evening') => {
-    router.push({
-      pathname: '/(app)/bible-reflection-intro',
-      params: { period },
-    });
-  };
-
-  const gradient = isDark
-    ? (['#040404', '#090909', '#101010'] as const)
-    : (['#F8F4EE', '#F5EFE7', '#F0EADF'] as const);
-
-  const cardStyle = {
-    borderColor: isDark ? '#2E2E2E' : '#E2D5C5',
-    backgroundColor: isDark ? '#141414' : '#FFF8EF',
-  };
-
-  const subtleTextColor = isDark ? '#A7A7A7' : '#7E6B59';
-  const titleColor = isDark ? '#F4F4F4' : '#2E251D';
-
   return (
-    <LinearGradient colors={gradient} className="flex-1">
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
+      <StatusBar barStyle="dark-content" />
 
-      <View className="px-5 pb-3 pt-8">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom + 116, 136) }}
+        className="px-5"
+      >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="h-10 w-10 items-center justify-center rounded-full border"
-            style={{
-              borderColor: isDark ? '#2D2D2D' : '#DECDBB',
-              backgroundColor: isDark ? '#151515' : '#FFF4E7',
-            }}
-            onPress={handleBackPress}
-          >
-            <Feather name="chevron-left" size={18} color={isDark ? '#F4F4F4' : '#403124'} />
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <Feather name="chevron-left" size={20} color="#181818" />
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[17px] font-semibold" style={{ color: titleColor }}>Bible Journey</Text>
-            <Text className="text-[11px]" style={{ color: subtleTextColor }}>One clear step at a time</Text>
+            <Text className="text-[16px] font-black text-[#171717]">Bible Journey</Text>
+            <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
           </View>
 
-          <View className="h-10 w-10 items-center justify-center rounded-full border" style={{ borderColor: 'transparent' }} />
-        </Animated.View>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} className="px-5">
-        <Animated.View entering={SlideInUp.duration(260)}>
-          <Card animated={false} padding="md" blurVariant="none" style={cardStyle}>
-            <Text className="text-[11px] font-semibold uppercase tracking-[1px]" style={{ color: subtleTextColor }}>Today&apos;s Path</Text>
-            <Text className="mt-2 text-[14px] leading-6" style={{ color: titleColor }}>
-              Morning Reading → Bible Reflection → Evening Reading → Bible Reflection
-            </Text>
-          </Card>
+          <TouchableOpacity onPress={() => router.push('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <Feather name="home" size={17} color="#181818" />
+          </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={SlideInUp.delay(30).duration(260)} className="mt-4">
-          <BibleJourneyProgressCard
-            year={mockBibleJourneyProgress.year}
-            cyclesCompleted={mockBibleJourneyProgress.cyclesCompleted}
-            cyclesTarget={mockBibleJourneyProgress.cyclesTarget}
-            completedReadings={adjustedCompletedReadings}
-            totalReadings={mockBibleJourneyProgress.totalReadings}
-          />
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(60).duration(260)} className="mt-4">
-          <BibleJourneyStreakCard
-            morningCompleted={todayProgress.morningCompleted}
-            eveningCompleted={todayProgress.eveningCompleted}
-            dailyCompleted={todayProgress.dailyCompleted}
-            currentStreak={streakStats.currentStreak}
-            longestStreak={streakStats.longestStreak}
-          />
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(90).duration(260)} className="mt-4">
-          <Card animated={false} padding="md" blurVariant="none" style={cardStyle}>
-            <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#FFB56D]">Morning Reading</Text>
-            <Text className="mt-1 text-[12px]" style={{ color: subtleTextColor }}>
-              {mockBibleJourneySessionPlan.morning.join(' • ')}
-            </Text>
-            <Text className="mt-2 text-[12px]" style={{ color: titleColor }}>
-              {morningCompletedChapters}/{mockBibleJourneySessionPlan.morning.length} chapters completed
-            </Text>
-
-            <TouchableOpacity
-              className={`mt-4 rounded-full px-4 py-2.5 ${morningReadingDone ? 'bg-[#1B3521]' : 'bg-[#FF7A00]'}`}
-              onPress={() => openReading('morning')}
-            >
-              <Text className={`text-center text-[12px] font-semibold ${morningReadingDone ? 'text-[#DDF3E3]' : 'text-[#1B1309]'}`}>
-                {morningReadingDone ? 'Review Morning Reading' : 'Continue Morning Reading'}
-              </Text>
-            </TouchableOpacity>
-          </Card>
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(120).duration(260)} className="mt-4">
-          <Card animated={false} padding="md" blurVariant="none" style={cardStyle}>
-            <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#91DDA7]">Morning Bible Reflection</Text>
-            <Text className="mt-1 text-[12px]" style={{ color: subtleTextColor }}>
-              Unlocks when every morning chapter is completed.
-            </Text>
-
-            <TouchableOpacity
-              className={`mt-4 rounded-full px-4 py-2.5 ${morningReadingDone ? 'bg-[#16A34A]' : 'bg-[#2D2D2D]'}`}
-              disabled={!morningReadingDone}
-              onPress={() => openReflectionIntro('morning')}
-            >
-              <Text className={`text-center text-[12px] font-semibold ${morningReadingDone ? 'text-[#102311]' : 'text-[#A8A8A8]'}`}>
-                {morningReflectionDone ? 'Morning Reflection Completed' : 'Reflect On Morning Reading'}
-              </Text>
-            </TouchableOpacity>
-          </Card>
-        </Animated.View>
-
-        {!eveningUnlocked ? (
-          <Animated.View
-            key="evening-locked"
-            entering={SlideInUp.delay(150).duration(280)}
-            exiting={FadeOut.duration(200)}
-            className="mt-4"
-          >
-            <Card
-              animated={false}
-              padding="md"
-              blurVariant="none"
-              style={{
-                borderColor: '#3B342D',
-                backgroundColor: isDark ? '#191511' : '#FDF1E4',
-              }}
-            >
-              <View className="flex-row items-start gap-3">
-                <View className="mt-0.5 h-8 w-8 items-center justify-center rounded-full bg-[#2A2017]">
-                  <Feather name="lock" size={14} color="#FFB56D" />
+        <Animated.View entering={FadeInDown.delay(70).duration(320)} className="mt-5 overflow-hidden rounded-[24px] bg-[#17191B]">
+          <LinearGradient colors={['#202225', '#151719']} className="p-5">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <View className="flex-row items-center">
+                  <FontAwesome5 name="fire" size={13} color="#FF7A00" solid />
+                  <Text className="ml-2 text-[11px] font-black uppercase tracking-[0.7px] text-[#FFB56D]">Today&apos;s Journey</Text>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-[12px] font-semibold" style={{ color: isDark ? '#F2D9BF' : '#8A5A2C' }}>Evening Reading Locked</Text>
-                  <Text className="mt-1 text-[12px] leading-5" style={{ color: isDark ? '#D9C0A8' : '#9A6A3A' }}>
-                    Complete your Morning Reading and Reflection to unlock the Evening Reading.
-                  </Text>
-                  <Text className="mt-2 text-[11px]" style={{ color: isDark ? '#CFAF90' : '#9C744F' }}>
-                    Progress: Reading {morningCompletedChapters}/{mockBibleJourneySessionPlan.morning.length} • Reflection {morningReflectionDone ? 'Done' : 'Pending'}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            key="evening-unlocked"
-            entering={SlideInUp.delay(150).duration(320)}
-            exiting={FadeOut.duration(200)}
-            className="mt-4"
-          >
-            <Card animated={false} padding="md" blurVariant="none" style={cardStyle}>
-              <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#8FA4FF]">Evening Reading</Text>
-              <Text className="mt-1 text-[12px]" style={{ color: subtleTextColor }}>
-                {mockBibleJourneySessionPlan.evening.join(' • ')}
-              </Text>
-              <Text className="mt-2 text-[12px]" style={{ color: titleColor }}>
-                {eveningCompletedChapters}/{mockBibleJourneySessionPlan.evening.length} chapters completed
-              </Text>
-
-              <TouchableOpacity
-                className={`mt-4 rounded-full px-4 py-2.5 ${eveningReadingDone ? 'bg-[#1B3521]' : 'bg-[#FF7A00]'}`}
-                onPress={() => openReading('evening')}
-              >
-                <Text className={`text-center text-[12px] font-semibold ${eveningReadingDone ? 'text-[#DDF3E3]' : 'text-[#1B1309]'}`}>
-                  {eveningReadingDone ? 'Review Evening Reading' : 'Continue Evening Reading'}
+                <Text className="mt-3 text-[32px] font-black leading-[36px] text-white">{dayProgressPercent}%</Text>
+                <Text className="mt-1 text-[12px] font-semibold leading-5 text-[#CFC8BE]">
+                  {totalCompletedChapters} of {totalTodayChapters} chapters completed today.
                 </Text>
-              </TouchableOpacity>
-            </Card>
-          </Animated.View>
-        )}
+              </View>
 
-        <Animated.View entering={SlideInUp.delay(180).duration(260)} className="mt-4">
-          <Card animated={false} padding="md" blurVariant="none" style={cardStyle}>
-            <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-[#91DDA7]">Evening Bible Reflection</Text>
-            <Text className="mt-1 text-[12px]" style={{ color: subtleTextColor }}>
-              Available after all evening chapters are completed.
-            </Text>
+              <View className="h-[88px] w-[88px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
+                <Text className="text-[20px] font-black text-white">{streakStats.currentStreak}</Text>
+                <Text className="text-[9px] font-bold text-[#D8D1C8]">days</Text>
+              </View>
+            </View>
 
-            <TouchableOpacity
-              className={`mt-4 rounded-full px-4 py-2.5 ${eveningReadingDone ? 'bg-[#16A34A]' : 'bg-[#2D2D2D]'}`}
-              disabled={!eveningReadingDone}
+            <View className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/15">
+              <View className="h-full rounded-full bg-[#FF7A00]" style={{ width: `${dayProgressPercent}%` }} />
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(120).duration(320)} className="mt-4 flex-row gap-3">
+          <MiniStat icon="book-open" value={`${yearlyProgressPercent}%`} label="Year Goal" tint="#16A34A" />
+          <MiniStat icon="calendar" value={`${totalTodayChapters}`} label="Chapters Today" tint="#FF7A00" />
+          <MiniStat icon="award" value={`${streakStats.longestStreak}`} label="Best Streak" tint="#3768D8" />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(170).duration(320)} className="mt-5">
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-[15px] font-black text-[#171717]">Today&apos;s Flow</Text>
+            <Text className="text-[10px] font-bold text-[#81776D]">Morning to evening</Text>
+          </View>
+
+          <View className="gap-3">
+            <JourneyStep
+              title="Morning Reading"
+              subtitle={mockBibleJourneySessionPlan.morning.join(' / ')}
+              meta={`${morningCompletedChapters}/${morningTotal} chapters complete`}
+              icon="sunrise"
+              accent="#FF7A00"
+              complete={morningReadingDone}
+              buttonLabel={morningReadingDone ? 'Review Morning Chapters' : 'Select Morning Chapter'}
+              onPress={() => openReading('morning')}
+            />
+
+            <JourneyStep
+              title="Morning Reflection"
+              subtitle="Pause, process, and capture what stood out from the morning reading."
+              meta={morningReadingDone ? 'Unlocked after reading' : 'Finish morning chapters first'}
+              icon="edit-3"
+              accent="#16A34A"
+              complete={morningReflectionDone}
+              locked={!morningReadingDone}
+              buttonLabel={morningReflectionDone ? 'Open Reflection' : 'Reflect on Morning Reading'}
+              onPress={() => openReflectionIntro('morning')}
+            />
+
+            <JourneyStep
+              title="Evening Reading"
+              subtitle={mockBibleJourneySessionPlan.evening.join(' / ')}
+              meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reflection'}
+              icon="moon"
+              accent="#3768D8"
+              complete={eveningReadingDone}
+              locked={!eveningUnlocked}
+              buttonLabel={eveningReadingDone ? 'Review Evening Chapters' : 'Select Evening Chapter'}
+              onPress={() => openReading('evening')}
+            />
+
+            <JourneyStep
+              title="Evening Reflection"
+              subtitle="Close the day by writing what God highlighted through the evening chapters."
+              meta={eveningReadingDone ? 'Ready for reflection' : 'Finish evening chapters first'}
+              icon="heart"
+              accent="#16A34A"
+              complete={eveningReflectionDone}
+              locked={!eveningReadingDone}
+              buttonLabel={eveningReflectionDone ? 'Open Reflection' : 'Reflect on Evening Reading'}
               onPress={() => openReflectionIntro('evening')}
-            >
-              <Text className={`text-center text-[12px] font-semibold ${eveningReadingDone ? 'text-[#102311]' : 'text-[#A8A8A8]'}`}>
-                {eveningReflectionDone ? 'Evening Reflection Completed' : 'Reflect On Evening Reading'}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(220).duration(320)} className="mt-5 rounded-[22px] border border-[#E6D9C9] bg-white p-4">
+          <View className="flex-row items-start">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-[#FFF2E6]">
+              <Feather name="compass" size={17} color="#FF7A00" />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="text-[13px] font-black text-[#171717]">Stay steady today</Text>
+              <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">
+                Complete the reading first, then reflection. The evening session opens after your morning reflection is done.
               </Text>
-            </TouchableOpacity>
-          </Card>
+            </View>
+          </View>
         </Animated.View>
       </ScrollView>
     </LinearGradient>

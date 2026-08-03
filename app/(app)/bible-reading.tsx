@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockBibleJourneySessionPlan, mockBibleReadingChapters } from '@services/mockData';
 import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
 
 const BibleReadingScreen = () => {
   const router = useRouter();
-  const scheme = useColorScheme();
-  const isDark = scheme !== 'light';
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ reference?: string; period?: string }>();
 
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
@@ -62,6 +61,17 @@ const BibleReadingScreen = () => {
     router.replace('/(app)/bible-journey');
   };
 
+  const markCurrentChapterComplete = () => {
+    if (!chapter) {
+      return;
+    }
+
+    markChapterCompleteForToday({
+      period,
+      chapterReference: chapter.reference,
+    });
+  };
+
   const goToPreviousChapter = () => {
     if (!hasPrev) {
       return;
@@ -75,10 +85,7 @@ const BibleReadingScreen = () => {
       return;
     }
 
-    markChapterCompleteForToday({
-      period,
-      chapterReference: chapter.reference,
-    });
+    markCurrentChapterComplete();
 
     if (hasNext) {
       setChapterIndex((prev) => prev + 1);
@@ -98,101 +105,76 @@ const BibleReadingScreen = () => {
 
   if (!chapter) {
     return (
-      <LinearGradient colors={['#060606', '#0A0A09', '#10110F']} className="flex-1 items-center justify-center px-6">
-        <StatusBar barStyle="light-content" />
-        <Text className="text-center text-[15px] font-semibold text-[#F0F0F0]">No chapters assigned for this session.</Text>
-      </LinearGradient>
+      <View className="flex-1 items-center justify-center bg-[#FFF9F1] px-6">
+        <StatusBar barStyle="dark-content" />
+        <Text className="text-center text-[15px] font-semibold text-[#2D241B]">No chapters assigned for this session.</Text>
+      </View>
     );
   }
 
-  const gradient = isDark
-    ? (['#060606', '#0A0A09', '#10110F'] as const)
-    : (['#F8F4EE', '#F4EEE6', '#F0EADF'] as const);
-
-  const panelBg = isDark ? '#121212' : '#FFF8EE';
-  const borderColor = isDark ? '#2C2C2C' : '#E2D5C5';
-  const titleColor = isDark ? '#F6F6F6' : '#2D241B';
-  const bodyColor = isDark ? '#E3E3E3' : '#3F3024';
-  const mutedColor = isDark ? '#AAAAAA' : '#7D6A58';
-
   return (
-    <LinearGradient colors={gradient} className="flex-1">
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <View className="flex-1 bg-[#FFF9F1]">
+      <StatusBar barStyle="dark-content" />
 
-      <View className="px-5 pb-3 pt-8">
-        <Animated.View entering={FadeIn.duration(230)} className="flex-row items-center justify-between">
-          <TouchableOpacity
-            className="h-10 w-10 items-center justify-center rounded-full border"
-            style={{
-              borderColor,
-              backgroundColor: panelBg,
-            }}
-            onPress={handleBackPress}
-          >
-            <Feather name="chevron-left" size={18} color={titleColor} />
+      <View className="px-5 pb-2" style={{ paddingTop: insets.top + 10 }}>
+        <Animated.View entering={FadeIn.duration(220)} className="flex-row items-center justify-between">
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full">
+            <Feather name="chevron-left" size={21} color="#1C1C1C" />
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[16px] font-semibold" style={{ color: titleColor }}>{chapter.reference}</Text>
-            <Text className="text-[11px]" style={{ color: mutedColor }}>
-              {period === 'morning' ? 'Morning Reading' : 'Evening Reading'}
-            </Text>
+            <Text className="text-[14px] font-black text-[#171717]">{chapter.reference}</Text>
+            <Text className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">New International Version</Text>
           </View>
 
-          <View className="h-10 w-10" />
+          <View className="flex-row items-center">
+            <TouchableOpacity activeOpacity={0.8} className="h-10 w-8 items-center justify-center">
+              <Feather name="book-open" size={16} color="#1C1C1C" />
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.8} className="h-10 w-8 items-center justify-center">
+              <Feather name="search" size={16} color="#1C1C1C" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} className="px-5">
-        <Animated.View entering={SlideInUp.duration(250)}>
-          <View className="rounded-3xl border px-4 py-4" style={{ borderColor, backgroundColor: panelBg }}>
-            <Text className="text-[11px] font-semibold uppercase tracking-[1px]" style={{ color: mutedColor }}>
-              Reading Progress
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 92, 112) }} className="px-5">
+        <Animated.View entering={FadeInDown.delay(60).duration(280)} className="pt-3">
+          {chapter.verses.map((verse) => (
+            <Text key={`${chapter.id}-${verse.number}`} className="mb-5 text-[15px] font-medium leading-[27px] text-[#24211E]">
+              <Text className="text-[11px] font-black text-[#FF7A00]">{verse.number}  </Text>
+              {verse.text}
             </Text>
-            <Text className="mt-1 text-[14px] font-semibold" style={{ color: titleColor }}>
-              Chapter {chapterPosition} of {totalChapters}
-            </Text>
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(50).duration(250)} className="mt-4">
-          <View className="rounded-3xl border px-5 py-5" style={{ borderColor, backgroundColor: panelBg }}>
-            <Text className="text-[12px] font-semibold" style={{ color: mutedColor }}>{chapter.reference}</Text>
-
-            {chapter.verses.map((verse) => (
-              <Text key={`${chapter.id}-${verse.number}`} className="mt-3 text-[17px] leading-8" style={{ color: bodyColor }}>
-                <Text className="text-[12px] font-semibold" style={{ color: mutedColor }}>{verse.number} </Text>
-                {verse.text}
-              </Text>
-            ))}
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={SlideInUp.delay(90).duration(260)} className="mt-4 flex-row items-center justify-between gap-3">
-          <TouchableOpacity
-            className="flex-1 rounded-full border px-4 py-3"
-            style={{
-              borderColor,
-              backgroundColor: panelBg,
-              opacity: hasPrev ? 1 : 0.45,
-            }}
-            disabled={!hasPrev}
-            onPress={goToPreviousChapter}
-          >
-            <Text className="text-center text-[12px] font-semibold" style={{ color: titleColor }}>Previous Chapter</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="flex-1 rounded-full bg-[#FF7A00] px-4 py-3"
-            onPress={goToNextChapter}
-          >
-            <Text className="text-center text-[12px] font-semibold text-[#1B1309]">
-              {hasNext ? 'Next Chapter' : 'Finish Reading'}
-            </Text>
-          </TouchableOpacity>
+          ))}
         </Animated.View>
       </ScrollView>
-    </LinearGradient>
+
+      <View className="absolute left-0 right-0 px-5" style={{ bottom: Math.max(insets.bottom + 10, 18) }}>
+        <Animated.View entering={FadeInDown.delay(120).duration(280)}>
+          <View className="flex-row items-center justify-between">
+            <TouchableOpacity
+              onPress={goToPreviousChapter}
+              disabled={!hasPrev}
+              activeOpacity={0.82}
+              className="h-12 w-12 items-center justify-center rounded-full bg-white"
+              style={{ opacity: hasPrev ? 1 : 0.45 }}
+            >
+              <Feather name="chevron-left" size={20} color="#1C1C1C" />
+            </TouchableOpacity>
+
+            <View className="rounded-full bg-[#FFF2E3] px-5 py-2.5">
+              <Text className="text-[11px] font-black text-[#9A6941]">
+                {chapterPosition} / {totalChapters}
+              </Text>
+            </View>
+
+            <TouchableOpacity onPress={goToNextChapter} activeOpacity={0.9} className="h-12 w-12 items-center justify-center rounded-full bg-[#FF7A00]">
+              <Feather name="arrow-right" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
+    </View>
   );
 };
 

@@ -3,28 +3,30 @@ import { Redirect, Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
 import { useSupabaseClerkAuth } from '@services/supabase';
-import { colors, spacing } from '../../lib/theme';
+import { colors } from '../../lib/theme';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
-  home: 'grid',
-  scan: 'aperture',
-  ai: 'cpu',
+  home: 'home',
+  scan: 'plus',
   'bible-journey': 'book-open',
-  profile: 'user-check',
+  leaderboard: 'award',
+  profile: 'user',
 };
 
 const labelMap: Record<string, string> = {
   home: 'Home',
-  scan: 'Scan QR',
-  ai: 'Counselor',
-  'bible-journey': 'Bible Journey',
+  scan: '',
+  'bible-journey': 'Journey',
+  leaderboard: 'Leaderboard',
   profile: 'Profile',
 };
+
+const visibleTabOrder = ['home', 'bible-journey', 'scan', 'leaderboard', 'profile'];
 
 const TabIcon = ({
   focused,
@@ -33,30 +35,54 @@ const TabIcon = ({
   focused: boolean;
   icon: React.ComponentProps<typeof Feather>['name'];
 }) => {
-  const scale = useSharedValue(focused ? 1 : 0.94);
-  const lift = useSharedValue(focused ? -5 : 0);
+  const scale = useSharedValue(focused ? 1.03 : 1);
 
   React.useEffect(() => {
-    scale.value = withSpring(focused ? 1 : 0.94, { damping: 14, stiffness: 170 });
-    lift.value = withSpring(focused ? -5 : 0, { damping: 16, stiffness: 180 });
-  }, [focused, lift, scale]);
+    scale.value = withSpring(focused ? 1.03 : 1, { damping: 16, stiffness: 190 });
+  }, [focused, scale]);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
-  const frameAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: lift.value }],
+  return (
+    <Animated.View style={animStyle} className="items-center justify-center">
+      <Feather name={icon} size={20} color={focused ? '#FF7A00' : '#5F6368'} />
+    </Animated.View>
+  );
+};
+
+const CenterTabIcon = ({ focused, icon }: { focused: boolean; icon: React.ComponentProps<typeof Feather>['name'] }) => {
+  const scale = useSharedValue(focused ? 1.04 : 1);
+
+  React.useEffect(() => {
+    scale.value = withSpring(focused ? 1.04 : 1, { damping: 15, stiffness: 210 });
+  }, [focused, scale]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
   }));
 
   return (
-    <Animated.View style={[animStyle, frameAnimStyle]} className="items-center justify-center">
-      <View
-        className={`relative h-[34px] w-[34px] items-center justify-center rounded-[11px] border ${focused ? 'border-[#FF7A00] bg-[#1A1A1A]' : 'border-transparent bg-transparent'}`}
-      >
-        {focused ? <View className="absolute -top-[2px] h-[4px] w-[22px] rounded-full bg-[#FF7A00]" /> : null}
-        <Feather name={icon} size={focused ? 22 : 21} color={focused ? colors.accentOrange : '#A1A1A1'} />
-      </View>
+    <Animated.View
+      style={[
+        animStyle,
+        {
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#FF7A00',
+          shadowColor: '#FF7A00',
+          shadowOpacity: 0.34,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 5 },
+          elevation: 7,
+        },
+      ]}
+    >
+      <Feather name={icon} size={30} color="#FFFFFF" />
     </Animated.View>
   );
 };
@@ -69,37 +95,17 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const shouldHideTabBar =
     activeRoute.name === 'digest' ||
     activeRoute.name === 'edit-profile' ||
-    activeRoute.name === 'bible-journey' ||
+    activeRoute.name === 'ai' ||
+    activeRoute.name === 'bible-reading-select' ||
     activeRoute.name === 'bible-reading' ||
     activeRoute.name === 'bible-reading-reflection' ||
     activeRoute.name === 'bible-reflection-intro';
 
-  const visibleRoutes = state.routes.filter(
-    (route) =>
-      route.name !== 'digest' &&
-      route.name !== 'edit-profile' &&
-      route.name !== 'bible-journey' &&
-        route.name !== 'bible-reading' &&
-        route.name !== 'bible-reading-reflection' &&
-        route.name !== 'bible-reflection-intro',
-  );
+  const visibleRoutes = visibleTabOrder
+    .map((routeName) => state.routes.find((route) => route.name === routeName))
+    .filter((route): route is (typeof state.routes)[number] => Boolean(route));
   const tabCount = visibleRoutes.length || 1;
-  const horizontalPadding = 12;
-  const tabWidth = containerWidth > 0 ? (containerWidth - horizontalPadding * 2) / tabCount : 0;
-  const currentIndex = Math.max(
-    0,
-    visibleRoutes.findIndex((route) => route.key === activeRoute.key),
-  );
-
-  const sliderX = useSharedValue(0);
-
-  React.useEffect(() => {
-    sliderX.value = withTiming(currentIndex * tabWidth + 4, { duration: 220 });
-  }, [currentIndex, sliderX, tabWidth]);
-
-  const sliderStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: sliderX.value }],
-  }));
+  const tabWidth = containerWidth > 0 ? containerWidth / tabCount : 0;
 
   if (shouldHideTabBar) {
     return null;
@@ -107,57 +113,37 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 
   return (
     <View
-      onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
       style={{
         position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: 74 + insets.bottom,
-        borderTopLeftRadius: 26,
-        borderTopRightRadius: 26,
-        backgroundColor: '#111111',
-        borderTopWidth: 1,
-        borderColor: '#2A2A2A',
-        shadowColor: '#000000',
-        shadowOpacity: 0.28,
-        shadowRadius: 20,
-        shadowOffset: { width: 0, height: -6 },
-        elevation: 8,
+        left: 18,
+        right: 18,
+        bottom: Math.max(insets.bottom, 12),
       }}
     >
       <View
+        onLayout={(event) => setContainerWidth(event.nativeEvent.layout.width)}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingTop: spacing.xs,
-          paddingBottom: Math.max(insets.bottom, spacing.xs),
-          paddingHorizontal: horizontalPadding,
+          justifyContent: 'center',
+          height: 64,
+          borderRadius: 20,
+          paddingHorizontal: 6,
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: 'rgba(17,17,17,0.06)',
+          shadowColor: '#000000',
+          shadowOpacity: 0.11,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 10,
         }}
       >
-        {tabWidth > 0 ? (
-          <Animated.View
-            style={[
-              sliderStyle,
-              {
-                position: 'absolute',
-                left: horizontalPadding,
-                width: tabWidth - 8,
-                top: 8,
-                bottom: Math.max(insets.bottom, spacing.xs) + 4,
-                borderRadius: 16,
-                backgroundColor: '#1A1A1A',
-                borderWidth: 1,
-                borderColor: '#2D2D2D',
-              },
-            ]}
-          />
-        ) : null}
-
         {visibleRoutes.map((route) => {
           const routeOptions = descriptors[route.key]?.options;
           const isFocused = state.index === state.routes.findIndex((item) => item.key === route.key);
           const label = labelMap[route.name] ?? (typeof routeOptions?.title === 'string' ? routeOptions.title : route.name);
+          const isCenterAction = route.name === 'scan';
 
           const onPress = () => {
             const event = navigation.emit({
@@ -178,8 +164,17 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
               style={{ width: tabWidth || `${100 / tabCount}%` }}
               className="items-center justify-center"
             >
-              <TabIcon focused={isFocused} icon={iconMap[route.name]} />
-              <Text className={`mt-[2px] text-[10px] font-semibold ${isFocused ? 'text-[#FF7A00]' : 'text-[#9A9A9A]'}`}>{label}</Text>
+              {isCenterAction ? (
+                <View className="-mt-6 items-center justify-center">
+                  <CenterTabIcon focused={isFocused} icon={iconMap[route.name]} />
+                </View>
+              ) : (
+                <>
+                  <TabIcon focused={isFocused} icon={iconMap[route.name]} />
+                  <Text className={`mt-[3px] text-[8px] font-bold ${isFocused ? 'text-[#FF7A00]' : 'text-[#111111]'}`}>{label}</Text>
+                  <View className={`mt-[3px] h-[2px] w-[14px] rounded-full ${isFocused ? 'bg-[#FF7A00]' : 'bg-transparent'}`} />
+                </>
+              )}
             </Pressable>
           );
         })}
@@ -221,6 +216,12 @@ const AppLayout = () => {
       <Tabs.Screen
         name="bible-journey"
         options={{
+          title: 'Journey',
+        }}
+      />
+      <Tabs.Screen
+        name="bible-reading-select"
+        options={{
           href: null,
           tabBarStyle: { display: 'none' },
         }}
@@ -247,10 +248,12 @@ const AppLayout = () => {
         }}
       />
       <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
+      <Tabs.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
       <Tabs.Screen
         name="ai"
         options={{
           title: 'AI',
+          href: null,
         }}
       />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
