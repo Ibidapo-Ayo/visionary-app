@@ -2,12 +2,13 @@ import React from 'react';
 import {
   TouchableOpacity,
   Text,
-  StyleSheet,
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients } from '../lib/theme';
 
 interface ButtonProps {
   onPress: () => void;
@@ -20,7 +21,34 @@ interface ButtonProps {
   textStyle?: TextStyle;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  gradientColors?: React.ComponentProps<typeof LinearGradient>['colors'];
 }
+
+const buttonVariantClass: Record<NonNullable<ButtonProps['variant']>, string> = {
+  primary: 'bg-transparent border-[rgba(10,147,54,0.45)]',
+  secondary: 'bg-[rgba(10,147,54,0.1)] border-[rgba(10,147,54,0.3)]',
+  tertiary: 'bg-white border-[#D5E1D8]',
+  danger: 'bg-[rgba(217,78,0,0.1)] border-[rgba(217,78,0,0.3)]',
+};
+
+const buttonSizeClass: Record<NonNullable<ButtonProps['size']>, string> = {
+  sm: 'px-[18px] py-2',
+  md: 'px-[18px] py-3.5',
+  lg: 'px-7 py-[18px]',
+};
+
+const labelVariantClass: Record<NonNullable<ButtonProps['variant']>, string> = {
+  primary: 'text-white',
+  secondary: 'text-[#A84413]',
+  tertiary: 'text-[#2D3A33]',
+  danger: 'text-[#D94E00]',
+};
+
+const labelSizeClass: Record<NonNullable<ButtonProps['size']>, string> = {
+  sm: 'text-sm',
+  md: 'text-base',
+  lg: 'text-[20px]',
+};
 
 const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, ButtonProps>(
   (
@@ -35,48 +63,36 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
       textStyle,
       fullWidth = false,
       icon,
+      gradientColors = gradients.cta,
     },
     ref
   ) => {
-    const buttonStyle = [
-      styles.button,
-      styles[`button_${variant}`],
-      styles[`button_${size}`],
-      disabled && styles.disabled,
-      fullWidth && styles.fullWidth,
-      style,
-    ];
+    const isGradient = variant === 'primary';
 
-    const textSizeStyle = styles[`text_${size}`];
+    const content = (
+      <View className="flex-row items-center justify-center gap-2">
+        {icon}
+        <Text className={`font-bold tracking-[0.2px] ${labelVariantClass[variant]} ${labelSizeClass[size]}`} style={textStyle}>{title}</Text>
+      </View>
+    );
 
     return (
       <TouchableOpacity
         ref={ref}
         onPress={onPress}
         disabled={disabled || loading}
-        activeOpacity={0.7}
-        style={buttonStyle}
+        activeOpacity={0.88}
+        className={`overflow-hidden rounded-[18px] border ${buttonVariantClass[variant]} ${(!isGradient || loading) ? buttonSizeClass[size] : ''} ${fullWidth ? 'w-full' : ''} ${(disabled || loading) ? 'opacity-50' : ''}`}
+        style={style}
       >
         {loading ? (
-          <ActivityIndicator
-            color={variant === 'primary' ? '#fff' : '#fbbf24'}
-            size={size === 'sm' ? 'small' : 'large'}
-          />
+          <ActivityIndicator color={variant === 'primary' ? colors.white : colors.textPrimary} />
+        ) : isGradient ? (
+          <LinearGradient colors={gradientColors} className={`rounded-[18px] ${buttonSizeClass[size]}`} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            {content}
+          </LinearGradient>
         ) : (
-          <Animated.View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: icon ? 8 : 0,
-            }}
-            entering={FadeIn}
-            exiting={FadeOut}
-          >
-            {icon}
-            <Text style={[styles.text, textSizeStyle, textStyle]}>
-              {title}
-            </Text>
-          </Animated.View>
+          content
         )}
       </TouchableOpacity>
     );
@@ -84,58 +100,5 @@ const Button = React.forwardRef<React.ElementRef<typeof TouchableOpacity>, Butto
 );
 
 Button.displayName = 'Button';
-
-const styles = StyleSheet.create({
-  button: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  button_primary: {
-    backgroundColor: '#fbbf24',
-  },
-  button_secondary: {
-    backgroundColor: '#10b981',
-  },
-  button_tertiary: {
-    backgroundColor: '#64748b',
-  },
-  button_danger: {
-    backgroundColor: '#ef4444',
-  },
-  button_sm: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  button_md: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  button_lg: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  text: {
-    fontWeight: '600',
-    color: '#fff',
-  },
-  text_sm: {
-    fontSize: 12,
-  },
-  text_md: {
-    fontSize: 16,
-  },
-  text_lg: {
-    fontSize: 18,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-});
 
 export default Button;

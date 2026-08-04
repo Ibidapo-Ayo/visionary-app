@@ -1,288 +1,252 @@
-﻿import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { mockBibleJourneyProgress, mockBibleJourneyReadings } from '@services/mockData';
 import { useAuthStore } from '@store/authStore';
-import Card from '@components/Card';
-import Button from '@components/Button';
-import Badge from '../../components/Badge';
-import {
-  colors,
-  spacing,
-  typography,
-  getTimeGreeting,
-  formatDate,
-} from '../../lib/theme';
-import { mockDailyDigest, mockEvents } from '../../services/mockData';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+
+const getInitials = (firstName?: string, lastName?: string, email?: string) => {
+  const firstInitial = firstName?.trim()?.charAt(0) ?? '';
+  const lastInitial = lastName?.trim()?.charAt(0) ?? '';
+
+  if (firstInitial || lastInitial) {
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+  }
+
+  return (email?.trim()?.charAt(0) ?? 'V').toUpperCase();
+};
+
+const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
+  <View className="flex-1 items-center rounded-[18px] border border-[#ECE6DD] bg-white px-2 py-3">
+    <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${tint}18` }}>
+      <Feather name={icon} size={15} color={tint} />
+    </View>
+    <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]">{value}</Text>
+    <Text className="mt-0.5 text-center text-[10px] font-semibold text-[#7A746C]">{label}</Text>
+  </View>
+);
+
+const ReadingRow = ({ label, reference, accent }: { label: string; reference: string; accent: string }) => (
+  <View className="flex-1 rounded-[18px] border border-[#EFE7DD] bg-[#FFFCF8] p-3.5">
+    <View className="flex-row items-center">
+      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
+      <Text className="ml-2 text-[10px] font-bold uppercase tracking-[0.5px] text-[#8A8176]">{label}</Text>
+    </View>
+    <Text className="mt-2 text-[13px] font-black text-[#191919]">{reference}</Text>
+  </View>
+);
+
+type ProgressRangeKey = 'week' | 'lastWeek' | 'month' | 'year';
+
+const progressRangeOptions: { key: ProgressRangeKey; label: string }[] = [
+  { key: 'week', label: 'This Week' },
+  { key: 'lastWeek', label: 'Last Week' },
+  { key: 'month', label: 'This Month' },
+  { key: 'year', label: 'This Year' },
+];
+
+const progressRangeStats: Record<ProgressRangeKey, { dailyRead: string; chapters: string; reflections: string }> = {
+  week: { dailyRead: '5', chapters: '12', reflections: '2' },
+  lastWeek: { dailyRead: '6', chapters: '18', reflections: '4' },
+  month: { dailyRead: '21', chapters: '64', reflections: '11' },
+  year: { dailyRead: '168', chapters: '432', reflections: '74' },
+};
 
 const HomeScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  const [refreshing, setRefreshing] = React.useState(false);
+  const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
+  const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/login');
-  };
+  const streakStats = getStreakStats();
+  const currentStreak = streakStats.currentStreak;
+  const progressPercent = Math.min(100, Math.round((mockBibleJourneyProgress.completedReadings / mockBibleJourneyProgress.totalReadings) * 100));
+  const completedChapters = mockBibleJourneyReadings.reduce((total, reading) => total + reading.reference.split('-').length + 1, 0);
+  const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
+  const progressStats = progressRangeStats[selectedProgressRange];
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
-
-  const quickActions = [
-    { id: 'scan', title: 'Check-In', icon: 'Scan', route: '/(app)/scan' },
-    { id: 'ai', title: 'AI Chat', icon: 'Chat', route: '/(app)/ai' },
-    { id: 'members', title: 'Members', icon: 'People', route: '/(app)/members' },
-    { id: 'prayer', title: 'Prayers', icon: 'Pray', route: '/(app)/ai' },
-  ];
-
-  const upcomingEvents = mockEvents.slice(0, 2);
+  const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
+  const firstName = fullName.split(' ')[0] || 'Visionary';
+  const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
+  const profileImage = user?.profileImage?.trim() ?? '';
+  const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
+      <StatusBar barStyle="dark-content" />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom + 118, 136) }}
+        className="px-5"
       >
-        {/* Header Section */}
-        <Animated.View style={styles.headerSection} entering={FadeIn}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.greeting}>{getTimeGreeting()}, {user?.firstName}!</Text>
-              <Text style={styles.date}>{formatDate(new Date())}</Text>
-            </View>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutText}>Settings</Text>
+        <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good morning,</Text>
+            <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
+          </View>
+
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/digest')}
+              activeOpacity={0.85}
+              className="relative h-10 w-10 items-center justify-center rounded-full bg-white"
+            >
+              <Feather name="bell" size={17} color="#252525" />
+              <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#FF7A00]" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => router.push('/(app)/profile')} activeOpacity={0.9} className="h-11 w-11 overflow-hidden rounded-full bg-[#171717]">
+              {shouldShowProfileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                  onError={() => setAvatarLoadFailed(true)}
+                />
+              ) : (
+                <View className="h-full w-full items-center justify-center">
+                  <Text className="text-[15px] font-black text-[#FF7A00]">{userInitials}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </Animated.View>
 
-        {/* Hero Card - Next Event */}
-        <Animated.View style={styles.heroContainer} entering={SlideInUp}>
-          <Card variant="elevated" padding="lg">
-            <View style={styles.heroContent}>
-              <Badge label="Next Event" variant="primary" />
-              <Text style={styles.heroTitle}>Sunday Service</Text>
-              <Text style={styles.heroSubtitle}>10:00 AM at Main Sanctuary</Text>
-              <Button title="View Details" onPress={() => {}} size="sm" />
+        <Animated.View entering={FadeInDown.delay(110).duration(360)} className="mt-5 overflow-hidden rounded-[20px] bg-[#17191B]">
+          <LinearGradient colors={['#202225', '#151719']} className="p-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <View className="flex-row items-center">
+                  <View className="h-2.5 w-2.5 rounded-full bg-[#FF7A00]" />
+                  <Text className="ml-2 text-[11px] font-bold text-white">Current Streak</Text>
+                </View>
+                <View className="mt-4 flex-row items-end">
+                  <Text className="text-[42px] font-black leading-[44px] text-white">{currentStreak}</Text>
+                  <Text className="mb-1.5 ml-2 text-[16px] font-bold text-[#E6E0D8]">days</Text>
+                </View>
+                <Text className="mt-2 text-[11px] font-semibold text-[#BEB7AE]">Keep the flame steady.</Text>
+              </View>
+
+              <View className="h-[92px] w-[92px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
+                <View className="h-[66px] w-[66px] items-center justify-center rounded-full bg-[#151719]">
+                  <FontAwesome5 name="fire" size={30} color="#FF7A00" solid />
+                </View>
+              </View>
             </View>
-          </Card>
+          </LinearGradient>
         </Animated.View>
 
-        {/* Quick Actions */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.actionCard}
-                onPress={() => router.push(action.route)}
-              >
-                <Text style={styles.actionIcon}>{action.icon}</Text>
-                <Text style={styles.actionLabel}>{action.title}</Text>
+        <Animated.View entering={FadeInDown.delay(160).duration(360)} className="mt-4 overflow-hidden rounded-[20px] bg-[#165928]">
+          <LinearGradient colors={['#1E7737', '#145425']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-4">
+            <View className="flex-row items-start justify-between">
+              <View className="flex-1 pr-3">
+                <View className="flex-row items-center">
+                  <Feather name="sun" size={14} color="#A8F0B9" />
+                  <Text className="ml-2 text-[11px] font-bold text-[#E8F9EC]">Today's Bible Journey</Text>
+                </View>
+                <Text className="mt-3 text-[22px] font-black text-white">{mockBibleJourneyReadings[0]?.reference}</Text>
+                <Text className="mt-1 text-[11px] font-semibold text-[#C9EFD2]">Morning Reading</Text>
+              </View>
+
+              <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.85} className="h-8 w-8 items-center justify-center rounded-full bg-white/15">
+                <Feather name="arrow-up-right" size={16} color="#FFFFFF" />
               </TouchableOpacity>
-            ))}
+            </View>
+
+            <View className="mt-5 flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <View className="h-2 overflow-hidden rounded-full bg-white/18">
+                  <View className="h-full rounded-full bg-[#FFB020]" style={{ width: `${progressPercent}%` }} />
+                </View>
+                <Text className="mt-2 text-[10px] font-semibold text-[#D8F4DE]">{completedChapters} / 23 chapters today</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/(app)/bible-reading-select',
+                    params: { period: 'morning' },
+                  })
+                }
+                activeOpacity={0.9}
+                className="h-11 w-11 items-center justify-center rounded-full bg-white"
+              >
+                <Feather name="arrow-right" size={18} color="#145425" />
+              </TouchableOpacity>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(210).duration(360)} className="mt-5">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-[15px] font-black text-[#181818]">Your Progress</Text>
+            <View className="items-end" style={{ zIndex: 20 }}>
+              <TouchableOpacity
+                onPress={() => setIsProgressRangeOpen((isOpen) => !isOpen)}
+                activeOpacity={0.8}
+                className="h-9 flex-row items-center rounded-full border border-[#E8DED2] bg-white px-3"
+              >
+                <Text className="text-[11px] font-bold text-[#716A61]">{selectedProgressLabel}</Text>
+                <Feather name={isProgressRangeOpen ? 'chevron-up' : 'chevron-down'} size={14} color="#716A61" />
+              </TouchableOpacity>
+
+              {isProgressRangeOpen ? (
+                <View className="absolute right-0 top-11 w-[142px] overflow-hidden rounded-[16px] border border-[#E8DED2] bg-white" style={{ elevation: 8 }}>
+                  {progressRangeOptions.map((option) => {
+                    const isSelected = option.key === selectedProgressRange;
+
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        onPress={() => {
+                          setSelectedProgressRange(option.key);
+                          setIsProgressRangeOpen(false);
+                        }}
+                        activeOpacity={0.82}
+                        className={`flex-row items-center justify-between px-3 py-3 ${isSelected ? 'bg-[#FFF3E7]' : 'bg-white'}`}
+                      >
+                        <Text className={`text-[11px] font-bold ${isSelected ? 'text-[#FF7A00]' : 'text-[#554E47]'}`}>{option.label}</Text>
+                        {isSelected ? <Feather name="check" size={13} color="#FF7A00" /> : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          <View className="mt-3 flex-row gap-3">
+            <StatPill icon="book-open" label="Daily Read" value={progressStats.dailyRead} tint="#16A34A" />
+            <StatPill icon="award" label="Chapters" value={progressStats.chapters} tint="#FF7A00" />
+            <StatPill icon="message-circle" label="Reflections" value={progressStats.reflections} tint="#7257D6" />
           </View>
         </Animated.View>
 
-        {/* Daily Digest */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Text style={styles.sectionTitle}>Today's Digest</Text>
-          <Card padding="md">
-            <Text style={styles.digestLabel}>Daily Devotional</Text>
-            <Text style={styles.digestTitle}>{mockDailyDigest.devotional.title}</Text>
-            <Text style={styles.digestScripture}>{mockDailyDigest.devotional.scripture}</Text>
-            <Text style={styles.digestText}>{mockDailyDigest.devotional.reflection}</Text>
-            <Button title="Read More" variant="tertiary" size="sm" onPress={() => {}} />
-          </Card>
+        <Animated.View entering={FadeInDown.delay(260).duration(360)} className="mt-5">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-[15px] font-black text-[#181818]">Continue Your Journey</Text>
+            <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.8}>
+              <Text className="text-[11px] font-bold text-[#716A61]">View all</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="mt-3 flex-row gap-3">
+            <ReadingRow label="Evening Reading" reference={mockBibleJourneyReadings[1]?.reference ?? 'Matthew 11-13'} accent="#16A34A" />
+            <ReadingRow label="Reflect With AI" reference="Today's Reflection" accent="#8B5CF6" />
+          </View>
         </Animated.View>
 
-        {/* Upcoming Events */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Text style={styles.sectionTitle}>Upcoming Events</Text>
-          {upcomingEvents.map((event) => (
-            <Card key={event.id} padding="md" style={{ marginBottom: spacing.md }}>
-              <View style={styles.eventCard}>
-                <View>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventDetail}>Time: {event.time}</Text>
-                  <Text style={styles.eventDetail}>Location: {event.location}</Text>
-                </View>
-                <Badge label="Register" variant="info" />
-              </View>
-            </Card>
-          ))}
-        </Animated.View>
-
-        {/* Prayer Focus */}
-        <Animated.View style={styles.section} entering={SlideInUp}>
-          <Card padding="md">
-            <Text style={styles.prayerLabel}>Prayer Focus</Text>
-            <Text style={styles.prayerText}>{mockDailyDigest.prayerFocus}</Text>
-          </Card>
-        </Animated.View>
-
-        {/* Bottom Padding */}
-        <View style={{ height: spacing.xl }} />
       </ScrollView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerSection: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  greeting: {
-    fontSize: typography.heading.h2.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  date: {
-    fontSize: typography.body.small.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  logoutButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutText: {
-    fontSize: 20,
-  },
-  heroContainer: {
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.lg,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: typography.heading.h1.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-  },
-  heroSubtitle: {
-    fontSize: typography.body.medium.fontSize,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  section: {
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.heading.h2.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  actionCard: {
-    flex: 1,
-    minWidth: '22%',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  actionLabel: {
-    fontSize: typography.caption.medium.fontSize,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  digestLabel: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.primary,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-  },
-  digestTitle: {
-    fontSize: typography.heading.h3.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  digestScripture: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.secondary,
-    fontStyle: 'italic',
-    marginBottom: spacing.md,
-    fontWeight: '600',
-  },
-  digestText: {
-    fontSize: typography.body.medium.fontSize,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  eventCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  eventTitle: {
-    fontSize: typography.heading.h3.fontSize,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  eventDetail: {
-    fontSize: typography.body.small.fontSize,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  prayerLabel: {
-    fontSize: typography.caption.large.fontSize,
-    color: colors.secondary,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-  },
-  prayerText: {
-    fontSize: typography.body.medium.fontSize,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-});
-
 export default HomeScreen;
-

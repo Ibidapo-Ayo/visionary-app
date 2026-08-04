@@ -1,254 +1,145 @@
-﻿import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAuthStore } from '@store/authStore';
-import Button from '@components/Button';
-import Card from '@components/Card';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Mail } from 'lucide-react-native';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
+import AuthScaffold from '@components/auth/AuthScaffold';
+import AuthTopBar from '@components/auth/AuthTopBar';
+import Button from '@components/auth/Button';
+import PasswordField from '@components/auth/PasswordField';
+import SectionHeader from '@components/auth/SectionHeader';
+import SocialButton from '@components/auth/SocialButton';
+import TextField from '@components/auth/TextField';
+import { useAuthSignIn, useGoogleAuth } from '@services/auth';
+
+const signInSchema = z.object({
+  identity: z.string().min(1, 'Email or phone is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type SignInForm = z.infer<typeof signInSchema>;
 
 const LoginScreen = () => {
   const router = useRouter();
-  const login = useAuthStore((state) => state.login);
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const { doSignIn, isLoaded } = useAuthSignIn();
+  const { signInWithGoogle } = useGoogleAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInForm>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      identity: '',
+      password: '',
+    },
+  });
 
-  const handleLogin = async () => {
-    setError('');
-    if (!email || !password) {
-      setError('Please fill in all fields');
+  const onSubmit = async (values: SignInForm) => {
+    setFormError(null);
+    setSubmitting(true);
+    const result = await doSignIn({
+      identifier: values.identity,
+      password: values.password,
+    });
+    setSubmitting(false);
+
+    if (result.complete) {
+      router.replace('/(app)/home');
       return;
     }
 
-    try {
-      await login(email, password);
-      router.replace('/(app)/home');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+    if (result.error) {
+      setFormError(result.error.message);
     }
   };
 
+  const onGoogle = async () => {
+    setFormError(null);
+    setGoogleSubmitting(true);
+    const result = await signInWithGoogle();
+    setGoogleSubmitting(false);
+    if (result.complete) {
+      router.replace('/(app)/home');
+      return;
+    }
+    if (result.error) {
+      setFormError(result.error.message);
+    }
+  };
+
+  const busy = submitting || googleSubmitting || !isLoaded;
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn}>
-          <Text style={styles.logo}>VISIONARY</Text>
-          <Text style={styles.subtitle}>Welcome Back</Text>
-        </Animated.View>
+    <AuthScaffold>
+      <AuthTopBar fallbackHref="/(auth)/onboarding" />
 
-        {/* Form Card */}
-        <Animated.View
-          style={styles.formContainer}
-          entering={SlideInUp}
-        >
-          <Card variant="outlined">
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="#64748b"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-            </View>
+      <SectionHeader title="Welcome back!" subtitle="Sign in to continue your spiritual journey." />
 
-            {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="********"
-                  placeholderTextColor="#64748b"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  editable={!isLoading}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Text style={styles.toggleText}>
-                    {showPassword ? 'Show' : 'Hide'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Error Message */}
-            {error && (
-              <Animated.View
-                style={styles.errorContainer}
-                entering={FadeIn}
-              >
-                <Text style={styles.errorText}>{error}</Text>
-              </Animated.View>
-            )}
-
-            {/* Login Button */}
-            <Button
-              onPress={handleLogin}
-              title="Sign In"
-              variant="primary"
-              loading={isLoading}
-              disabled={isLoading}
-              fullWidth
-              style={styles.button}
+      <Animated.View entering={FadeInDown.delay(80)} className="mt-8 gap-4">
+        <Controller
+          control={control}
+          name="identity"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Email or Phone Number"
+              icon={Mail}
+              error={errors.identity?.message}
             />
+          )}
+        />
 
-            {/* Forgot Password Link */}
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </Card>
-        </Animated.View>
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <PasswordField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Password"
+              error={errors.password?.message}
+            />
+          )}
+        />
 
-        {/* Register Link */}
-        <Animated.View style={styles.registerContainer} entering={FadeIn}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={styles.registerLink}>Sign Up</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <Pressable onPress={() => router.push('/(auth)/forgot-password')} className="items-end">
+          <Text className="text-[13px] font-medium text-[#FF7A00]">Forgot Password?</Text>
+        </Pressable>
+
+        <Button label="Sign In" onPress={handleSubmit(onSubmit)} iconRight disabled={busy} />
+      </Animated.View>
+
+      {formError ? (
+        <Text className="mt-4 text-[12px] font-medium text-[#F87171]">{formError}</Text>
+      ) : null}
+
+      <View className="mt-7 flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+        <Text className="text-[13px] text-[#B7B7B7]">or continue with</Text>
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+      </View>
+
+      <Animated.View entering={FadeInDown.delay(120)} className="mt-5">
+        <SocialButton brand="google" layout="full" onPress={onGoogle} />
+      </Animated.View>
+
+      <View className="mt-8 flex-row items-center justify-center gap-1.5">
+        <Text className="text-[13px] text-[#B7B7B7]">Don&apos;t have an account?</Text>
+        <Pressable onPress={() => router.push('/(auth)/register')}>
+          <Text className="text-[13px] font-semibold text-[#FF7A00]">Sign Up</Text>
+        </Pressable>
+      </View>
+    </AuthScaffold>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111226',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  logo: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#fbbf24',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    fontWeight: '300',
-  },
-  formContainer: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e2e8f0',
-    marginBottom: 8,
-    letterSpacing: 0.3,
-  },
-  input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 14,
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 14,
-  },
-  toggleText: {
-    fontSize: 16,
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  button: {
-    marginBottom: 16,
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  forgotText: {
-    color: '#fbbf24',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  registerText: {
-    color: '#94a3b8',
-    fontSize: 14,
-  },
-  registerLink: {
-    color: '#fbbf24',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
-
 export default LoginScreen;
-

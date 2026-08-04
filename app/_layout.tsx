@@ -1,35 +1,48 @@
 import React, { useEffect } from 'react';
+import '../global.css';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useAuthStore } from '@store/authStore';
+import { ClerkLoaded, ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
+import { colors } from '../lib/theme';
 import 'react-native-gesture-handler';
 
-// Keep splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
-const RootLayout = () => {
-  const loadUser = useAuthStore((state) => state.loadUser);
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+if (!publishableKey) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to your .env (see .env.example).',
+  );
+}
+
+const RootLayout = () => {
   useEffect(() => {
     async function prepare() {
       try {
-        // Load fonts if they exist (for optional custom fonts)
         try {
           await Font.loadAsync({
-            'geist-sans': require('../assets/fonts/Geist-Regular.ttf'),
-            'geist-sans-bold': require('../assets/fonts/Geist-Bold.ttf'),
+            Poppins_400Regular: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Regular.ttf',
+            },
+            Poppins_500Medium: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Medium.ttf',
+            },
+            Poppins_600SemiBold: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-SemiBold.ttf',
+            },
+            Poppins_700Bold: {
+              uri: 'https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf',
+            },
           });
         } catch {
-          // Fonts may not exist yet, that's fine
           console.log('[v0] Custom fonts not available');
         }
-
-        // Load user session
-        await loadUser();
       } catch (e) {
         console.warn('[v0] Initialization error:', e);
       } finally {
@@ -41,20 +54,25 @@ const RootLayout = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'fade',
-          }}
-        >
-          <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
-        </Stack>
-        <StatusBar style="light" backgroundColor="#111226" />
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ClerkLoaded>
+        <GestureHandlerRootView className="flex-1">
+          <SafeAreaProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'ios_from_right',
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            >
+              <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
+            </Stack>
+            <StatusBar style="light" translucent backgroundColor="transparent" />
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </ClerkLoaded>
+    </ClerkProvider>
   );
 };
 

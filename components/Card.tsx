@@ -1,12 +1,11 @@
 import React from 'react';
 import {
   View,
-  StyleSheet,
   ViewStyle,
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
-import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 interface CardProps {
   children: React.ReactNode;
@@ -15,7 +14,27 @@ interface CardProps {
   variant?: 'default' | 'outlined' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';
   animated?: boolean;
+  blurVariant?: 'none' | 'soft' | 'strong';
 }
+
+const cardVariantClass: Record<NonNullable<CardProps['variant']>, string> = {
+  default: 'border-[#E5EEE8]',
+  outlined: 'border-[#D5E1D8] bg-transparent',
+  elevated: 'border-[rgba(10,147,54,0.24)]',
+};
+
+const paddingClass: Record<NonNullable<CardProps['padding']>, string> = {
+  none: 'p-0',
+  sm: 'p-3.5',
+  md: 'p-[18px]',
+  lg: 'p-7',
+};
+
+const blurClass: Record<NonNullable<CardProps['blurVariant']>, string> = {
+  none: 'bg-white',
+  soft: 'bg-[rgba(255,255,255,0.92)]',
+  strong: 'bg-white',
+};
 
 const Card = React.forwardRef<View, CardProps>(
   (
@@ -26,27 +45,19 @@ const Card = React.forwardRef<View, CardProps>(
       variant = 'default',
       padding = 'md',
       animated = true,
+      blurVariant = 'soft',
     },
     ref
   ) => {
-    const containerStyle = [
-      styles.card,
-      styles[`card_${variant}`],
-      styles[`padding_${padding}`],
-      style,
-    ];
-
     const Component = onPress ? TouchableOpacity : View;
 
     return (
-      <Animated.View
-        ref={ref as any}
-        entering={animated ? FadeIn.duration(300) : undefined}
-      >
+      <Animated.View ref={ref as any} entering={animated ? FadeIn.duration(240) : undefined}>
         <Component
-          style={containerStyle}
+          className={`rounded-3xl border ${cardVariantClass[variant]} ${paddingClass[padding]} ${blurClass[blurVariant]}`}
+          style={style}
           onPress={onPress}
-          activeOpacity={onPress ? 0.7 : 1}
+          activeOpacity={onPress ? 0.9 : 1}
         >
           {children}
         </Component>
@@ -56,42 +67,5 @@ const Card = React.forwardRef<View, CardProps>(
 );
 
 Card.displayName = 'Card';
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 12,
-    marginVertical: 8,
-  },
-  padding_none: {
-    padding: 0,
-  },
-  padding_sm: {
-    padding: 12,
-  },
-  padding_md: {
-    padding: 16,
-  },
-  padding_lg: {
-    padding: 20,
-  },
-  card_default: {
-    backgroundColor: '#1a1f3a',
-    borderColor: '#2d3a5a',
-    borderWidth: 1,
-  },
-  card_outlined: {
-    backgroundColor: 'transparent',
-    borderColor: '#64748b',
-    borderWidth: 1,
-  },
-  card_elevated: {
-    backgroundColor: '#1a1f3a',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-  },
-});
 
 export default Card;

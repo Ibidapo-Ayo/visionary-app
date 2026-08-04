@@ -1,331 +1,215 @@
-﻿import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
-import { useAuthStore } from '@store/authStore';
-import Button from '@components/Button';
-import Card from '@components/Card';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Mail, Phone, User } from 'lucide-react-native';
 import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
+import AuthScaffold from '@components/auth/AuthScaffold';
+import AuthTopBar from '@components/auth/AuthTopBar';
+import Button from '@components/auth/Button';
+import PasswordField from '@components/auth/PasswordField';
+import PasswordRequirementCard, { getPasswordRequirements } from '@components/auth/PasswordRequirementCard';
+import SectionHeader from '@components/auth/SectionHeader';
+import SocialButton from '@components/auth/SocialButton';
+import TextField from '@components/auth/TextField';
+import { useAuthSignUp, useGoogleAuth } from '@services/auth';
 
-const registrationSchema = z.object({
-  firstName: z.string().min(2, 'First name required'),
-  lastName: z.string().min(2, 'Last name required'),
-  email: z.string().email('Valid email required'),
-  phone: z.string().min(10, 'Valid phone required'),
-  password: z.string().min(6, 'Password must be 6+ characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+const registrationSchema = z
+  .object({
+    fullName: z.string().min(2, 'Full name is required'),
+    email: z.string().email('A valid email is required'),
+    phone: z.string().refine((value) => {
+      const trimmed = value.trim();
+      return trimmed.length === 0 || trimmed.length >= 10;
+    }, {
+        message: 'Phone number must be at least 10 digits when provided',
+      }),
+    password: z
+      .string()
+      .min(8, 'At least 8 characters')
+      .regex(/[A-Z]/, 'Requires one uppercase letter')
+      .regex(/[0-9]/, 'Requires one number'),
+  })
+  .strict();
 
 type RegistrationData = z.infer<typeof registrationSchema>;
-type RegistrationErrors = Partial<Record<keyof RegistrationData, string>>;
 
 const RegisterScreen = () => {
   const router = useRouter();
-  const register = useAuthStore((state) => state.register);
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const { startSignUp, isLoaded } = useAuthSignUp();
+  const { signInWithGoogle } = useGoogleAuth();
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
+  const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const {
+    control,
+    handleSubmit,
+    setError,
+    watch,
+    formState: { errors },
+  } = useForm<RegistrationData>({
+    resolver: zodResolver(registrationSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      phone: '',
+      password: '',
+    },
   });
 
-  const [errors, setErrors] = useState<RegistrationErrors>({});
-  const [generalError, setGeneralError] = useState('');
+  const handleRegister = async (values: RegistrationData) => {
+    setFormError(null);
+    const names = values.fullName.trim().split(' ');
+    const firstName = names[0] ?? values.fullName;
+    const lastName = names.slice(1).join(' ') || firstName;
 
-  const handleRegister = async () => {
-    setErrors({});
-    setGeneralError('');
+    setSubmitting(true);
+    const result = await startSignUp({
+      firstName,
+      lastName,
+      emailAddress: values.email,
+      phone: values.phone.trim() || undefined,
+      password: values.password,
+    });
+    setSubmitting(false);
 
-    try {
-      const validatedData = registrationSchema.parse(formData);
-      await register(validatedData);
+    if (result.needsEmailVerification) {
+      router.push({
+        pathname: '/(auth)/verify-email',
+        params: { email: values.email },
+      });
+      return;
+    }
+
+    if (result.complete) {
       router.replace('/(app)/home');
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        const newErrors: RegistrationErrors = {};
-        err.errors.forEach((error) => {
-          const path = error.path[0] as keyof RegistrationData;
-          newErrors[path] = error.message;
-        });
-        setErrors(newErrors);
-      } else {
-        setGeneralError(err.message || 'Registration failed. Please try again.');
+      return;
+    }
+
+    if (result.error) {
+      const field = result.error.field;
+      if (field === 'email_address' || field === 'emailAddress') {
+        setError('email', { type: 'server', message: result.error.message });
+        return;
       }
+      if (field === 'password') {
+        setError('password', { type: 'server', message: result.error.message });
+        return;
+      }
+      setFormError(result.error.message);
     }
   };
 
+  const onGoogle = async () => {
+    setFormError(null);
+    setGoogleSubmitting(true);
+    const result = await signInWithGoogle();
+    setGoogleSubmitting(false);
+    if (result.complete) {
+      router.replace('/(app)/home');
+      return;
+    }
+    if (result.error) {
+      setFormError(result.error.message);
+    }
+  };
+
+  const busy = submitting || googleSubmitting || !isLoaded;
+  const passwordValue = watch('password') ?? '';
+  const isPasswordValid = getPasswordRequirements(passwordValue).every((requirement) => requirement.met);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <Animated.View style={styles.header} entering={FadeIn}>
-          <Text style={styles.logo}>VISIONARY</Text>
-          <Text style={styles.subtitle}>Create Your Account</Text>
-        </Animated.View>
+    <AuthScaffold>
+      <AuthTopBar fallbackHref="/(auth)/login" />
 
-        {/* Form Card */}
-        <Animated.View
-          style={styles.formContainer}
-          entering={SlideInUp}
-        >
-          <Card variant="outlined">
-            {/* First Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="John"
-                placeholderTextColor="#64748b"
-                value={formData.firstName}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, firstName: text })
-                }
-                editable={!isLoading}
-              />
-              {errors.firstName && (
-                <Text style={styles.errorText}>{errors.firstName}</Text>
-              )}
-            </View>
+      <SectionHeader title="Create Account" subtitle="Let&apos;s get you started on your spiritual journey." />
 
-            {/* Last Name */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Doe"
-                placeholderTextColor="#64748b"
-                value={formData.lastName}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, lastName: text })
-                }
-                editable={!isLoading}
-              />
-              {errors.lastName && (
-                <Text style={styles.errorText}>{errors.lastName}</Text>
-              )}
-            </View>
+      <Animated.View entering={FadeInDown.delay(80)} className="mt-8 gap-4">
+        <Controller
+          control={control}
+          name="fullName"
+          render={({ field: { onChange, value } }) => (
+            <TextField value={value} onChangeText={onChange} placeholder="Full Name" icon={User} error={errors.fullName?.message} />
+          )}
+        />
 
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@example.com"
-                placeholderTextColor="#64748b"
-                value={formData.email}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, email: text })
-                }
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
-            </View>
-
-            {/* Phone */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="+1 (555) 123-4567"
-                placeholderTextColor="#64748b"
-                value={formData.phone}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, phone: text })
-                }
-                keyboardType="phone-pad"
-                editable={!isLoading}
-              />
-              {errors.phone && (
-                <Text style={styles.errorText}>{errors.phone}</Text>
-              )}
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="********"
-                placeholderTextColor="#64748b"
-                value={formData.password}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, password: text })
-                }
-                secureTextEntry
-                editable={!isLoading}
-              />
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
-            </View>
-
-            {/* Confirm Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="********"
-                placeholderTextColor="#64748b"
-                value={formData.confirmPassword}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, confirmPassword: text })
-                }
-                secureTextEntry
-                editable={!isLoading}
-              />
-              {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-              )}
-            </View>
-
-            {/* General Error */}
-            {generalError && (
-              <Animated.View
-                style={styles.errorContainer}
-                entering={FadeIn}
-              >
-                <Text style={styles.generalErrorText}>{generalError}</Text>
-              </Animated.View>
-            )}
-
-            {/* Register Button */}
-            <Button
-              onPress={handleRegister}
-              title="Create Account"
-              variant="primary"
-              loading={isLoading}
-              disabled={isLoading}
-              fullWidth
-              style={styles.button}
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Email Address"
+              icon={Mail}
+              keyboardType="email-address"
+              error={errors.email?.message}
             />
-          </Card>
-        </Animated.View>
+          )}
+        />
 
-        {/* Login Link */}
-        <Animated.View style={styles.loginContainer} entering={FadeIn}>
-          <Text style={styles.loginText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.loginLink}>Sign In</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <Controller
+          control={control}
+          name="phone"
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              value={value}
+              onChangeText={onChange}
+              placeholder="Phone Number (Optional)"
+              icon={Phone}
+              keyboardType="phone-pad"
+              error={errors.phone?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, value } }) => (
+            <PasswordField value={value} onChangeText={onChange} placeholder="Password" error={errors.password?.message} />
+          )}
+        />
+
+        <PasswordRequirementCard password={passwordValue} />
+
+        {formError ? (
+          <Text className="text-[12px] font-medium text-[#F87171]">{formError}</Text>
+        ) : null}
+
+        {/* Clerk bot-protection captcha target (required for sign-up) */}
+        <View nativeID="clerk-captcha" />
+
+        <Button
+          label={submitting ? 'Creating account…' : 'Sign Up'}
+          onPress={handleSubmit(handleRegister)}
+          iconRight
+          disabled={busy || !isPasswordValid}
+        />
+      </Animated.View>
+
+      <View className="mt-7 flex-row items-center gap-3">
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+        <Text className="text-[13px] text-[#B7B7B7]">or continue with</Text>
+        <View className="h-px flex-1 bg-[rgba(255,255,255,0.12)]" />
+      </View>
+
+      <Animated.View entering={FadeInDown.delay(120)} className="mt-5">
+        <SocialButton brand="google" layout="full" onPress={onGoogle} />
+      </Animated.View>
+
+      <View className="mt-8 flex-row items-center justify-center gap-1.5">
+        <Text className="text-[13px] text-[#B7B7B7]">Already have an account?</Text>
+        <Pressable onPress={() => router.replace('/(auth)/login')}>
+          <Text className="text-[13px] font-semibold text-[#FF7A00]">Sign In</Text>
+        </Pressable>
+      </View>
+    </AuthScaffold>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111226',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  header: {
-    marginBottom: 32,
-    alignItems: 'center',
-  },
-  logo: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#fbbf24',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    fontWeight: '300',
-  },
-  formContainer: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#e2e8f0',
-    marginBottom: 6,
-    letterSpacing: 0.3,
-  },
-  input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: '#64748b',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#fff',
-    fontSize: 13,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 12,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  errorContainer: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  generalErrorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  button: {
-    marginTop: 8,
-  },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loginText: {
-    color: '#94a3b8',
-    fontSize: 14,
-  },
-  loginLink: {
-    color: '#fbbf24',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
 
 export default RegisterScreen;

@@ -1,339 +1,134 @@
-﻿import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
-import Card from '@components/Card';
-import Button from '@components/Button';
+import React from 'react';
+import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const ScanScreen = () => {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
-  const [scannedData, setScannedData] = useState<any>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const scanProgressValue = useSharedValue(0);
+const RolloutItem = ({ icon, title, subtitle }: { icon: React.ComponentProps<typeof Feather>['name']; title: string; subtitle: string }) => (
+  <View className="flex-row items-center rounded-[18px] border border-[#EFE5D8] bg-white px-4 py-3.5">
+    <View className="h-10 w-10 items-center justify-center rounded-full bg-[#FFF2E6]">
+      <Feather name={icon} size={17} color="#FF7A00" />
+    </View>
+    <View className="ml-3 flex-1">
+      <Text className="text-[13px] font-black text-[#171717]">{title}</Text>
+      <Text className="mt-0.5 text-[11px] font-semibold leading-5 text-[#81776D]">{subtitle}</Text>
+    </View>
+  </View>
+);
 
-  const handleBarCodeScanned = async (data: any) => {
-    if (scanned || isProcessing) return;
+const QRPreview = () => (
+  <View className="mt-5 rounded-[24px] border border-white/10 bg-white/5 p-4">
+    <View className="flex-row items-center justify-between">
+      <View>
+        <Text className="text-[11px] font-black uppercase tracking-[0.7px] text-[#FFB56D]">Preview</Text>
+        <Text className="mt-1 text-[15px] font-black text-white">Future QR check-in</Text>
+      </View>
+      <View className="rounded-full bg-white/10 px-3 py-2">
+        <Text className="text-[10px] font-black text-[#CFC8BE]">Disabled</Text>
+      </View>
+    </View>
 
-    setIsProcessing(true);
-    setScanned(true);
-
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      setScannedData({
-        eventName: 'Sunday Service',
-        checkedIn: true,
-        timestamp: new Date().toLocaleTimeString(),
-        points: 10,
-      });
-
-      scanProgressValue.value = withTiming(1, { duration: 600 });
-    } catch (error) {
-      console.error('[v0] Scan error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleReset = () => {
-    setScanned(false);
-    setScannedData(null);
-    scanProgressValue.value = 0;
-  };
-
-  if (!permission) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.title}>Camera Permission Required</Text>
-          <Text style={styles.subtitle}>
-            We need access to your camera to scan QR codes
-          </Text>
-          <Button
-            onPress={requestPermission}
-            title="Grant Permission"
-            variant="primary"
-          />
+    <View className="mt-4 items-center rounded-[22px] bg-[#111315] py-6">
+      <View className="h-[150px] w-[150px] items-center justify-center rounded-[26px] border-[3px] border-[#FF7A00] bg-[#202225]">
+        <View className="flex-row flex-wrap gap-2 px-6">
+          {Array.from({ length: 16 }).map((_, index) => (
+            <View
+              key={`qr-dot-${index}`}
+              className="h-5 w-5 rounded-[5px]"
+              style={{ backgroundColor: index % 3 === 0 ? '#FF7A00' : index % 2 === 0 ? '#FFFFFF' : '#3D3F42' }}
+            />
+          ))}
         </View>
-      </SafeAreaView>
-    );
-  }
+      </View>
+    </View>
+  </View>
+);
 
-  if (!permission.granted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.title}>Camera Access Denied</Text>
-          <Text style={styles.subtitle}>
-            Please enable camera permissions in your settings
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+const ScanComingSoonScreen = () => {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {!scanned ? (
-        <>
-          {/* Camera View */}
-          <CameraView
-            style={styles.camera}
-            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-            barcodeScannerSettings={{
-              barcodeTypes: ['qr'],
-            }}
-          >
-            {/* Scanner Frame */}
-            <View style={styles.scannerContainer}>
-              <View style={styles.scannerFrame} />
-              <Animated.View style={styles.scannerOverlay} />
-            </View>
+    <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
+      <StatusBar barStyle="dark-content" />
 
-            {/* Info Text */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoText}>
-                Point your camera at a QR code to check in
-              </Text>
-            </View>
-          </CameraView>
-
-          {/* Torch Toggle */}
-          <View style={styles.torchContainer}>
-            <TouchableOpacity style={styles.torchButton}>
-              <Text style={styles.torchIcon}>LIGHT</Text>
-            </TouchableOpacity>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom + 116, 136) }}
+        className="px-5"
+      >
+        <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-[24px] font-black text-[#171717]">Attendance</Text>
+            <Text className="mt-0.5 text-[11px] font-semibold text-[#81776D]">Upcoming after Bible MVP</Text>
           </View>
-        </>
-      ) : (
-        <Animated.View style={styles.resultContainer} entering={FadeIn}>
-          {isProcessing ? (
-            <View style={styles.processingContainer}>
-              <ActivityIndicator size="large" color="#fbbf24" />
-              <Text style={styles.processingText}>Processing check-in...</Text>
-            </View>
-          ) : scannedData ? (
-            <Card variant="elevated">
-              <Animated.View
-                style={styles.successContent}
-                entering={FadeIn}
-              >
-                <Text style={styles.successEmoji}>OK</Text>
-                <Text style={styles.successTitle}>Check-In Successful!</Text>
 
-                <View style={styles.detailsContainer}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Event:</Text>
-                    <Text style={styles.detailValue}>
-                      {scannedData.eventName}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Time:</Text>
-                    <Text style={styles.detailValue}>
-                      {scannedData.timestamp}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Points Earned:</Text>
-                    <Text style={[styles.detailValue, { color: '#fbbf24' }]}>
-                      +{scannedData.points}
-                    </Text>
-                  </View>
-                </View>
-
-                <Button
-                  onPress={handleReset}
-                  title="Scan Another"
-                  variant="primary"
-                  fullWidth
-                  style={styles.resetButton}
-                />
-              </Animated.View>
-            </Card>
-          ) : (
-            <Card variant="outlined">
-              <Text style={styles.errorTitle}>Scan Failed</Text>
-              <Text style={styles.errorText}>
-                Could not process this QR code. Please try again.
-              </Text>
-              <Button
-                onPress={handleReset}
-                title="Try Again"
-                variant="secondary"
-                fullWidth
-              />
-            </Card>
-          )}
+          <TouchableOpacity onPress={() => router.replace('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <Feather name="home" size={17} color="#181818" />
+          </TouchableOpacity>
         </Animated.View>
-      )}
-    </SafeAreaView>
+
+        <Animated.View entering={FadeInDown.delay(70).duration(320)} className="mt-5 overflow-hidden rounded-[28px] bg-[#17191B]">
+          <LinearGradient colors={['#242629', '#151719']} className="p-6">
+            <View className="flex-row items-start justify-between">
+              <View className="flex-1 pr-4">
+                <View className="self-start rounded-full bg-white/10 px-3 py-2">
+                  <Text className="text-[10px] font-black uppercase tracking-[0.7px] text-[#FFB56D]">Coming Soon</Text>
+                </View>
+                <Text className="mt-4 text-[31px] font-black leading-[36px] text-white">Attendance will launch with QR check-in.</Text>
+                <Text className="mt-2 text-[13px] font-semibold leading-6 text-[#CFC8BE]">
+                  This module is intentionally parked while the MVP focuses on Bible reading, chapter progress, and reflections.
+                </Text>
+              </View>
+
+              <View className="h-[82px] w-[82px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
+                <Feather name="camera" size={28} color="#FF7A00" />
+              </View>
+            </View>
+
+            <QRPreview />
+          </LinearGradient>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(130).duration(320)} className="mt-5 flex-row gap-3">
+          <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
+            <Text className="text-[18px] font-black text-[#171717]">1 tap</Text>
+            <Text className="mt-1 text-[9px] font-bold text-[#81776D]">Target Check-in</Text>
+          </View>
+          <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
+            <Text className="text-[18px] font-black text-[#171717]">QR</Text>
+            <Text className="mt-1 text-[9px] font-bold text-[#81776D]">Validation Mode</Text>
+          </View>
+          <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
+            <Text className="text-[18px] font-black text-[#171717]">Later</Text>
+            <Text className="mt-1 text-[9px] font-bold text-[#81776D]">Release Phase</Text>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(180).duration(320)} className="mt-5 gap-3">
+          <RolloutItem icon="camera" title="QR scan experience" subtitle="A fast scanner for event entrance check-in will come after the reading MVP." />
+          <RolloutItem icon="shield" title="Verified attendance records" subtitle="Check-ins will be tied to real gatherings and member profiles." />
+          <RolloutItem icon="bar-chart-2" title="History and insights" subtitle="Future views will show attendance streaks without crowding the MVP." />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(230).duration(320)} className="mt-5 rounded-[22px] border border-[#D8E9D5] bg-[#EAF7E7] p-4">
+          <View className="flex-row items-start">
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-white">
+              <Feather name="book-open" size={17} color="#16A34A" />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="text-[13px] font-black text-[#1D5B2A]">Current MVP priority</Text>
+              <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#4E714B]">
+                Bible Journey remains the primary experience: daily readings, selectable chapters, progress, and reflection tracking.
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </LinearGradient>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111226',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#cbd5e1',
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  camera: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerFrame: {
-    width: 280,
-    height: 280,
-    borderRadius: 20,
-    borderColor: '#fbbf24',
-    borderWidth: 3,
-    backgroundColor: 'rgba(251, 191, 36, 0.05)',
-  },
-  scannerOverlay: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 20,
-    borderColor: '#fbbf24',
-    borderWidth: 2,
-  },
-  infoContainer: {
-    position: 'absolute',
-    bottom: 60,
-    paddingHorizontal: 24,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#e2e8f0',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  torchContainer: {
-    position: 'absolute',
-    bottom: 20,
-    right: 24,
-  },
-  torchButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  torchIcon: {
-    fontSize: 24,
-  },
-  resultContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  processingContainer: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  processingText: {
-    fontSize: 16,
-    color: '#e2e8f0',
-    fontWeight: '500',
-  },
-  successContent: {
-    alignItems: 'center',
-  },
-  successEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  detailsContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#94a3b8',
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 13,
-    color: '#e2e8f0',
-    fontWeight: '600',
-  },
-  resetButton: {
-    width: '100%',
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fca5a5',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-});
-
-export default ScanScreen;
+export default ScanComingSoonScreen;

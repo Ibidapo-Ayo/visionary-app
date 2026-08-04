@@ -1,142 +1,132 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Image, ImageBackground, Text, useColorScheme, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
+  Easing,
+  Extrapolation,
   interpolate,
-  Extrapolate,
   runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
-import { useAuthStore } from '@store/authStore';
+import { useAuth } from '@clerk/expo';
 import { useAppStore } from '@store/appStore';
+
+const ORANGE = '#FF7A00';
 
 const SplashScreen = () => {
   const router = useRouter();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const colorScheme = useColorScheme();
+  const { isLoaded, isSignedIn } = useAuth();
   const isOnboardingComplete = useAppStore((state) => state.isOnboardingComplete);
-  const animationProgress = useSharedValue(0);
+  const entrance = useSharedValue(0);
+  const pulse = useSharedValue(0);
+  const fadeOut = useSharedValue(1);
 
-  useEffect(() => {
-    animationProgress.value = withTiming(1, { duration: 3000 }, () => {
-      runOnJS(handleNavigate)();
-    });
-  }, []);
+  const isDark = colorScheme !== 'light';
 
-  const handleNavigate = () => {
-    if (isAuthenticated) {
-      router.replace('/(app)/home');
-    } else if (isOnboardingComplete) {
-      router.replace('/(auth)/login');
-    } else {
-      router.replace('/(auth)/onboarding');
+  const navigate = () => {
+    if (!isLoaded) {
+      return;
     }
+    if (isSignedIn) {
+      router.replace('/(app)/home');
+      return;
+    }
+    if (isOnboardingComplete) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    router.replace('/(auth)/onboarding');
   };
 
-  const textAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      animationProgress.value,
-      [0, 0.3, 1],
-      [0, 1, 1],
-      Extrapolate.CLAMP
-    );
+  useEffect(() => {
+    entrance.value = withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) });
+    pulse.value = withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) });
 
-    return {
-      opacity,
-    };
-  });
+    const fadeTimer = setTimeout(() => {
+      fadeOut.value = withTiming(0, { duration: 700, easing: Easing.inOut(Easing.cubic) }, (finished) => {
+        if (finished) {
+          runOnJS(navigate)();
+        }
+      });
+    }, 2600);
 
-  const glowAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      animationProgress.value,
-      [0, 1],
-      [0.8, 1.1],
-      Extrapolate.CLAMP
-    );
-    const opacity = interpolate(
-      animationProgress.value,
-      [0, 0.5, 1],
-      [0.3, 0.6, 0.3],
-      Extrapolate.CLAMP
-    );
+    return () => clearTimeout(fadeTimer);
+  }, [entrance, fadeOut, pulse]);
 
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  });
+  const screenStyle = useAnimatedStyle(() => ({
+    opacity: fadeOut.value,
+  }));
+
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entrance.value, [0, 0.35, 1], [0, 0.9, 1], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(entrance.value, [0, 1], [24, 0], Extrapolation.CLAMP) },
+      { scale: interpolate(entrance.value, [0, 1], [0.92, 1], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: 0.26 + pulse.value * 0.2,
+    transform: [{ scale: 0.92 + pulse.value * 0.12 }],
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entrance.value, [0.32, 1], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(entrance.value, [0.32, 1], [16, 0], Extrapolation.CLAMP) }],
+  }));
 
   return (
-    <View style={styles.container}>
-      {/* Glow effect background */}
-      <Animated.View style={[styles.glow, glowAnimatedStyle]} />
-
-      {/* Logo & Text */}
-      <Animated.View
-        style={[styles.content, textAnimatedStyle]}
+    <Animated.View className="flex-1 bg-[#090909]" style={screenStyle}>
+      <ImageBackground
+        source={require('../../assets/images/splash-bg.png')}
+        resizeMode="cover"
+        className="flex-1"
       >
-        <Text style={styles.title}>VISIONARY</Text>
-        <Text style={styles.subtitle}>Ministry Operating System</Text>
-      </Animated.View>
+        <LinearGradient
+          colors={
+            isDark
+              ? ['rgba(8,8,8,0.38)', 'rgba(8,8,8,0.2)', 'rgba(8,8,8,0.7)']
+              : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.03)', 'rgba(0,0,0,0.55)']
+          }
+          className="absolute inset-0"
+        />
 
-      {/* Loading indicator */}
-      <Animated.View style={[styles.dots, textAnimatedStyle]}>
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-      </Animated.View>
-    </View>
+        <View className="flex-1 items-center justify-between px-7 pb-12" style={{ paddingTop: '22%' }}>
+          <Animated.View
+            className="absolute h-[190px] w-[190px] rounded-full bg-[rgba(255,122,0,0.25)]"
+            style={[
+              { top: '24%', shadowColor: ORANGE, shadowOpacity: 0.42, shadowRadius: 48, shadowOffset: { width: 0, height: 0 } },
+              glowStyle,
+            ]}
+          />
+
+          <Animated.View className="mt-[26px] items-center justify-center" style={logoStyle}>
+            <Image source={require('../../assets/icons/fire.png')} resizeMode="contain" className="h-[92px] w-[92px]" />
+          </Animated.View>
+
+          <Animated.View className="mt-2 items-center gap-[9px]" style={textStyle}>
+            <Text className="text-center text-[48px] font-bold leading-[52px]" style={{ color: isDark ? '#FFFFFF' : '#111111' }}>
+              Visionary
+            </Text>
+            <Text className="text-center text-[12px] font-semibold leading-4 tracking-[1px]" style={{ color: isDark ? 'rgba(255,255,255,0.92)' : '#1F1F1F' }}>
+              GROW IN FAITH. LIVE HIS PURPOSE.
+            </Text>
+          </Animated.View>
+
+          <Animated.View className="mt-auto w-full items-center" style={textStyle}>
+            <Text className="mb-[14px] text-[12px] font-medium leading-4 text-[#F2F2F2]">Preparing your journey...</Text>
+            <View className="h-1 w-[136px] overflow-hidden rounded-full bg-[rgba(255,255,255,0.3)]">
+              <View className="h-full w-[74%] rounded-full bg-[#FF7A00]" />
+            </View>
+          </Animated.View>
+        </View>
+      </ImageBackground>
+    </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111226',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
-    top: '50%',
-    left: '50%',
-    marginLeft: -150,
-    marginTop: -150,
-  },
-  content: {
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: '#fbbf24',
-    letterSpacing: 2,
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#94a3b8',
-    letterSpacing: 0.5,
-    fontWeight: '300',
-  },
-  dots: {
-    position: 'absolute',
-    bottom: 60,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fbbf24',
-  },
-});
 
 export default SplashScreen;
