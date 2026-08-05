@@ -379,6 +379,18 @@ export interface MockBibleJourneySessionPlan {
   evening: string[];
 }
 
+export interface BibleReadingPlanData {
+  id: string;
+  name: string;
+  description: string;
+  year: number;
+  total_days: number;
+  chapters_per_day: number;
+  group_plan_start_date: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface MockBibleVerse {
   number: number;
   text: string;

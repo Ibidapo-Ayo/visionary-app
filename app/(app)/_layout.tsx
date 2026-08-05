@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
 import { useSupabaseClerkAuth } from '@services/supabase';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { colors } from '../../lib/theme';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
@@ -187,6 +188,17 @@ const AppLayout = () => {
   useSupabaseClerkAuth();
   useSyncClerkAuth();
   const { isLoaded, isSignedIn } = useAuth();
+  const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
+
+  React.useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      return;
+    }
+
+    void loadBibleReadingPlan().catch((error) => {
+      console.warn('Unable to load Bible reading plan:', error);
+    });
+  }, [isLoaded, isSignedIn, loadBibleReadingPlan]);
 
   if (!isLoaded) {
     return null;

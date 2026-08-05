@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockBibleJourneyProgress, mockBibleJourneySessionPlan } from '@services/mockData';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { getBibleReadingDayNumber } from '@/lib/helper';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 
 type JourneyStepProps = {
   title: string;
@@ -67,8 +69,12 @@ const BibleJourneyScreen = () => {
   const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
   const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
 
   const streakStats = getStreakStats();
+  const bibleJourneyDayNumber = bibleReadingPlan?.group_plan_start_date
+    ? getBibleReadingDayNumber(bibleReadingPlan.group_plan_start_date)
+    : null;
   const morningCompletedChapters = getCompletedChaptersForToday('morning').filter((reference) =>
     mockBibleJourneySessionPlan.morning.includes(reference),
   ).length;
@@ -127,7 +133,7 @@ const BibleJourneyScreen = () => {
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">Bible Journey</Text>
+            <Text className="text-[16px] font-black text-[#171717]">{bibleJourneyDayNumber ? `Day ${bibleJourneyDayNumber} Bible Journey` : 'Bible Journey'}</Text>
             <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
           </View>
 

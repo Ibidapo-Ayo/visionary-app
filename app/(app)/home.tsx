@@ -9,6 +9,7 @@ import { mockBibleJourneyProgress, mockBibleJourneyReadings } from '@services/mo
 import { useAuthStore } from '@store/authStore';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { getCurrentSession, getInitials } from '@/lib/helper';
+import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
@@ -135,46 +136,18 @@ const HomeScreen = () => {
           </LinearGradient>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(160).duration(360)} className="mt-4 overflow-hidden rounded-[20px] bg-[#165928]">
-          <LinearGradient colors={['#1E7737', '#145425']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-4">
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1 pr-3">
-                <View className="flex-row items-center">
-                  <Feather name="sun" size={14} color="#A8F0B9" />
-                  <Text className="ml-2 text-[11px] font-bold text-[#E8F9EC]">Today's Bible Journey</Text>
-                </View>
-                <Text className="mt-3 text-[22px] font-black text-white">{mockBibleJourneyReadings[0]?.reference}</Text>
-                <Text className="mt-1 text-[11px] font-semibold text-[#C9EFD2]">Morning Reading</Text>
-              </View>
-
-              <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.85} className="h-8 w-8 items-center justify-center rounded-full bg-white/15">
-                <Feather name="arrow-up-right" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <View className="mt-5 flex-row items-center justify-between">
-              <View className="flex-1 pr-3">
-                <View className="h-2 overflow-hidden rounded-full bg-white/18">
-                  <View className="h-full rounded-full bg-[#FFB020]" style={{ width: `${progressPercent}%` }} />
-                </View>
-                <Text className="mt-2 text-[10px] font-semibold text-[#D8F4DE]">{completedChapters} / 23 chapters today</Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: '/(app)/bible-reading-select',
-                    params: { period: 'morning' },
-                  })
-                }
-                activeOpacity={0.9}
-                className="h-11 w-11 items-center justify-center rounded-full bg-white"
-              >
-                <Feather name="arrow-right" size={18} color="#145425" />
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        <TodaysBibleJourneyCard
+          morningReference={mockBibleJourneyReadings[0]?.reference}
+          progressPercent={progressPercent}
+          completedChapters={completedChapters}
+          onOpenJourney={() => router.push('/(app)/bible-journey')}
+          onOpenMorningReading={() =>
+            router.push({
+              pathname: '/(app)/bible-reading-select',
+              params: { period: 'morning' },
+            })
+          }
+        />
 
         <Animated.View entering={FadeInDown.delay(210).duration(360)} className="mt-5">
           <View className="flex-row items-center justify-between">
