@@ -1,15 +1,16 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneyProgress, mockBibleJourneyReadings } from '@services/mockData';
 import { useAuthStore } from '@store/authStore';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
-import { getCurrentSession, getInitials } from '@/lib/helper';
+import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
@@ -53,22 +54,35 @@ const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
+  const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
+  const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
+  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
 
   const streakStats = getStreakStats();
   const currentStreak = streakStats.currentStreak;
-  const progressPercent = Math.min(100, Math.round((mockBibleJourneyProgress.completedReadings / mockBibleJourneyProgress.totalReadings) * 100));
-  const completedChapters = mockBibleJourneyReadings.reduce((total, reading) => total + reading.reference.split('-').length + 1, 0);
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const progressStats = progressRangeStats[selectedProgressRange];
+  const eveningReference = readingSchedule?.evening.map(formatDayReadingReference).join(' / ') || 'Evening reading';
 
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
   const firstName = fullName.split(' ')[0] || 'Visionary';
   const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
+
+  useEffect(() => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
+      console.warn('Unable to load reading schedule:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
@@ -137,9 +151,6 @@ const HomeScreen = () => {
         </Animated.View>
 
         <TodaysBibleJourneyCard
-          morningReference={mockBibleJourneyReadings[0]?.reference}
-          progressPercent={progressPercent}
-          completedChapters={completedChapters}
           onOpenJourney={() => router.push('/(app)/bible-journey')}
           onOpenMorningReading={() =>
             router.push({
@@ -203,7 +214,7 @@ const HomeScreen = () => {
           </View>
 
           <View className="mt-3 flex-row gap-3">
-            <ReadingRow label="Evening Reading" reference={mockBibleJourneyReadings[1]?.reference ?? 'Matthew 11-13'} accent="#16A34A" />
+            <ReadingRow label="Evening Reading" reference={eveningReference} accent="#16A34A" />
             <ReadingRow label="Reflect With AI" reference="Today's Reflection" accent="#8B5CF6" />
           </View>
         </Animated.View>

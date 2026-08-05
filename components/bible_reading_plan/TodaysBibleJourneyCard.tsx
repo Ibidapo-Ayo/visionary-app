@@ -1,36 +1,56 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
-import { getBibleReadingDayNumber, getCurrentSession } from '@/lib/helper';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { formatDayReadingReference, getCurrentSession } from '@/lib/helper';
+import type { ReadingPeriod } from '@/types/index';
 
 interface TodaysBibleJourneyCardProps {
-  morningReference?: string;
-  progressPercent: number;
-  completedChapters: number;
   onOpenJourney: () => void;
   onOpenMorningReading: () => void;
 }
 
 const TodaysBibleJourneyCard = ({
-  morningReference,
-  progressPercent,
-  completedChapters,
   onOpenJourney,
   onOpenMorningReading,
 }: TodaysBibleJourneyCardProps) => {
-  const { bibleReadingPlan, isLoadingBibleReadingPlan } = useBibleReadingPlanStore();
-  const currentSession = getCurrentSession();
+  const { bibleReadingPlan, bibleReadingPlanDayNumber, isLoadingBibleReadingPlan } = useBibleReadingPlanStore();
+  const { readingSchedule, isLoadingReadingSchedule, loadReadingSchedule } = useReadingScheduleStore();
+  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
+  const currentSession = getCurrentSession() as ReadingPeriod;
   const sessionIcon: React.ComponentProps<typeof Feather>['name'] = currentSession === 'evening' ? 'moon' : 'sun';
-  const bibleJourneyDayNumber = bibleReadingPlan?.group_plan_start_date
-    ? getBibleReadingDayNumber(bibleReadingPlan.group_plan_start_date)
-    : null;
+  const sessionLabel = currentSession === 'evening' ? 'Evening Reading' : 'Morning Reading';
+  const sessionReferences = readingSchedule?.[currentSession].map(formatDayReadingReference) ?? [];
+  const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
+  const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
+  const totalChapters = morningReferences.length + eveningReferences.length;
+  const completedChapters =
+    getCompletedChaptersForToday('morning').filter((reference) => morningReferences.includes(reference)).length +
+    getCompletedChaptersForToday('evening').filter((reference) => eveningReferences.includes(reference)).length;
+  const progressPercent = totalChapters ? Math.round((completedChapters / totalChapters) * 100) : 0;
+  const reference = sessionReferences.length
+    ? sessionReferences[0]
+    : isLoadingReadingSchedule
+      ? 'Loading schedule...'
+      : 'No reading assigned';
+
+  useEffect(() => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
+      console.warn('Unable to load reading schedule:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   return (
     <Animated.View entering={FadeInDown.delay(160).duration(360)} className="mt-4 overflow-hidden rounded-[20px] bg-[#165928]">
-    <LinearGradient colors={['#1E7737', '#145425']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-4">
+    <LinearGradient colors={['#1E7737', '#145425']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} className="p-3">
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <View className="flex-row items-center">
@@ -38,11 +58,11 @@ const TodaysBibleJourneyCard = ({
           {isLoadingBibleReadingPlan ? (
             <Text className="ml-2 text-[11px] font-bold text-[#E8F9EC]">Loading...</Text>
           ) : (
-            <Text className="ml-2 text-[11px] font-bold text-[#E8F9EC]">{bibleJourneyDayNumber ? `Day ${bibleJourneyDayNumber} Bible Journey` : 'Bible Journey'}</Text>
+            <Text className="ml-2 text-[11px] font-bold text-[#E8F9EC]">{bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber} Bible Journey` : 'Bible Journey'}</Text>
           )}
           </View>
-          <Text className="mt-3 text-[22px] font-black text-white">{morningReference}</Text>
-          <Text className="mt-1 text-[11px] font-semibold text-[#C9EFD2]">Morning Reading</Text>
+          <Text className="mt-3 text-[22px] font-black text-white">{reference}</Text>
+          <Text className="mt-1 text-[11px] font-semibold text-[#C9EFD2]">{sessionLabel}</Text>
         </View>
 
         <TouchableOpacity onPress={onOpenJourney} activeOpacity={0.85} className="h-8 w-8 items-center justify-center rounded-full bg-white/15">
@@ -55,7 +75,7 @@ const TodaysBibleJourneyCard = ({
           <View className="h-2 overflow-hidden rounded-full bg-white/18">
             <View className="h-full rounded-full bg-[#FFB020]" style={{ width: `${progressPercent}%` }} />
           </View>
-          <Text className="mt-2 text-[10px] font-semibold text-[#D8F4DE]">{completedChapters} / 23 chapters today</Text>
+          <Text className="mt-2 text-[10px] font-semibold text-[#D8F4DE]">{completedChapters} / {totalChapters} chapters today</Text>
         </View>
 
         <TouchableOpacity

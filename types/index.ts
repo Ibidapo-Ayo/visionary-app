@@ -391,6 +391,18 @@ export interface BibleReadingPlanData {
   created_at: string;
 }
 
+export interface DayReading {
+  id: string;
+  orderNumber: number;
+  bookName: string;
+  chapter: number;
+}
+
+export interface ReadingScheduleData {
+  morning: DayReading[];
+  evening: DayReading[];
+}
+
 export interface MockBibleVerse {
   number: number;
   text: string;

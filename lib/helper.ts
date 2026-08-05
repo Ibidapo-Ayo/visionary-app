@@ -1,3 +1,5 @@
+import type { DayReading } from "@/types";
+
 export const getInitials = (
   firstName?: string,
   lastName?: string,
@@ -32,3 +34,5 @@ export const getBibleReadingDayNumber = (startDate: string) => {
 
   return diffDays + 1; // Adding 1 to make it 1-based instead of 0-based
 };
+
+export const formatDayReadingReference = (reading: DayReading) => `${reading.bookName} ${reading.chapter}`;

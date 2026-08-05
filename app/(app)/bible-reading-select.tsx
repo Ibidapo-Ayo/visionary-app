@@ -1,13 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneySessionPlan, mockBibleReadingChapters } from '@services/mockData';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { formatDayReadingReference } from '@/lib/helper';
 
 const BibleReadingSelectScreen = () => {
   const router = useRouter();
@@ -16,20 +18,31 @@ const BibleReadingSelectScreen = () => {
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
 
   const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
+  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
+  const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
+  const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
+  const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
+  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const completedReferences = getCompletedChaptersForToday(period);
 
-  const assignedReferences = period === 'morning' ? mockBibleJourneySessionPlan.morning : mockBibleJourneySessionPlan.evening;
-  const chapters = useMemo(
-    () =>
-      assignedReferences
-        .map((reference) => mockBibleReadingChapters.find((chapter) => chapter.reference === reference))
-        .filter((chapter): chapter is (typeof mockBibleReadingChapters)[number] => Boolean(chapter)),
-    [assignedReferences],
-  );
+  const chapters = readingSchedule?.[period] ?? [];
+  const chapterReferences = chapters.map(formatDayReadingReference);
 
-  const completedCount = chapters.filter((chapter) => completedReferences.includes(chapter.reference)).length;
-  const nextChapter = chapters.find((chapter) => !completedReferences.includes(chapter.reference)) ?? chapters[0];
+  const completedCount = chapterReferences.filter((reference) => completedReferences.includes(reference)).length;
+  const firstChapter = chapters[0];
+  const firstChapterReference = firstChapter ? formatDayReadingReference(firstChapter) : null;
   const sessionLabel = period === 'morning' ? 'Morning Reading' : 'Evening Reading';
+  const dayLabel = bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber}` : 'Today';
+
+  useEffect(() => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
+      console.warn('Unable to load reading schedule:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   const handleBackPress = () => {
     if (router.canGoBack()) {
@@ -61,7 +74,7 @@ const BibleReadingSelectScreen = () => {
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">Choose Chapter</Text>
+            <Text className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
             <Text className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
           </View>
 
@@ -74,10 +87,10 @@ const BibleReadingSelectScreen = () => {
           <LinearGradient colors={period === 'morning' ? ['#202225', '#151719'] : ['#18223A', '#111827']} className="p-5">
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-4">
-                <Text className="text-[11px] font-black uppercase tracking-[0.8px] text-[#FFB56D]">Today's Assignment</Text>
+                <Text className="text-[11px] font-black uppercase tracking-[0.8px] text-[#FFB56D]">{dayLabel} Assignment</Text>
                 <Text className="mt-2 text-[25px] font-black text-white">{chapters.length} chapters</Text>
                 <Text className="mt-1 text-[12px] font-semibold leading-5 text-[#D8D1C8]">
-                  Select any chapter for your {period} session. Your progress is saved as you read.
+                  {isLoadingReadingSchedule ? 'Loading your assigned reading schedule.' : `Select any chapter for your ${period} session. Your progress is saved as you read.`}
                 </Text>
               </View>
 
@@ -95,15 +108,15 @@ const BibleReadingSelectScreen = () => {
           </LinearGradient>
         </Animated.View>
 
-        {nextChapter ? (
+        {firstChapterReference ? (
           <Animated.View entering={FadeInDown.delay(100).duration(300)} className="mt-4">
-            <TouchableOpacity onPress={() => openChapter(nextChapter.reference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
+            <TouchableOpacity onPress={() => openChapter(firstChapterReference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
                 <Feather name="play" size={16} color="#FFFFFF" />
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-[11px] font-bold uppercase tracking-[0.6px] text-white/80">Continue with</Text>
-                <Text className="mt-0.5 text-[15px] font-black text-white">{nextChapter.reference}</Text>
+                <Text className="mt-0.5 text-[15px] font-black text-white">{firstChapterReference}</Text>
               </View>
               <Feather name="arrow-right" size={18} color="#FFFFFF" />
             </TouchableOpacity>
@@ -114,12 +127,13 @@ const BibleReadingSelectScreen = () => {
           <Text className="mb-3 text-[15px] font-black text-[#171717]">All Chapters</Text>
           <View className="gap-3">
             {chapters.map((chapter, index) => {
-              const isCompleted = completedReferences.includes(chapter.reference);
+              const reference = formatDayReadingReference(chapter);
+              const isCompleted = completedReferences.includes(reference);
 
               return (
                 <TouchableOpacity
                   key={chapter.id}
-                  onPress={() => openChapter(chapter.reference)}
+                  onPress={() => openChapter(reference)}
                   activeOpacity={0.86}
                   className="flex-row items-center rounded-[20px] border border-[#EFE4D7] bg-white px-4 py-4"
                 >
@@ -129,11 +143,11 @@ const BibleReadingSelectScreen = () => {
 
                   <View className="ml-3 flex-1">
                     <View className="flex-row items-center">
-                      <Text className="text-[15px] font-black text-[#1B1B1B]">{chapter.reference}</Text>
+                      <Text className="text-[15px] font-black text-[#1B1B1B]">{reference}</Text>
                       {isCompleted ? <Feather name="check-circle" size={14} color="#16A34A" style={{ marginLeft: 6 }} /> : null}
                     </View>
-                    <Text className="mt-1 text-[11px] font-semibold text-[#80776D]">{chapter.title}</Text>
-                    <Text className="mt-1 text-[10px] font-semibold text-[#A39A90]">{chapter.estimatedMinutes} min read</Text>
+                    <Text className="mt-1 text-[11px] font-semibold text-[#80776D]">{sessionLabel}</Text>
+                    <Text className="mt-1 text-[10px] font-semibold text-[#A39A90]">Order {chapter.orderNumber}</Text>
                   </View>
 
                   <Feather name="chevron-right" size={18} color="#B0A69B" />

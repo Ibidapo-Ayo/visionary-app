@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneyProgress, mockBibleJourneySessionPlan } from '@services/mockData';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
-import { getBibleReadingDayNumber } from '@/lib/helper';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { formatDayReadingReference } from '@/lib/helper';
 
 type JourneyStepProps = {
   title: string;
@@ -70,30 +70,55 @@ const BibleJourneyScreen = () => {
   const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
+  const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
+  const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
+  const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
+  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
 
   const streakStats = getStreakStats();
-  const bibleJourneyDayNumber = bibleReadingPlan?.group_plan_start_date
-    ? getBibleReadingDayNumber(bibleReadingPlan.group_plan_start_date)
-    : null;
+  const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
+  const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
   const morningCompletedChapters = getCompletedChaptersForToday('morning').filter((reference) =>
-    mockBibleJourneySessionPlan.morning.includes(reference),
+    morningReferences.includes(reference),
   ).length;
   const eveningCompletedChapters = getCompletedChaptersForToday('evening').filter((reference) =>
-    mockBibleJourneySessionPlan.evening.includes(reference),
+    eveningReferences.includes(reference),
   ).length;
 
-  const morningTotal = mockBibleJourneySessionPlan.morning.length;
-  const eveningTotal = mockBibleJourneySessionPlan.evening.length;
+  const morningTotal = morningReferences.length;
+  const eveningTotal = eveningReferences.length;
   const totalTodayChapters = morningTotal + eveningTotal;
   const totalCompletedChapters = morningCompletedChapters + eveningCompletedChapters;
   const dayProgressPercent = totalTodayChapters ? Math.round((totalCompletedChapters / totalTodayChapters) * 100) : 0;
-  const yearlyProgressPercent = Math.round((mockBibleJourneyProgress.completedReadings / mockBibleJourneyProgress.totalReadings) * 100);
+  const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null
+    ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
+    : 0;
+  const morningSubtitle = morningReferences.length
+    ? morningReferences.join(' / ')
+    : isLoadingReadingSchedule
+      ? 'Loading morning readings...'
+      : 'No morning reading assigned yet.';
+  const eveningSubtitle = eveningReferences.length
+    ? eveningReferences.join(' / ')
+    : isLoadingReadingSchedule
+      ? 'Loading evening readings...'
+      : 'No evening reading assigned yet.';
 
-  const morningReadingDone = morningCompletedChapters >= morningTotal;
+  const morningReadingDone = morningTotal > 0 && morningCompletedChapters >= morningTotal;
   const morningReflectionDone = isReflectionCompleteForToday('morning');
   const eveningUnlocked = morningReadingDone && morningReflectionDone;
-  const eveningReadingDone = eveningCompletedChapters >= eveningTotal;
+  const eveningReadingDone = eveningTotal > 0 && eveningCompletedChapters >= eveningTotal;
   const eveningReflectionDone = isReflectionCompleteForToday('evening');
+
+  useEffect(() => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
+      console.warn('Unable to load reading schedule:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   const openReading = (period: ReadingPeriod) => {
     router.push({
@@ -133,7 +158,7 @@ const BibleJourneyScreen = () => {
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">{bibleJourneyDayNumber ? `Day ${bibleJourneyDayNumber} Bible Journey` : 'Bible Journey'}</Text>
+            <Text className="text-[16px] font-black text-[#171717]">{bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber} Bible Journey` : 'Bible Journey'}</Text>
             <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
           </View>
 
@@ -183,7 +208,7 @@ const BibleJourneyScreen = () => {
           <View className="gap-3">
             <JourneyStep
               title="Morning Reading"
-              subtitle={mockBibleJourneySessionPlan.morning.join(' / ')}
+              subtitle={morningSubtitle}
               meta={`${morningCompletedChapters}/${morningTotal} chapters complete`}
               icon="sunrise"
               accent="#FF7A00"
@@ -206,7 +231,7 @@ const BibleJourneyScreen = () => {
 
             <JourneyStep
               title="Evening Reading"
-              subtitle={mockBibleJourneySessionPlan.evening.join(' / ')}
+              subtitle={eveningSubtitle}
               meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reflection'}
               icon="moon"
               accent="#3768D8"
