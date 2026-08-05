@@ -1,63 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-export type ReadingReaction =
-  | 'Encouraging'
-  | 'Challenging'
-  | 'Peaceful'
-  | 'Eye-opening'
-  | 'I need more understanding';
-
-export type ReadingPeriod = 'morning' | 'evening';
-
-export interface DailyReadingProgress {
-  dateKey: string;
-  morningCompleted: boolean;
-  eveningCompleted: boolean;
-  dailyCompleted: boolean;
-  reflectionCompletedByPeriod: Partial<Record<ReadingPeriod, boolean>>;
-  completedChaptersByPeriod: Partial<Record<ReadingPeriod, string[]>>;
-  reactions: Partial<Record<ReadingPeriod, ReadingReaction>>;
-  reflections: Partial<Record<ReadingPeriod, string>>;
-  completedAtByPeriod: Partial<Record<ReadingPeriod, string>>;
-  readingReferenceByPeriod: Partial<Record<ReadingPeriod, string>>;
-}
-
-export interface StreakStats {
-  currentStreak: number;
-  longestStreak: number;
-  totalCompletedDays: number;
-}
-
-interface BibleJourneyStore {
-  dailyProgressByDate: Record<string, DailyReadingProgress>;
-  markSessionReadingCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    readingReference: string;
-  }) => void;
-  markReflectionCompleteForToday: (payload: {
-    period: ReadingPeriod;
-  }) => void;
-  isReflectionCompleteForToday: (period: ReadingPeriod) => boolean;
-  markPeriodCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    readingReference: string;
-  }) => void;
-  completeReadingForToday: (payload: {
-    period: ReadingPeriod;
-    reaction: ReadingReaction;
-    reflection?: string;
-    readingReference: string;
-  }) => void;
-  markChapterCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    chapterReference: string;
-  }) => void;
-  getCompletedChaptersForToday: (period: ReadingPeriod) => string[];
-  getTodayProgress: () => DailyReadingProgress;
-  getStreakStats: () => StreakStats;
-}
+import type { BibleJourneyStore, DailyReadingProgress } from '@/types/index';
 
 const toDateKey = (date: Date) => {
   const year = date.getFullYear();

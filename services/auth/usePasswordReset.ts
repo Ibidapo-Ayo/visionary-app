@@ -1,16 +1,7 @@
 import { useCallback } from 'react';
 import { useSignIn } from '@clerk/expo';
-import { toAuthError, type AuthErrorShape } from './errors';
-
-export interface RequestResetResult {
-  sent: boolean;
-  error?: AuthErrorShape;
-}
-
-export interface CompleteResetResult {
-  complete: boolean;
-  error?: AuthErrorShape;
-}
+import type { CompleteResetResult, RequestResetResult } from '@/types/index';
+import { toAuthError } from './errors';
 
 /**
  * Password reset flow via email verification code.

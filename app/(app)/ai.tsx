@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
 import ComingSoonScreen from '@components/coming-soon/ComingSoonScreen';
-import type { ComingSoonCapability } from '@components/coming-soon/FeaturePreviewCard';
+import type { ComingSoonCapability } from '@/types/index';
 
 const capabilities: ComingSoonCapability[] = [
   { id: '1', label: 'Personalized biblical guidance', icon: 'book-open' },

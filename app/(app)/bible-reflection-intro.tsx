@@ -6,7 +6,8 @@ import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import Card from '@components/Card';
 import { mockBibleJourneySessionPlan } from '@services/mockData';
-import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+import type { ReadingPeriod } from '@/types/index';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 
 const BibleReflectionIntroScreen = () => {
   const router = useRouter();

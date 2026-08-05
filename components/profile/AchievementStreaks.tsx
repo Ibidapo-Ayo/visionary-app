@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import Card from '@components/Card';
-import type { MockAchievement } from '@services/mockData';
+import type { MockAchievement } from '@/types/index';
 
 interface AchievementStreaksProps {
   isDark: boolean;

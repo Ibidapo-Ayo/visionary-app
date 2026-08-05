@@ -1,39 +1,6 @@
-import type { User } from '@/types/index';
+import type { ClerkUserResource, SupabaseUserRow, User } from '@/types/index';
 import { supabase } from './client';
-
-type ClerkUserResource = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string;
-  createdAt: number | null;
-  updatedAt: number | null;
-  primaryEmailAddress?: { emailAddress?: string | null } | null;
-  emailAddresses: Array<{ emailAddress?: string | null }>;
-  primaryPhoneNumber?: { phoneNumber?: string | null } | null;
-  phoneNumbers: Array<{ phoneNumber?: string | null }>;
-  unsafeMetadata?: Record<string, unknown>;
-};
-
-export interface SupabaseUserRow {
-  id?: string;
-  clerk_user_id: string;
-  created_at: string;
-  updated_at: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone_number: string | null;
-  profile_image: string | null;
-  gender: string | null;
-  date_of_birth: string | null;
-  role: string;
-  department: string | null;
-  joined_at: string | null;
-  is_active: boolean;
-}
-
-const USERS_TABLE = 'users';
+import { USERS_TABLE } from './constants';
 
 const getPrimaryEmail = (user: ClerkUserResource): string =>
   user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '';

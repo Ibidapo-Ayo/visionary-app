@@ -1,20 +1,10 @@
-import type {
-  ClerkAPIError,
-  SignInResource,
-  SignUpResource,
-  UserResource,
-} from '@clerk/types';
+import type { AuthErrorShape, ClerkApiError, ClerkAuthUserResource } from '@/types/index';
 
 /**
  * Normalized error object returned by every auth service function.
  * Screens should render `error.message` to the user; `error.code` and
  * `error.field` remain available for field-level highlighting.
  */
-export interface AuthErrorShape {
-  code: string;
-  message: string;
-  field?: string;
-}
 
 const FRIENDLY_MESSAGES: Record<string, string> = {
   form_identifier_not_found: 'We could not find an account for that email.',
@@ -30,7 +20,7 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
 
 export const toAuthError = (err: unknown): AuthErrorShape => {
   const anyErr = err as {
-    errors?: ClerkAPIError[];
+    errors?: ClerkApiError[];
     message?: string;
     code?: string;
   };
@@ -55,7 +45,7 @@ export const toAuthError = (err: unknown): AuthErrorShape => {
  * Extracts the pieces of a Clerk `UserResource` used across the app UI
  * so screens never depend on Clerk types directly.
  */
-export const mapClerkUser = (user: UserResource | null | undefined) => {
+export const mapClerkUser = (user: ClerkAuthUserResource | null | undefined) => {
   if (!user) return null;
 
   const primaryEmail =
@@ -76,5 +66,3 @@ export const mapClerkUser = (user: UserResource | null | undefined) => {
   };
 };
 
-export type ClerkSignUp = SignUpResource;
-export type ClerkSignIn = SignInResource;

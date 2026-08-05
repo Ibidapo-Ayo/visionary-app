@@ -4,7 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import Card from '@components/Card';
-import type { MockSpiritualMetric } from '@services/mockData';
+import type { MockSpiritualMetric } from '@/types/index';
 
 interface SpiritualProgressOverviewProps {
   isDark: boolean;

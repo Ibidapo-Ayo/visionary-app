@@ -6,7 +6,8 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockBibleJourneyProgress, mockBibleJourneySessionPlan } from '@services/mockData';
-import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+import type { ReadingPeriod } from '@/types/index';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 
 type JourneyStepProps = {
   title: string;

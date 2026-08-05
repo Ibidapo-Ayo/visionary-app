@@ -17,7 +17,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Card from '@components/Card';
 import { mockBibleJourneySessionPlan, mockBibleReadingChapters } from '@services/mockData';
-import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+import type { ReadingPeriod } from '@/types/index';
+import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 
 type ChatMessage = {
   id: string;

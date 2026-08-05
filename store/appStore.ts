@@ -1,35 +1,5 @@
 import { create } from 'zustand';
-import { Event, Member, FollowUp, Conversation } from '@/types/index';
-
-interface AppStore {
-  // UI State
-  isOnboardingComplete: boolean;
-  setOnboardingComplete: (complete: boolean) => void;
-
-  // Events & Attendance
-  events: Event[];
-  setEvents: (events: Event[]) => void;
-
-  // Members
-  members: Member[];
-  setMembers: (members: Member[]) => void;
-
-  // Follow-ups
-  followUps: FollowUp[];
-  setFollowUps: (followUps: FollowUp[]) => void;
-  addFollowUp: (followUp: FollowUp) => void;
-  updateFollowUp: (id: string, updates: Partial<FollowUp>) => void;
-
-  // Conversations & Chat
-  conversations: Conversation[];
-  setConversations: (conversations: Conversation[]) => void;
-  currentConversation: Conversation | null;
-  setCurrentConversation: (conversation: Conversation | null) => void;
-
-  // Search & Filter
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-}
+import type { AppStore } from '@/types/index';
 
 export const useAppStore = create<AppStore>((set) => ({
   // UI State

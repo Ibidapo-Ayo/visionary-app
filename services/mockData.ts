@@ -1,90 +1,14 @@
-export interface MockMember {
-  id: string;
-  name: string;
-  email: string;
-  status: 'new' | 'at-risk' | 'active' | 'inactive';
-}
-
-export interface MockEvent {
-  id: string;
-  title: string;
-  description: string;
-  startAt: string;
-  endAt: string;
-  location: string;
-}
-
-export interface MockBibleJourneyReading {
-  id: string;
-  period: 'morning' | 'evening';
-  title: string;
-  reference: string;
-  estimatedMinutes: number;
-  focus: string;
-}
-
-export interface MockBibleJourneyProgress {
-  year: number;
-  cyclesCompleted: number;
-  cyclesTarget: number;
-  completedReadings: number;
-  totalReadings: number;
-}
-
-export interface MockBibleJourneySessionPlan {
-  morning: string[];
-  evening: string[];
-}
-
-export interface MockBibleVerse {
-  number: number;
-  text: string;
-}
-
-export interface MockBibleReadingChapter {
-  id: string;
-  title: string;
-  reference: string;
-  estimatedMinutes: number;
-  verses: MockBibleVerse[];
-}
-
-export type MockSpiritualMetricIconKey =
-  | 'bibleJourney'
-  | 'bibleReadingStreak'
-  | 'prayerStreak'
-  | 'attendanceStreak'
-  | 'digestStreak'
-  | 'overallJourney';
-
-export interface MockSpiritualMetric {
-  id: string;
-  title: string;
-  iconKey: MockSpiritualMetricIconKey;
-  progress: number;
-  currentValue: string;
-  currentStreak: string;
-  encouragement: string;
-  color: string;
-}
-
-export interface MockAchievement {
-  id: string;
-  badge: string;
-  title: string;
-  unlockedOn: string;
-  spiritualXp: number;
-}
-
-export type MockSpiritualActivityType = 'bibleReading' | 'reflection' | 'attendance' | 'digest' | 'prayer';
-
-export interface MockSpiritualActivity {
-  id: string;
-  type: MockSpiritualActivityType;
-  title: string;
-  date: string;
-  time: string;
-}
+import type {
+  MockAchievement,
+  MockBibleJourneyProgress,
+  MockBibleJourneyReading,
+  MockBibleJourneySessionPlan,
+  MockBibleReadingChapter,
+  MockEvent,
+  MockMember,
+  MockSpiritualActivity,
+  MockSpiritualMetric,
+} from '@/types/index';
 
 export const mockMembers: MockMember[] = [
   { id: '1', name: 'Sarah Johnson', email: 'sarah@example.com', status: 'new' },

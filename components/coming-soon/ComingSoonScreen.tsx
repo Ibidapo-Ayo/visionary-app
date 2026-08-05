@@ -4,8 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import type { ComingSoonScreenProps } from '@/types/index';
 import ComingSoonHeroIllustration from './ComingSoonHeroIllustration';
-import FeaturePreviewCard, { ComingSoonCapability } from './FeaturePreviewCard';
+import FeaturePreviewCard from './FeaturePreviewCard';
 
 type ScaleButtonProps = {
   label: string;
@@ -56,18 +57,6 @@ const ScaleButton = ({ label, onPress, variant, icon }: ScaleButtonProps) => {
       </Pressable>
     </Animated.View>
   );
-};
-
-export type ComingSoonScreenProps = {
-  title: string;
-  description: string;
-  capabilityTitle: string;
-  capabilities: ComingSoonCapability[];
-  primaryButtonLabel: string;
-  secondaryButtonLabel: string;
-  successMessage?: string;
-  onPrimaryAction?: () => void;
-  onSecondaryAction: () => void;
 };
 
 const ComingSoonScreen = ({

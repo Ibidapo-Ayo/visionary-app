@@ -3,16 +3,7 @@ import { Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import Card from '@components/Card';
-
-export interface ProfileSettingsItem {
-  id: string;
-  icon: React.ComponentProps<typeof Feather>['name'];
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  rightControl?: React.ReactNode;
-  destructive?: boolean;
-}
+import type { ProfileSettingsItem } from '@/types/index';
 
 interface ProfileSettingsListProps {
   title: string;
