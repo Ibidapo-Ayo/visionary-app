@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,17 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockBibleJourneyProgress, mockBibleJourneyReadings } from '@services/mockData';
 import { useAuthStore } from '@store/authStore';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { getCurrentSession, getInitials } from '@/lib/helper';
 
-const getInitials = (firstName?: string, lastName?: string, email?: string) => {
-  const firstInitial = firstName?.trim()?.charAt(0) ?? '';
-  const lastInitial = lastName?.trim()?.charAt(0) ?? '';
-
-  if (firstInitial || lastInitial) {
-    return `${firstInitial}${lastInitial}`.toUpperCase();
-  }
-
-  return (email?.trim()?.charAt(0) ?? 'V').toUpperCase();
-};
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
   <View className="flex-1 items-center rounded-[18px] border border-[#ECE6DD] bg-white px-2 py-3">
@@ -89,7 +80,7 @@ const HomeScreen = () => {
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
-            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good morning,</Text>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
             <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
           </View>
 
