@@ -9,6 +9,7 @@ import { useAuthStore } from '@store/authStore';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
+import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingPreviewCard';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 
@@ -20,16 +21,6 @@ const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typ
     </View>
     <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]">{value}</Text>
     <Text className="mt-0.5 text-center text-[10px] font-semibold text-[#7A746C]">{label}</Text>
-  </View>
-);
-
-const ReadingRow = ({ label, reference, accent }: { label: string; reference: string; accent: string }) => (
-  <View className="flex-1 rounded-[18px] border border-[#EFE7DD] bg-[#FFFCF8] p-3.5">
-    <View className="flex-row items-center">
-      <View className="h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
-      <Text className="ml-2 text-[10px] font-bold uppercase tracking-[0.5px] text-[#8A8176]">{label}</Text>
-    </View>
-    <Text className="mt-2 text-[13px] font-black text-[#191919]">{reference}</Text>
   </View>
 );
 
@@ -57,6 +48,7 @@ const HomeScreen = () => {
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
+  const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
@@ -66,7 +58,9 @@ const HomeScreen = () => {
   const currentStreak = streakStats.currentStreak;
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const progressStats = progressRangeStats[selectedProgressRange];
-  const eveningReference = readingSchedule?.evening.map(formatDayReadingReference).join(' / ') || 'Evening reading';
+  const nextEveningReading = readingSchedule?.evening[0] ?? null;
+  const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
+  const eveningChapterCount = readingSchedule?.evening.length ?? 0;
 
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
   const firstName = fullName.split(' ')[0] || 'Visionary';
@@ -213,9 +207,18 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <View className="mt-3 flex-row gap-3">
-            <ReadingRow label="Evening Reading" reference={eveningReference} accent="#16A34A" />
-            <ReadingRow label="Reflect With AI" reference="Today's Reflection" accent="#8B5CF6" />
+          <View className="mt-3">
+            <NextReadingPreviewCard
+              reference={nextEveningReference}
+              chapterCount={eveningChapterCount}
+              isLoading={isLoadingReadingSchedule}
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/bible-reading-select',
+                  params: { period: 'evening' },
+                })
+              }
+            />
           </View>
         </Animated.View>
 
