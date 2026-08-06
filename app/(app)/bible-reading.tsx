@@ -1,12 +1,55 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneySessionPlan, mockBibleReadingChapters } from '@services/mockData';
-import type { ReadingPeriod } from '@/types/index';
+import type { DayReading, ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { formatDayReadingReference } from '@/lib/helper';
+import { useBibleChapter } from '@/hooks/useBibleChapter';
+import BrandedSpinner from '@/components/BrandedSpinner';
+
+interface BibleChapterSectionProps {
+  reading: DayReading;
+}
+
+const BibleChapterSection = ({ reading }: BibleChapterSectionProps) => {
+  const chapterQuery = useBibleChapter(reading.bookName, reading.chapter);
+  const reference = formatDayReadingReference(reading);
+
+  return (
+    <Animated.View entering={FadeInDown.delay(60 + reading.orderNumber * 40).duration(280)} className="mb-7 overflow-hidden rounded-[24px] bg-white px-5 py-5">
+      <Text className="text-[22px] font-black text-[#171717]">{reference}</Text>
+      <Text className="mt-1 text-[10px] font-bold uppercase tracking-[0.8px] text-[#9B9085]">New International Version</Text>
+
+      {chapterQuery.isLoading || chapterQuery.isFetching ? (
+        <View className="mt-6 flex-row items-center rounded-[18px] bg-[#FFF7EF] px-4 py-4">
+          <BrandedSpinner size={30} />
+          <Text className="ml-3 text-[12px] font-bold text-[#8A5A2B]">Loading {reference}</Text>
+        </View>
+      ) : chapterQuery.isError ? (
+        <View className="mt-5 rounded-[18px] border border-[#F3D2C7] bg-[#FFF5F1] px-4 py-4">
+          <Text className="text-[13px] font-bold leading-5 text-[#9A3412]">Unable to load {reference}.</Text>
+          <TouchableOpacity onPress={() => void chapterQuery.refetch()} activeOpacity={0.86} className="mt-3 self-start rounded-full bg-[#FF7A00] px-4 py-2.5">
+            <Text className="text-[11px] font-black text-white">Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View className="mt-5">
+          {chapterQuery.data?.verses.map((verse) => (
+            <View key={`${verse.book_id}-${verse.chapter}-${verse.verse}`} className="mb-4 flex-row items-start">
+              <Text className="mr-2 min-w-[22px] pt-0.5 text-right text-[10px] font-black text-[#FF7A00]">{verse.verse}</Text>
+              <Text className="flex-1 text-[15px] font-medium leading-[27px] text-[#24211E]">{verse.text.trim()}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </Animated.View>
+  );
+};
 
 const BibleReadingScreen = () => {
   const router = useRouter();
@@ -19,36 +62,59 @@ const BibleReadingScreen = () => {
   const markChapterCompleteForToday = useBibleJourneyStore((state) => state.markChapterCompleteForToday);
   const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
   const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
+  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
+  const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
+  const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
+  const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
+  const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
+  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
 
-  const assignedReferences = period === 'morning' ? mockBibleJourneySessionPlan.morning : mockBibleJourneySessionPlan.evening;
-
-  const sessionChapters = useMemo(
-    () =>
-      assignedReferences
-        .map((reference) => mockBibleReadingChapters.find((chapter) => chapter.reference === reference))
-        .filter((chapter): chapter is (typeof mockBibleReadingChapters)[number] => Boolean(chapter)),
-    [assignedReferences],
-  );
+  const sessionChapters = readingSchedule?.[period] ?? [];
 
   const completedReferences = getCompletedChaptersForToday(period);
 
   const initialChapterIndex = useMemo(() => {
     if (incomingReference) {
-      const explicitIndex = sessionChapters.findIndex((chapter) => chapter.reference === incomingReference);
+      const explicitIndex = sessionChapters.findIndex((chapter) => formatDayReadingReference(chapter) === incomingReference);
       if (explicitIndex >= 0) {
         return explicitIndex;
       }
     }
 
-    const firstIncomplete = sessionChapters.findIndex((chapter) => !completedReferences.includes(chapter.reference));
+    const firstIncomplete = sessionChapters.findIndex((chapter) => !completedReferences.includes(formatDayReadingReference(chapter)));
     return firstIncomplete >= 0 ? firstIncomplete : 0;
   }, [completedReferences, incomingReference, sessionChapters]);
 
   const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
 
+  useEffect(() => {
+    if (bibleReadingPlan || bibleReadingPlanDayNumber !== null) {
+      return;
+    }
+
+    void loadBibleReadingPlan().catch((error) => {
+      console.warn('Unable to load Bible reading plan:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadBibleReadingPlan]);
+
+  useEffect(() => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
+      console.warn('Unable to load reading schedule:', error);
+    });
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+
+  useEffect(() => {
+    setChapterIndex(initialChapterIndex);
+  }, [initialChapterIndex]);
+
   const chapter = sessionChapters[Math.min(chapterIndex, Math.max(0, sessionChapters.length - 1))];
   const chapterPosition = chapterIndex + 1;
   const totalChapters = sessionChapters.length;
+  const currentReference = chapter ? formatDayReadingReference(chapter) : incomingReference;
 
   const hasPrev = chapterIndex > 0;
   const hasNext = chapterIndex < totalChapters - 1;
@@ -69,7 +135,7 @@ const BibleReadingScreen = () => {
 
     markChapterCompleteForToday({
       period,
-      chapterReference: chapter.reference,
+      chapterReference: formatDayReadingReference(chapter),
     });
   };
 
@@ -95,7 +161,7 @@ const BibleReadingScreen = () => {
 
     markSessionReadingCompleteForToday({
       period,
-      readingReference: chapter.reference,
+      readingReference: formatDayReadingReference(chapter),
     });
 
     router.replace({
@@ -108,7 +174,14 @@ const BibleReadingScreen = () => {
     return (
       <View className="flex-1 items-center justify-center bg-[#FFF9F1] px-6">
         <StatusBar barStyle="dark-content" />
-        <Text className="text-center text-[15px] font-semibold text-[#2D241B]">No chapters assigned for this session.</Text>
+        {isLoadingReadingSchedule ? (
+          <View className="items-center">
+            <BrandedSpinner size={38} />
+            <Text className="mt-4 text-center text-[15px] font-semibold text-[#2D241B]">Loading your assigned reading.</Text>
+          </View>
+        ) : (
+          <Text className="text-center text-[15px] font-semibold text-[#2D241B]">No chapters assigned for this session.</Text>
+        )}
       </View>
     );
   }
@@ -124,7 +197,7 @@ const BibleReadingScreen = () => {
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[14px] font-black text-[#171717]">{chapter.reference}</Text>
+            <Text className="text-[14px] font-black text-[#171717]">{currentReference}</Text>
             <Text className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">New International Version</Text>
           </View>
 
@@ -140,14 +213,15 @@ const BibleReadingScreen = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 92, 112) }} className="px-5">
-        <Animated.View entering={FadeInDown.delay(60).duration(280)} className="pt-3">
-          {chapter.verses.map((verse) => (
-            <Text key={`${chapter.id}-${verse.number}`} className="mb-5 text-[15px] font-medium leading-[27px] text-[#24211E]">
-              <Text className="text-[11px] font-black text-[#FF7A00]">{verse.number}  </Text>
-              {verse.text}
-            </Text>
-          ))}
+        <Animated.View entering={FadeInDown.delay(40).duration(240)} className="pb-3 pt-3">
+          <Text className="text-[11px] font-black uppercase tracking-[0.9px] text-[#B36A22]">{period} session</Text>
+          <Text className="mt-1 text-[26px] font-black text-[#171717]">Today's Scripture</Text>
+          <Text className="mt-2 text-[12px] font-semibold leading-5 text-[#81786E]">
+            Let today's passages shape a steady rhythm of worship, wisdom, and obedience.
+          </Text>
         </Animated.View>
+
+        <BibleChapterSection key={chapter.id} reading={chapter} />
       </ScrollView>
 
       <View className="absolute left-0 right-0 px-5" style={{ bottom: Math.max(insets.bottom + 10, 18) }}>
