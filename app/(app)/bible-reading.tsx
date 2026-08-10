@@ -8,6 +8,8 @@ import type { DayReading, ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { useAuthStore } from '@/store/authStore';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import { formatDayReadingReference } from '@/lib/helper';
 import { useBibleChapter } from '@/hooks/useBibleChapter';
 import BrandedSpinner from '@/components/BrandedSpinner';
@@ -59,8 +61,6 @@ const BibleReadingScreen = () => {
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
-  const markChapterCompleteForToday = useBibleJourneyStore((state) => state.markChapterCompleteForToday);
-  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
   const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
@@ -68,10 +68,15 @@ const BibleReadingScreen = () => {
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
+  const user = useAuthStore((state) => state.user);
+  const loadUserReadingProgress = useUserReadingProgressStore((state) => state.loadUserReadingProgress);
+  const markScheduleComplete = useUserReadingProgressStore((state) => state.markScheduleComplete);
+  const completedScheduleIdsByUser = useUserReadingProgressStore((state) => state.completedScheduleIdsByUser);
+  const loadedProgressUserId = useUserReadingProgressStore((state) => state.loadedUserId);
 
   const sessionChapters = readingSchedule?.[period] ?? [];
 
-  const completedReferences = getCompletedChaptersForToday(period);
+  const completedScheduleIds = loadedProgressUserId ? completedScheduleIdsByUser[loadedProgressUserId] ?? [] : [];
 
   const initialChapterIndex = useMemo(() => {
     if (incomingReference) {
@@ -81,9 +86,9 @@ const BibleReadingScreen = () => {
       }
     }
 
-    const firstIncomplete = sessionChapters.findIndex((chapter) => !completedReferences.includes(formatDayReadingReference(chapter)));
+    const firstIncomplete = sessionChapters.findIndex((chapter) => !completedScheduleIds.includes(chapter.id));
     return firstIncomplete >= 0 ? firstIncomplete : 0;
-  }, [completedReferences, incomingReference, sessionChapters]);
+  }, [completedScheduleIds, incomingReference, sessionChapters]);
 
   const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
 
@@ -108,6 +113,16 @@ const BibleReadingScreen = () => {
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    void loadUserReadingProgress(user.id).catch((error) => {
+      console.warn('Unable to load user reading progress:', error);
+    });
+  }, [loadUserReadingProgress, user?.id]);
+
+  useEffect(() => {
     setChapterIndex(initialChapterIndex);
   }, [initialChapterIndex]);
 
@@ -128,14 +143,18 @@ const BibleReadingScreen = () => {
     router.replace('/(app)/bible-journey');
   };
 
-  const markCurrentChapterComplete = () => {
+  const markCurrentChapterComplete = async () => {
     if (!chapter) {
       return;
     }
 
-    markChapterCompleteForToday({
-      period,
-      chapterReference: formatDayReadingReference(chapter),
+    if (!user?.id) {
+      return;
+    }
+
+    await markScheduleComplete({
+      clerkUserId: user.id,
+      scheduleId: chapter.id,
     });
   };
 
@@ -152,7 +171,9 @@ const BibleReadingScreen = () => {
       return;
     }
 
-    markCurrentChapterComplete();
+    void markCurrentChapterComplete().catch((error) => {
+      console.warn('Unable to update user reading progress:', error);
+    });
 
     if (hasNext) {
       setChapterIndex((prev) => prev + 1);

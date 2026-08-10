@@ -1,3 +1,3 @@
 export { supabase, setSupabaseClerkTokenGetter } from './client';
 export { useSupabaseClerkAuth } from './useSupabaseClerkAuth';
-export { syncProfileFromClerkUser, syncProfileFromStoreUser } from './profile';
+export { getSupabaseUserIdByClerkId, getUserByClerkId, syncProfileFromClerkUser, syncProfileFromStoreUser } from './profile';

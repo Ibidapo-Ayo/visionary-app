@@ -302,6 +302,26 @@ export interface BibleJourneyStore {
   getStreakStats: () => StreakStats;
 }
 
+export interface UserReadingProgressRow {
+  id: string;
+  user_id: string;
+  schedule_id: string;
+  completed: boolean;
+  completed_at: string | null;
+}
+
+export interface UserReadingProgressStore {
+  completedScheduleIdsByUser: Record<string, string[]>;
+  supabaseUserIdsByClerkId: Record<string, string>;
+  loadedUserId: string | null;
+  isLoadingProgress: boolean;
+  progressError: string | null;
+  loadUserReadingProgress: (clerkUserId: string) => Promise<void>;
+  markScheduleComplete: (payload: { clerkUserId: string; scheduleId: string }) => Promise<void>;
+  getCompletedScheduleCount: (scheduleIds: string[]) => number;
+  isScheduleComplete: (scheduleId: string) => boolean;
+}
+
 export type ClerkGetToken = (options?: { template?: string }) => Promise<string | null>;
 
 export type ClerkUserResource = {

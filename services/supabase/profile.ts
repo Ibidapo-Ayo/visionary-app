@@ -92,7 +92,7 @@ const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
   }
 };
 
-const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
+export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
   const { data, error } = await supabase
     .from(USERS_TABLE)
     .select('*')
@@ -106,6 +106,16 @@ const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null
   }
 
   return data;
+};
+
+export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<string> => {
+  const user = await getUserByClerkId(clerkId);
+
+  if (!user?.id) {
+    throw new Error('[supabase] Unable to resolve Supabase user id for reading progress.');
+  }
+
+  return user.id;
 };
 
 export const syncProfileFromClerkUser = async (clerkUser: ClerkUserResource): Promise<void> => {

@@ -3,13 +3,16 @@ import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { useAuthStore } from '@/store/authStore';
+import { calculateReadingProgressPercent, useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import { formatDayReadingReference } from '@/lib/helper';
+import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
 
 type JourneyStepProps = {
   title: string;
@@ -66,7 +69,6 @@ const BibleJourneyScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
   const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
@@ -74,22 +76,29 @@ const BibleJourneyScreen = () => {
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
+  const user = useAuthStore((state) => state.user);
+  const loadUserReadingProgress = useUserReadingProgressStore((state) => state.loadUserReadingProgress);
+  const completedScheduleIdsByUser = useUserReadingProgressStore((state) => state.completedScheduleIdsByUser);
+  const loadedProgressUserId = useUserReadingProgressStore((state) => state.loadedUserId);
 
   const streakStats = getStreakStats();
   const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
   const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
-  const morningCompletedChapters = getCompletedChaptersForToday('morning').filter((reference) =>
-    morningReferences.includes(reference),
-  ).length;
-  const eveningCompletedChapters = getCompletedChaptersForToday('evening').filter((reference) =>
-    eveningReferences.includes(reference),
-  ).length;
+  const persistedCompletedScheduleIds = new Set(
+    loadedProgressUserId ? completedScheduleIdsByUser[loadedProgressUserId] ?? [] : [],
+  );
+  const morningCompletedChapters = readingSchedule?.morning.filter((reading) => persistedCompletedScheduleIds.has(reading.id)).length ?? 0;
+  const eveningCompletedChapters = readingSchedule?.evening.filter((reading) => persistedCompletedScheduleIds.has(reading.id)).length ?? 0;
 
   const morningTotal = morningReferences.length;
   const eveningTotal = eveningReferences.length;
   const totalTodayChapters = morningTotal + eveningTotal;
-  const totalCompletedChapters = morningCompletedChapters + eveningCompletedChapters;
-  const dayProgressPercent = totalTodayChapters ? Math.round((totalCompletedChapters / totalTodayChapters) * 100) : 0;
+  const todayScheduleIds = [
+    ...(readingSchedule?.morning.map((reading) => reading.id) ?? []),
+    ...(readingSchedule?.evening.map((reading) => reading.id) ?? []),
+  ];
+  const totalCompletedChapters = todayScheduleIds.filter((scheduleId) => persistedCompletedScheduleIds.has(scheduleId)).length;
+  const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
   const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null
     ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
     : 0;
@@ -119,6 +128,16 @@ const BibleJourneyScreen = () => {
       console.warn('Unable to load reading schedule:', error);
     });
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    void loadUserReadingProgress(user.id).catch((error) => {
+      console.warn('Unable to load user reading progress:', error);
+    });
+  }, [loadUserReadingProgress, user?.id]);
 
   const openReading = (period: ReadingPeriod) => {
     router.push({
@@ -167,31 +186,12 @@ const BibleJourneyScreen = () => {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(70).duration(320)} className="mt-5 overflow-hidden rounded-[24px] bg-[#17191B]">
-          <LinearGradient colors={['#202225', '#151719']} className="p-5">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-4">
-                <View className="flex-row items-center">
-                  <FontAwesome5 name="fire" size={13} color="#FF7A00" solid />
-                  <Text className="ml-2 text-[11px] font-black uppercase tracking-[0.7px] text-[#FFB56D]">Today&apos;s Journey</Text>
-                </View>
-                <Text className="mt-3 text-[32px] font-black leading-[36px] text-white">{dayProgressPercent}%</Text>
-                <Text className="mt-1 text-[12px] font-semibold leading-5 text-[#CFC8BE]">
-                  {totalCompletedChapters} of {totalTodayChapters} chapters completed today.
-                </Text>
-              </View>
-
-              <View className="h-[88px] w-[88px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
-                <Text className="text-[20px] font-black text-white">{streakStats.currentStreak}</Text>
-                <Text className="text-[9px] font-bold text-[#D8D1C8]">days</Text>
-              </View>
-            </View>
-
-            <View className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/15">
-              <View className="h-full rounded-full bg-[#FF7A00]" style={{ width: `${dayProgressPercent}%` }} />
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        <TodayJourneyProgressCard
+          progressPercent={dayProgressPercent}
+          completedChapters={totalCompletedChapters}
+          totalChapters={totalTodayChapters}
+          currentStreak={streakStats.currentStreak}
+        />
 
         <Animated.View entering={FadeInDown.delay(120).duration(320)} className="mt-4 flex-row gap-3">
           <MiniStat icon="book-open" value={`${yearlyProgressPercent}%`} label="Year Goal" tint="#16A34A" />
