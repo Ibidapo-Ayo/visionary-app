@@ -88,6 +88,25 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         }
       },
       markScheduleComplete: async ({ clerkUserId, scheduleId }) => {
+        const cachedSupabaseUserId = get().supabaseUserIdsByClerkId[clerkUserId];
+
+        if (cachedSupabaseUserId) {
+          const cachedUserScheduleIds = get().completedScheduleIdsByUser[cachedSupabaseUserId] ?? [];
+
+          if (cachedUserScheduleIds.includes(scheduleId)) {
+            return;
+          }
+
+          set((state) => ({
+            completedScheduleIdsByUser: {
+              ...state.completedScheduleIdsByUser,
+              [cachedSupabaseUserId]: addCompletedScheduleId(state.completedScheduleIdsByUser[cachedSupabaseUserId] ?? [], scheduleId),
+            },
+            loadedUserId: cachedSupabaseUserId,
+            progressError: null,
+          }));
+        }
+
         const supabaseUserId = await resolveSupabaseUserId(clerkUserId).catch((error) => {
           set({
             progressError: error instanceof Error ? error.message : 'Unable to resolve reading progress user.',
@@ -97,17 +116,16 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         });
         const currentUserScheduleIds = get().completedScheduleIdsByUser[supabaseUserId] ?? [];
 
-        if (currentUserScheduleIds.includes(scheduleId)) {
-          return;
+        if (!currentUserScheduleIds.includes(scheduleId)) {
+          set((state) => ({
+            completedScheduleIdsByUser: {
+              ...state.completedScheduleIdsByUser,
+              [supabaseUserId]: addCompletedScheduleId(state.completedScheduleIdsByUser[supabaseUserId] ?? [], scheduleId),
+            },
+            loadedUserId: supabaseUserId,
+            progressError: null,
+          }));
         }
-
-        set((state) => ({
-          completedScheduleIdsByUser: {
-            ...state.completedScheduleIdsByUser,
-            [supabaseUserId]: addCompletedScheduleId(state.completedScheduleIdsByUser[supabaseUserId] ?? [], scheduleId),
-          },
-          progressError: null,
-        }));
 
         try {
           await upsertUserReadingProgress({ userId: supabaseUserId, scheduleId });

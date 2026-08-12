@@ -307,7 +307,7 @@ export interface UserReadingProgressRow {
   user_id: string;
   schedule_id: string;
   completed: boolean;
-  completed_at: string | null;
+  completed_id: string | null;
 }
 
 export interface UserReadingProgressStore {

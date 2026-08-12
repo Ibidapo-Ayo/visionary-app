@@ -68,6 +68,8 @@ const HomeScreen = () => {
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
 
+  const period = getCurrentSession();
+
   useEffect(() => {
     if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
       return;
@@ -149,7 +151,7 @@ const HomeScreen = () => {
           onOpenMorningReading={() =>
             router.push({
               pathname: '/(app)/bible-reading-select',
-              params: { period: 'morning' },
+              params: { period },
             })
           }
         />
