@@ -18,6 +18,7 @@ export const useSyncClerkAuth = () => {
 
   const setUser = useAuthStore((state) => state.setUser);
   const setLoading = useAuthStore((state) => state.setLoading);
+  const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
   const reset = useAuthStore((state) => state.reset);
 
   useEffect(() => {
@@ -57,6 +58,9 @@ export const useSyncClerkAuth = () => {
 
     setUser(projected);
     setLoading(false);
+    void resolveSupabaseUserId(projected.id).catch((error) => {
+      console.warn('[supabase] Unable to resolve Supabase user id:', error);
+    });
 
     const syncWithRetry = async (attempt: number): Promise<void> => {
       try {
@@ -84,5 +88,5 @@ export const useSyncClerkAuth = () => {
     return () => {
       cancelled = true;
     };
-  }, [authLoaded, userLoaded, isSignedIn, clerkUser, setUser, setLoading, reset]);
+  }, [authLoaded, userLoaded, isSignedIn, clerkUser, setUser, setLoading, resolveSupabaseUserId, reset]);
 };

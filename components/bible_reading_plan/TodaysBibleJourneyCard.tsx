@@ -1,12 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
-import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { formatDayReadingReference, getCurrentSession } from '@/lib/helper';
+import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import type { ReadingPeriod } from '@/types/index';
 
 interface TodaysBibleJourneyCardProps {
@@ -18,35 +17,22 @@ const TodaysBibleJourneyCard = ({
   onOpenJourney,
   onOpenMorningReading,
 }: TodaysBibleJourneyCardProps) => {
-  const { bibleReadingPlan, bibleReadingPlanDayNumber, isLoadingBibleReadingPlan } = useBibleReadingPlanStore();
-  const { readingSchedule, isLoadingReadingSchedule, loadReadingSchedule } = useReadingScheduleStore();
-  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
+  const { readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan, bibleReadingPlanDayNumber } = useTodayReadingSchedule();
+  const { countCompleted } = useUserReadingProgress();
   const currentSession = getCurrentSession() as ReadingPeriod;
   const sessionIcon: React.ComponentProps<typeof Feather>['name'] = currentSession === 'evening' ? 'moon' : 'sun';
   const sessionLabel = currentSession === 'evening' ? 'Evening Reading' : 'Morning Reading';
   const sessionReferences = readingSchedule?.[currentSession].map(formatDayReadingReference) ?? [];
-  const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
-  const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
-  const totalChapters = morningReferences.length + eveningReferences.length;
-  const completedChapters =
-    getCompletedChaptersForToday('morning').filter((reference) => morningReferences.includes(reference)).length +
-    getCompletedChaptersForToday('evening').filter((reference) => eveningReferences.includes(reference)).length;
+  const morningScheduleIds = readingSchedule?.morning.map((chapter) => chapter.id) ?? [];
+  const eveningScheduleIds = readingSchedule?.evening.map((chapter) => chapter.id) ?? [];
+  const totalChapters = morningScheduleIds.length + eveningScheduleIds.length;
+  const completedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
   const progressPercent = totalChapters ? Math.round((completedChapters / totalChapters) * 100) : 0;
   const reference = sessionReferences.length
     ? sessionReferences[0]
     : isLoadingReadingSchedule
       ? 'Loading schedule...'
       : 'No reading assigned';
-
-  useEffect(() => {
-    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
-      return;
-    }
-
-    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
-      console.warn('Unable to load reading schedule:', error);
-    });
-  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   return (
     <Animated.View entering={FadeInDown.delay(160).duration(360)} className="mt-4 overflow-hidden rounded-[20px] bg-[#165928]">

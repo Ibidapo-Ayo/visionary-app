@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,11 +7,10 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
-import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
-import { useReadingScheduleStore } from '@/store/readingScheduleStore';
-import { useAuthStore } from '@/store/authStore';
-import { calculateReadingProgressPercent, useUserReadingProgressStore } from '@/store/userReadingProgressStore';
+import { calculateReadingProgressPercent } from '@/store/userReadingProgressStore';
 import { formatDayReadingReference } from '@/lib/helper';
+import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
 
 type JourneyStepProps = {
@@ -69,35 +68,22 @@ const BibleJourneyScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
-  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
-  const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
-  const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
-  const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
-  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
-  const user = useAuthStore((state) => state.user);
-  const loadUserReadingProgress = useUserReadingProgressStore((state) => state.loadUserReadingProgress);
-  const completedScheduleIdsByUser = useUserReadingProgressStore((state) => state.completedScheduleIdsByUser);
-  const loadedProgressUserId = useUserReadingProgressStore((state) => state.loadedUserId);
+  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
+  const { countCompleted } = useUserReadingProgress();
 
   const streakStats = getStreakStats();
   const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
   const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
-  const persistedCompletedScheduleIds = new Set(
-    loadedProgressUserId ? completedScheduleIdsByUser[loadedProgressUserId] ?? [] : [],
-  );
-  const morningCompletedChapters = readingSchedule?.morning.filter((reading) => persistedCompletedScheduleIds.has(reading.id)).length ?? 0;
-  const eveningCompletedChapters = readingSchedule?.evening.filter((reading) => persistedCompletedScheduleIds.has(reading.id)).length ?? 0;
+  const morningScheduleIds = readingSchedule?.morning.map((reading) => reading.id) ?? [];
+  const eveningScheduleIds = readingSchedule?.evening.map((reading) => reading.id) ?? [];
+  const morningCompletedChapters = countCompleted(morningScheduleIds);
+  const eveningCompletedChapters = countCompleted(eveningScheduleIds);
 
   const morningTotal = morningReferences.length;
   const eveningTotal = eveningReferences.length;
   const totalTodayChapters = morningTotal + eveningTotal;
-  const todayScheduleIds = [
-    ...(readingSchedule?.morning.map((reading) => reading.id) ?? []),
-    ...(readingSchedule?.evening.map((reading) => reading.id) ?? []),
-  ];
-  const totalCompletedChapters = todayScheduleIds.filter((scheduleId) => persistedCompletedScheduleIds.has(scheduleId)).length;
+  const totalCompletedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
   const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
   const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null
     ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
@@ -114,41 +100,12 @@ const BibleJourneyScreen = () => {
       : 'No evening reading assigned yet.';
 
   const morningReadingDone = morningTotal > 0 && morningCompletedChapters >= morningTotal;
-  const morningReflectionDone = isReflectionCompleteForToday('morning');
-  const eveningUnlocked = morningReadingDone && morningReflectionDone;
+  const eveningUnlocked = morningReadingDone;
   const eveningReadingDone = eveningTotal > 0 && eveningCompletedChapters >= eveningTotal;
-  const eveningReflectionDone = isReflectionCompleteForToday('evening');
-
-  useEffect(() => {
-    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
-      return;
-    }
-
-    void loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber).catch((error) => {
-      console.warn('Unable to load reading schedule:', error);
-    });
-  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-
-    void loadUserReadingProgress(user.id).catch((error) => {
-      console.warn('Unable to load user reading progress:', error);
-    });
-  }, [loadUserReadingProgress, user?.id]);
 
   const openReading = (period: ReadingPeriod) => {
     router.push({
       pathname: '/(app)/bible-reading-select',
-      params: { period },
-    });
-  };
-
-  const openReflectionIntro = (period: ReadingPeriod) => {
-    router.push({
-      pathname: '/(app)/bible-reflection-intro',
       params: { period },
     });
   };
@@ -218,39 +175,15 @@ const BibleJourneyScreen = () => {
             />
 
             <JourneyStep
-              title="Morning Reflection"
-              subtitle="Pause, process, and capture what stood out from the morning reading."
-              meta={morningReadingDone ? 'Unlocked after reading' : 'Finish morning chapters first'}
-              icon="edit-3"
-              accent="#16A34A"
-              complete={morningReflectionDone}
-              locked={!morningReadingDone}
-              buttonLabel={morningReflectionDone ? 'Open Reflection' : 'Reflect on Morning Reading'}
-              onPress={() => openReflectionIntro('morning')}
-            />
-
-            <JourneyStep
               title="Evening Reading"
               subtitle={eveningSubtitle}
-              meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reflection'}
+              meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reading'}
               icon="moon"
               accent="#3768D8"
               complete={eveningReadingDone}
               locked={!eveningUnlocked}
               buttonLabel={eveningReadingDone ? 'Review Evening Chapters' : 'Select Evening Chapter'}
               onPress={() => openReading('evening')}
-            />
-
-            <JourneyStep
-              title="Evening Reflection"
-              subtitle="Close the day by writing what God highlighted through the evening chapters."
-              meta={eveningReadingDone ? 'Ready for reflection' : 'Finish evening chapters first'}
-              icon="heart"
-              accent="#16A34A"
-              complete={eveningReflectionDone}
-              locked={!eveningReadingDone}
-              buttonLabel={eveningReflectionDone ? 'Open Reflection' : 'Reflect on Evening Reading'}
-              onPress={() => openReflectionIntro('evening')}
             />
           </View>
         </Animated.View>
@@ -263,7 +196,7 @@ const BibleJourneyScreen = () => {
             <View className="ml-3 flex-1">
               <Text className="text-[13px] font-black text-[#171717]">Stay steady today</Text>
               <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">
-                Complete the reading first, then reflection. The evening session opens after your morning reflection is done.
+                Complete the morning reading first. The evening session opens right after.
               </Text>
             </View>
           </View>

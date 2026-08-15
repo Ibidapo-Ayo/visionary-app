@@ -12,7 +12,7 @@ export const getCompletedUserReadingProgress = async (
 ): Promise<UserReadingProgressRow[]> => {
   const response = await supabase
     .from(USER_READING_PROGRESS_TABLE)
-    .select("id, user_id, schedule_id, completed, completed_id")
+    .select("id, user_id, schedule_id, completed, completed_at")
     .eq("user_id", userId)
     .eq("completed", true);
 
@@ -34,11 +34,11 @@ export const upsertUserReadingProgress = async ({
         user_id: userId,
         schedule_id: scheduleId,
         completed: true,
-        completed_id: scheduleId,
+        completed_at: new Date().toISOString(),
       },
       { onConflict: "user_id,schedule_id" },
     )
-    .select("id, user_id, schedule_id, completed, completed_id")
+    .select("id, user_id, schedule_id, completed, completed_at")
     .single();
 
   if (response.error) {

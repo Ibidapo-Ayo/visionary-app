@@ -21,6 +21,7 @@ export interface User {
 
 export interface AuthState {
   user: User | null;
+  supabaseUserId: string | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -29,6 +30,8 @@ export interface AuthState {
 export interface AuthStore extends AuthState {
   setUser: (user: User | null) => void;
   setLoading: (isLoading: boolean) => void;
+  setSupabaseUserId: (supabaseUserId: string | null) => void;
+  resolveSupabaseUserId: (clerkUserId?: string) => Promise<string>;
   reset: () => void;
 }
 
@@ -259,7 +262,6 @@ export interface DailyReadingProgress {
   morningCompleted: boolean;
   eveningCompleted: boolean;
   dailyCompleted: boolean;
-  reflectionCompletedByPeriod: Partial<Record<ReadingPeriod, boolean>>;
   completedChaptersByPeriod: Partial<Record<ReadingPeriod, string[]>>;
   reactions: Partial<Record<ReadingPeriod, ReadingReaction>>;
   reflections: Partial<Record<ReadingPeriod, string>>;
@@ -279,10 +281,6 @@ export interface BibleJourneyStore {
     period: ReadingPeriod;
     readingReference: string;
   }) => void;
-  markReflectionCompleteForToday: (payload: {
-    period: ReadingPeriod;
-  }) => void;
-  isReflectionCompleteForToday: (period: ReadingPeriod) => boolean;
   markPeriodCompleteForToday: (payload: {
     period: ReadingPeriod;
     readingReference: string;
@@ -307,17 +305,16 @@ export interface UserReadingProgressRow {
   user_id: string;
   schedule_id: string;
   completed: boolean;
-  completed_id: string | null;
+  completed_at: string | null;
 }
 
 export interface UserReadingProgressStore {
   completedScheduleIdsByUser: Record<string, string[]>;
-  supabaseUserIdsByClerkId: Record<string, string>;
   loadedUserId: string | null;
   isLoadingProgress: boolean;
   progressError: string | null;
-  loadUserReadingProgress: (clerkUserId: string) => Promise<void>;
-  markScheduleComplete: (payload: { clerkUserId: string; scheduleId: string }) => Promise<void>;
+  loadUserReadingProgress: (supabaseUserId: string) => Promise<void>;
+  markScheduleComplete: (payload: { supabaseUserId: string; scheduleId: string }) => Promise<void>;
   getCompletedScheduleCount: (scheduleIds: string[]) => number;
   isScheduleComplete: (scheduleId: string) => boolean;
 }

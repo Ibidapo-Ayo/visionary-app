@@ -17,7 +17,6 @@ const getDefaultDailyProgress = (dateKey: string): DailyReadingProgress => ({
   morningCompleted: false,
   eveningCompleted: false,
   dailyCompleted: false,
-  reflectionCompletedByPeriod: {},
   completedChaptersByPeriod: {},
   reactions: {},
   reflections: {},
@@ -32,12 +31,7 @@ const dateDiffInDays = (fromDateKey: string, toDateKey: string) => {
 };
 
 const computeDailyCompleted = (progress: DailyReadingProgress) =>
-  Boolean(
-    progress.morningCompleted &&
-      progress.eveningCompleted &&
-      progress.reflectionCompletedByPeriod?.morning &&
-      progress.reflectionCompletedByPeriod?.evening,
-  );
+  Boolean(progress.morningCompleted && progress.eveningCompleted);
 
 export const useBibleJourneyStore = create<BibleJourneyStore>()(
   persist(
@@ -74,37 +68,6 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
             },
           };
         });
-      },
-      markReflectionCompleteForToday: ({ period }) => {
-        const dateKey = getDateKey();
-
-        set((state) => {
-          const dailyProgressByDate = state.dailyProgressByDate ?? {};
-          const todayState = dailyProgressByDate[dateKey] ?? getDefaultDailyProgress(dateKey);
-
-          const nextProgress: DailyReadingProgress = {
-            ...todayState,
-            reflectionCompletedByPeriod: {
-              ...todayState.reflectionCompletedByPeriod,
-              [period]: true,
-            },
-          };
-
-          return {
-            dailyProgressByDate: {
-              ...dailyProgressByDate,
-              [dateKey]: {
-                ...nextProgress,
-                dailyCompleted: computeDailyCompleted(nextProgress),
-              },
-            },
-          };
-        });
-      },
-      isReflectionCompleteForToday: (period) => {
-        const dateKey = getDateKey();
-        const dailyProgressByDate = get().dailyProgressByDate ?? {};
-        return Boolean(dailyProgressByDate[dateKey]?.reflectionCompletedByPeriod?.[period]);
       },
       markPeriodCompleteForToday: ({ period, readingReference }) => {
         const dateKey = getDateKey();
