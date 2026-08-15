@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+﻿import React, { useCallback, useEffect, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -53,6 +53,7 @@ const HomeScreen = () => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const streakStats = getStreakStats();
   const currentStreak = streakStats.currentStreak;
@@ -80,6 +81,21 @@ const HomeScreen = () => {
     });
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
+  const handleRefresh = useCallback(async () => {
+    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
+      return;
+    }
+
+    setIsRefreshing(true);
+    try {
+      await loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber);
+    } catch (error) {
+      console.warn('Unable to refresh reading schedule:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
       <StatusBar barStyle="dark-content" />
@@ -88,6 +104,15 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom + 118, 136) }}
         className="px-5"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FF7A00"
+            colors={['#FF7A00']}
+            progressBackgroundColor="#FFFFFF"
+          />
+        }
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>

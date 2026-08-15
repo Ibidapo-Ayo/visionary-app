@@ -22,8 +22,9 @@ const BibleReadingSelectScreen = () => {
   const chapters = readingSchedule?.[period] ?? [];
 
   const completedCount = countCompleted(chapters.map((chapter) => chapter.id));
-  const firstChapter = chapters[0];
-  const firstChapterReference = firstChapter ? formatDayReadingReference(firstChapter) : null;
+  const nextChapter = chapters.find((chapter) => !isChapterComplete(chapter.id)) ?? null;
+  const nextChapterReference = nextChapter ? formatDayReadingReference(nextChapter) : null;
+  const allChaptersCompleted = chapters.length > 0 && completedCount === chapters.length;
   const sessionLabel = period === 'morning' ? 'Morning Reading' : 'Evening Reading';
   const dayLabel = bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber}` : 'Today';
 
@@ -91,18 +92,30 @@ const BibleReadingSelectScreen = () => {
           </LinearGradient>
         </Animated.View>
 
-        {firstChapterReference ? (
+        {nextChapterReference ? (
           <Animated.View entering={FadeInDown.delay(100).duration(300)} className="mt-4">
-            <TouchableOpacity onPress={() => openChapter(firstChapterReference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
+            <TouchableOpacity onPress={() => openChapter(nextChapterReference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
                 <Feather name="play" size={16} color="#FFFFFF" />
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-[11px] font-bold uppercase tracking-[0.6px] text-white/80">Continue with</Text>
-                <Text className="mt-0.5 text-[15px] font-black text-white">{firstChapterReference}</Text>
+                <Text className="mt-0.5 text-[15px] font-black text-white">{nextChapterReference}</Text>
               </View>
               <Feather name="arrow-right" size={18} color="#FFFFFF" />
             </TouchableOpacity>
+          </Animated.View>
+        ) : allChaptersCompleted ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(300)} className="mt-4">
+            <View className="flex-row items-center rounded-[20px] bg-[#16A34A] px-4 py-4">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                <Feather name="check" size={16} color="#FFFFFF" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[11px] font-bold uppercase tracking-[0.6px] text-white/80">{sessionLabel}</Text>
+                <Text className="mt-0.5 text-[15px] font-black text-white">All chapters completed</Text>
+              </View>
+            </View>
           </Animated.View>
         ) : null}
 
