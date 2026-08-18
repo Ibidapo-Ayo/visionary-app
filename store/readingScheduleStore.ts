@@ -8,7 +8,7 @@ export const useReadingScheduleStore = create<{
   isLoadingReadingSchedule: boolean;
   readingScheduleError: string | null;
   setReadingSchedule: (schedule: ReadingScheduleData | null, dayNumber: number | null) => void;
-  loadReadingSchedule: (planId: string, dayNumber: number) => Promise<ReadingScheduleData | null>;
+  loadReadingSchedule: (planId: string, dayNumber: number, options?: { force?: boolean }) => Promise<ReadingScheduleData | null>;
 }>((set, get) => ({
   readingSchedule: null,
   readingScheduleDayNumber: null,
@@ -21,10 +21,11 @@ export const useReadingScheduleStore = create<{
       readingScheduleError: null,
     });
   },
-  loadReadingSchedule: async (planId, dayNumber) => {
+  loadReadingSchedule: async (planId, dayNumber, options) => {
     const { readingSchedule, readingScheduleDayNumber, isLoadingReadingSchedule } = get();
+    const force = options?.force ?? false;
 
-    if (readingSchedule && readingScheduleDayNumber === dayNumber) {
+    if (readingSchedule && readingScheduleDayNumber === dayNumber && !force) {
       return readingSchedule;
     }
 

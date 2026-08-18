@@ -35,8 +35,9 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       loadedUserId: null,
       isLoadingProgress: false,
       progressError: null,
-      loadUserReadingProgress: async (supabaseUserId) => {
+      loadUserReadingProgress: async (supabaseUserId, options) => {
         const { loadedUserId, isLoadingProgress } = get();
+        const force = options?.force ?? false;
 
         if (isLoadingProgress) {
           return;
@@ -45,7 +46,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         set({ isLoadingProgress: true, progressError: null });
 
         try {
-          if (loadedUserId === supabaseUserId) {
+          if (loadedUserId === supabaseUserId && !force) {
             set({ isLoadingProgress: false });
             return;
           }
@@ -139,6 +140,15 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         return scheduleIds.filter((scheduleId) =>
           completedScheduleIds.has(scheduleId),
         ).length;
+      },
+      getTotalCompletedChapters: () => {
+        const { completedScheduleIdsByUser, loadedUserId } = get();
+
+        if (!loadedUserId) {
+          return 0;
+        }
+
+        return completedScheduleIdsByUser[loadedUserId]?.length ?? 0;
       },
       isScheduleComplete: (scheduleId) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();

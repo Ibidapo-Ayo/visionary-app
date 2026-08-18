@@ -1,6 +1,7 @@
 ﻿import React, { useCallback, useEffect, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
@@ -8,12 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
 import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingPreviewCard';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
-import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
+import { useStreak } from '@/hooks/useStreak';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
@@ -39,22 +41,22 @@ const HomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
-  const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
   const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
-  useUserReadingProgress();
+  const { refreshProgress } = useUserReadingProgress();
+  const { currentStreak, refreshStreak } = useStreak();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
+  const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const   loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
+  const queryClient = useQueryClient();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const streakStats = getStreakStats();
-  const currentStreak = streakStats.currentStreak;
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
   const { reflections: reflectionsCount } = getReflectionsStatsForRange(selectedProgressRange);
@@ -82,19 +84,27 @@ const HomeScreen = () => {
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   const handleRefresh = useCallback(async () => {
-    if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
-      return;
-    }
-
     setIsRefreshing(true);
     try {
-      await loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber);
+      const tasks: Promise<unknown>[] = [
+        refreshProgress(),
+        refreshStreak(),
+        loadBibleReadingPlan(),
+        // Bible chapter text is cached indefinitely (staleTime: Infinity); force it to refetch.
+        queryClient.invalidateQueries({ queryKey: ['bible-chapter'] }),
+      ];
+
+      if (bibleReadingPlan && bibleReadingPlanDayNumber !== null) {
+        tasks.push(loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber, { force: true }));
+      }
+
+      await Promise.all(tasks);
     } catch (error) {
-      console.warn('Unable to refresh reading schedule:', error);
+      console.warn('Unable to refresh home data:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule, loadBibleReadingPlan, queryClient, refreshProgress, refreshStreak]);
 
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
@@ -116,7 +126,7 @@ const HomeScreen = () => {
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
-            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good  {getCurrentSession()},</Text>
             <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
           </View>
 

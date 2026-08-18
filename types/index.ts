@@ -269,10 +269,16 @@ export interface DailyReadingProgress {
   readingReferenceByPeriod: Partial<Record<ReadingPeriod, string>>;
 }
 
-export interface StreakStats {
-  currentStreak: number;
-  longestStreak: number;
-  totalCompletedDays: number;
+/** Backend-owned streak record from the `streaks` table; the client never computes these values. */
+export interface StreakRecord {
+  id: string;
+  user_id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_read_date: string | null;
+  total_days_completed: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export type ProgressRangeKey = 'week' | 'lastWeek' | 'month' | 'year';
@@ -303,7 +309,6 @@ export interface BibleJourneyStore {
   }) => void;
   getCompletedChaptersForToday: (period: ReadingPeriod) => string[];
   getTodayProgress: () => DailyReadingProgress;
-  getStreakStats: () => StreakStats;
   getProgressStatsForRange: (range: ProgressRangeKey) => ProgressRangeStats;
 }
 
@@ -318,6 +323,7 @@ export interface UserReadingProgressRow {
 export interface CompletedScheduleDay {
   scheduleId: string;
   dayNumber: number;
+  session: ReadingPeriod;
 }
 
 export interface ReadingProgressRangeStats {
@@ -331,9 +337,10 @@ export interface UserReadingProgressStore {
   loadedUserId: string | null;
   isLoadingProgress: boolean;
   progressError: string | null;
-  loadUserReadingProgress: (supabaseUserId: string) => Promise<void>;
+  loadUserReadingProgress: (supabaseUserId: string, options?: { force?: boolean }) => Promise<void>;
   markScheduleComplete: (payload: { supabaseUserId: string; scheduleId: string }) => Promise<void>;
   getCompletedScheduleCount: (scheduleIds: string[]) => number;
+  getTotalCompletedChapters: () => number;
   isScheduleComplete: (scheduleId: string) => boolean;
   getProgressStatsForRange: (range: ProgressRangeKey, planStartDate: string | null | undefined) => ReadingProgressRangeStats;
 }
@@ -370,6 +377,7 @@ export interface SupabaseUserRow {
   department: string | null;
   joined_at: string | null;
   is_active: boolean;
+  timezone: string;
 }
 
 export interface SupabaseEnv {

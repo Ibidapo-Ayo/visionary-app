@@ -69,11 +69,21 @@ export const useUserReadingProgress = () => {
     [resolveUserId, markScheduleCompleteAction],
   );
 
+  const refreshProgress = useCallback(async () => {
+    const resolvedUserId = await resolveUserId();
+    if (!resolvedUserId) {
+      return;
+    }
+
+    await loadUserReadingProgress(resolvedUserId, { force: true });
+  }, [resolveUserId, loadUserReadingProgress]);
+
   return {
     completedScheduleIds,
     isLoadingProgress,
     isChapterComplete,
     countCompleted,
     markScheduleComplete,
+    refreshProgress,
   };
 };

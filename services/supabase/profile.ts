@@ -20,6 +20,14 @@ const toNullable = (value: string | null | undefined): string | null => {
 
 const nowIso = (): string => new Date().toISOString();
 
+const getDeviceTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
 const normalizeRoleForSupabase = (role: string | null | undefined): string => {
   const normalized = (role ?? '').trim().toUpperCase();
 
@@ -63,6 +71,8 @@ const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | 
     department: existing?.department ?? null,
     joined_at: existing?.joined_at ?? createdAt,
     is_active: existing?.is_active ?? true,
+    // Refresh on every sync so a user's streak always uses their current device's timezone.
+    timezone: getDeviceTimezone(),
   };
 };
 
@@ -82,6 +92,7 @@ const baseRowFromStoreUser = (user: User, existing?: SupabaseUserRow | null): Su
   department: existing?.department ?? null,
   joined_at: existing?.joined_at ?? user.joinDate,
   is_active: existing?.is_active ?? true,
+  timezone: getDeviceTimezone(),
 });
 
 const upsertUser = async (row: SupabaseUserRow): Promise<void> => {

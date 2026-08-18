@@ -18,12 +18,6 @@ const getDefaultDailyProgress = (dateKey: string): DailyReadingProgress => ({
   readingReferenceByPeriod: {},
 });
 
-const dateDiffInDays = (fromDateKey: string, toDateKey: string) => {
-  const from = new Date(`${fromDateKey}T00:00:00`);
-  const to = new Date(`${toDateKey}T00:00:00`);
-  return Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-};
-
 const computeDailyCompleted = (progress: DailyReadingProgress) =>
   Boolean(progress.morningCompleted && progress.eveningCompleted);
 
@@ -174,48 +168,6 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
         const dateKey = getDateKey();
         const dailyProgressByDate = get().dailyProgressByDate ?? {};
         return dailyProgressByDate[dateKey] ?? getDefaultDailyProgress(dateKey);
-      },
-      getStreakStats: () => {
-        const entries = Object.values(get().dailyProgressByDate ?? {})
-          .filter((entry) => entry.dailyCompleted)
-          .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
-
-        if (!entries.length) {
-          return {
-            currentStreak: 0,
-            longestStreak: 0,
-            totalCompletedDays: 0,
-          };
-        }
-
-        let longest = 1;
-        let running = 1;
-
-        for (let i = 1; i < entries.length; i += 1) {
-          const prev = entries[i - 1];
-          const current = entries[i];
-          if (dateDiffInDays(prev.dateKey, current.dateKey) === 1) {
-            running += 1;
-          } else {
-            running = 1;
-          }
-
-          longest = Math.max(longest, running);
-        }
-
-        const completedKeySet = new Set(entries.map((entry) => entry.dateKey));
-        let currentStreak = 0;
-        let cursor = new Date();
-        while (completedKeySet.has(toDateKey(cursor))) {
-          currentStreak += 1;
-          cursor.setDate(cursor.getDate() - 1);
-        }
-
-        return {
-          currentStreak,
-          longestStreak: longest,
-          totalCompletedDays: entries.length,
-        };
       },
       getProgressStatsForRange: (range) => {
         const { start, end } = getDateRangeBounds(range);

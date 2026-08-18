@@ -6,11 +6,11 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReadingPeriod } from '@/types/index';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { calculateReadingProgressPercent } from '@/store/userReadingProgressStore';
 import { formatDayReadingReference, getReadingSubtitle } from '@/lib/helper';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useStreak } from '@/hooks/useStreak';
 import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
 
 type JourneyStepProps = {
@@ -68,11 +68,10 @@ const BibleJourneyScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
   const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
   const { countCompleted } = useUserReadingProgress();
+  const { currentStreak, longestStreak } = useStreak();
 
-  const streakStats = getStreakStats();
   const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
   const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
   const morningScheduleIds = readingSchedule?.morning.map((reading) => reading.id) ?? [];
@@ -139,13 +138,13 @@ const BibleJourneyScreen = () => {
           progressPercent={dayProgressPercent}
           completedChapters={totalCompletedChapters}
           totalChapters={totalTodayChapters}
-          currentStreak={streakStats.currentStreak}
+          currentStreak={currentStreak}
         />
 
         <Animated.View entering={FadeInDown.delay(120).duration(320)} className="mt-4 flex-row gap-3">
           <MiniStat icon="book-open" value={`${yearlyProgressPercent}%`} label="Year Goal" tint="#16A34A" />
           <MiniStat icon="calendar" value={`${totalTodayChapters}`} label="Chapters Today" tint="#FF7A00" />
-          <MiniStat icon="award" value={`${streakStats.longestStreak}`} label="Best Streak" tint="#3768D8" />
+          <MiniStat icon="award" value={`${longestStreak}`} label="Best Streak" tint="#3768D8" />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(170).duration(320)} className="mt-5">

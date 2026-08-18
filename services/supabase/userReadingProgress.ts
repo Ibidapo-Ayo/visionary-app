@@ -36,21 +36,25 @@ export const getCompletedScheduleDaysForUser = async (
 
   const scheduleResponse = await supabase
     .from(READING_SCHEDULE_TABLE)
-    .select("id, day_number")
+    .select("id, day_number, session")
     .in("id", scheduleIds);
 
   if (scheduleResponse.error) {
     throw scheduleResponse.error;
   }
 
-  const dayNumberByScheduleId = new Map(
-    ((scheduleResponse.data ?? []) as { id: string; day_number: number }[]).map((row) => [row.id, row.day_number]),
+  const scheduleById = new Map(
+    ((scheduleResponse.data ?? []) as { id: string; day_number: number; session: "morning" | "evening" }[]).map(
+      (row) => [row.id, row],
+    ),
   );
 
   return completedProgress
     .map((row) => {
-      const dayNumber = dayNumberByScheduleId.get(row.schedule_id);
-      return dayNumber !== undefined ? { scheduleId: row.schedule_id, dayNumber } : null;
+      const schedule = scheduleById.get(row.schedule_id);
+      return schedule
+        ? { scheduleId: row.schedule_id, dayNumber: schedule.day_number, session: schedule.session }
+        : null;
     })
     .filter((entry): entry is CompletedScheduleDay => entry !== null);
 };

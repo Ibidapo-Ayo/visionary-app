@@ -10,6 +10,7 @@ import { formatDayReadingReference } from '@/lib/helper';
 import { useBibleChapter } from '@/hooks/useBibleChapter';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useStreak } from '@/hooks/useStreak';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
 interface BibleChapterSectionProps {
@@ -51,7 +52,7 @@ const BibleChapterSection = ({ reading }: BibleChapterSectionProps) => {
   );
 };
 
-const BibleReadingScreen = () => {
+const BibleReadingScreenView = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ reference?: string; period?: string }>();
@@ -60,8 +61,10 @@ const BibleReadingScreen = () => {
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
   const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
+  const getTodayProgress = useBibleJourneyStore((state) => state.getTodayProgress);
   const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
+  const { completeReadingDay } = useStreak();
 
   const sessionChapters = readingSchedule?.[period] ?? [];
 
@@ -134,6 +137,13 @@ const BibleReadingScreen = () => {
       period,
       readingReference: formatDayReadingReference(chapter),
     });
+
+    // Only once both morning and evening are done for today does this actually advance the streak.
+    if (getTodayProgress().dailyCompleted) {
+      void completeReadingDay().catch((error) => {
+        console.warn('Unable to update streak:', error);
+      });
+    }
 
     router.replace('/(app)/bible-journey');
   };
@@ -219,6 +229,15 @@ const BibleReadingScreen = () => {
       </View>
     </View>
   );
+};
+
+/** Keying on period+reference forces a remount per selection, so chapterIndex always initializes at the clicked chapter instead of carrying over from the previous session. */
+const BibleReadingScreen = () => {
+  const params = useLocalSearchParams<{ reference?: string; period?: string }>();
+  const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
+  const incomingReference = typeof params.reference === 'string' ? params.reference : '';
+
+  return <BibleReadingScreenView key={`${period}-${incomingReference}`} />;
 };
 
 export default BibleReadingScreen;
