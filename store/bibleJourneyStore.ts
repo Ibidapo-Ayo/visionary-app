@@ -2,13 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BibleJourneyStore, DailyReadingProgress } from '@/types/index';
-
-const toDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { getDateRangeBounds, toDateKey } from '@/lib/helper';
 
 const getDateKey = () => toDateKey(new Date());
 
@@ -222,6 +216,22 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
           longestStreak: longest,
           totalCompletedDays: entries.length,
         };
+      },
+      getProgressStatsForRange: (range) => {
+        const { start, end } = getDateRangeBounds(range);
+        const entries = Object.values(get().dailyProgressByDate ?? {}).filter(
+          (entry) => entry.dateKey >= start && entry.dateKey <= end,
+        );
+
+        const reflections = entries.reduce((count, entry) => {
+          const reflectionCount = [entry.reflections?.morning, entry.reflections?.evening].filter((reflection) =>
+            Boolean(reflection?.trim()),
+          ).length;
+
+          return count + reflectionCount;
+        }, 0);
+
+        return { reflections };
       },
     }),
     {

@@ -10,9 +10,10 @@ import Animated, {
 
 interface BrandedSpinnerProps {
   size?: number;
+  tone?: 'brand' | 'light';
 }
 
-const BrandedSpinner = ({ size = 32 }: BrandedSpinnerProps) => {
+const BrandedSpinner = ({ size = 32, tone = 'brand' }: BrandedSpinnerProps) => {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -30,13 +31,13 @@ const BrandedSpinner = ({ size = 32 }: BrandedSpinnerProps) => {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
+  const trackClassName = tone === 'light' ? 'border-white/30 border-t-white' : 'border-[#FFE0BF] border-t-[#FF7A00]';
+  const dotClassName = tone === 'light' ? 'bg-white' : 'bg-[#16A34A]';
+
   return (
     <View className="items-center justify-center" style={{ height: size, width: size }}>
-      <Animated.View
-        className="rounded-full border-[3px] border-[#FFE0BF] border-t-[#FF7A00]"
-        style={[{ height: size, width: size }, animatedStyle]}
-      />
-      <View className="absolute h-2 w-2 rounded-full bg-[#16A34A]" />
+      <Animated.View className={`rounded-full border-[3px] ${trackClassName}`} style={[{ height: size, width: size }, animatedStyle]} />
+      <View className={`absolute h-2 w-2 rounded-full ${dotClassName}`} />
     </View>
   );
 };

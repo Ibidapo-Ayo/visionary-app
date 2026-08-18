@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { calculateReadingProgressPercent } from '@/store/userReadingProgressStore';
-import { formatDayReadingReference } from '@/lib/helper';
+import { formatDayReadingReference, getReadingSubtitle } from '@/lib/helper';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
@@ -88,16 +88,8 @@ const BibleJourneyScreen = () => {
   const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null
     ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
     : 0;
-  const morningSubtitle = morningReferences.length
-    ? morningReferences.join(' / ')
-    : isLoadingReadingSchedule
-      ? 'Loading morning readings...'
-      : 'No morning reading assigned yet.';
-  const eveningSubtitle = eveningReferences.length
-    ? eveningReferences.join(' / ')
-    : isLoadingReadingSchedule
-      ? 'Loading evening readings...'
-      : 'No evening reading assigned yet.';
+  const morningSubtitle = getReadingSubtitle(morningReferences, 'morning', isLoadingReadingSchedule);
+  const eveningSubtitle = getReadingSubtitle(eveningReferences, 'evening', isLoadingReadingSchedule);
 
   const morningReadingDone = morningTotal > 0 && morningCompletedChapters >= morningTotal;
   const eveningUnlocked = morningReadingDone;

@@ -12,6 +12,8 @@ import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJ
 import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingPreviewCard';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
@@ -33,23 +35,19 @@ const progressRangeOptions: { key: ProgressRangeKey; label: string }[] = [
   { key: 'year', label: 'This Year' },
 ];
 
-const progressRangeStats: Record<ProgressRangeKey, { dailyRead: string; chapters: string; reflections: string }> = {
-  week: { dailyRead: '5', chapters: '12', reflections: '2' },
-  lastWeek: { dailyRead: '6', chapters: '18', reflections: '4' },
-  month: { dailyRead: '21', chapters: '64', reflections: '11' },
-  year: { dailyRead: '168', chapters: '432', reflections: '74' },
-};
-
 const HomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
+  const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
+  useUserReadingProgress();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
-  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
+  const   loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
@@ -58,7 +56,9 @@ const HomeScreen = () => {
   const streakStats = getStreakStats();
   const currentStreak = streakStats.currentStreak;
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
-  const progressStats = progressRangeStats[selectedProgressRange];
+  const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
+  const { reflections: reflectionsCount } = getReflectionsStatsForRange(selectedProgressRange);
+  const progressStats = { ...dbProgressStats, reflections: reflectionsCount };
   const nextEveningReading = readingSchedule?.evening[0] ?? null;
   const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
   const eveningChapterCount = readingSchedule?.evening.length ?? 0;
@@ -220,9 +220,9 @@ const HomeScreen = () => {
           </View>
 
           <View className="mt-3 flex-row gap-3">
-            <StatPill icon="book-open" label="Daily Read" value={progressStats.dailyRead} tint="#16A34A" />
-            <StatPill icon="award" label="Chapters" value={progressStats.chapters} tint="#FF7A00" />
-            <StatPill icon="message-circle" label="Reflections" value={progressStats.reflections} tint="#7257D6" />
+            <StatPill icon="book-open" label="Days Read" value={`${progressStats.daysRead}`} tint="#16A34A" />
+            <StatPill icon="award" label="Chapters" value={`${progressStats.chapters}`} tint="#FF7A00" />
+            <StatPill icon="message-circle" label="Reflections" value={`${progressStats.reflections}`} tint="#7257D6" />
           </View>
         </Animated.View>
 

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
 import { syncProfileFromStoreUser } from '@services/supabase';
+import BrandedSpinner from '@/components/BrandedSpinner';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
   const firstInitial = firstName?.trim()?.charAt(0) ?? '';
@@ -73,14 +74,20 @@ const EditProfileScreen = () => {
   const [bio, setBio] = React.useState(user?.bio ?? '');
   const [profileImage, setProfileImage] = React.useState(user?.profileImage ?? '');
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const previewInitials = getInitials(firstName, lastName, email);
   const trimmedImage = profileImage.trim();
   const shouldShowPreviewImage = !!trimmedImage && !avatarLoadFailed;
   const previewName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Visionary Member';
-  const isReadyToSave = Boolean(firstName.trim() && lastName.trim() && email.trim());
+  const isReadyToSave = Boolean(firstName.trim() && lastName.trim() && email.trim()) && !isSaving && !isUploadingPhoto;
 
   const pickImageFromGallery = async () => {
+    if (isUploadingPhoto || isSaving) {
+      return;
+    }
+
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
@@ -88,22 +95,31 @@ const EditProfileScreen = () => {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    setIsUploadingPhoto(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (result.canceled || !result.assets?.length) {
-      return;
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      setAvatarLoadFailed(false);
+      setProfileImage(result.assets[0].uri);
+    } finally {
+      setIsUploadingPhoto(false);
     }
-
-    setAvatarLoadFailed(false);
-    setProfileImage(result.assets[0].uri);
   };
 
   const handleSave = async () => {
+    if (isSaving) {
+      return;
+    }
+
     if (!user) {
       Alert.alert('Error', 'No user profile found.');
       return;
@@ -130,6 +146,7 @@ const EditProfileScreen = () => {
       updatedAt: new Date().toISOString(),
     };
 
+    setIsSaving(true);
     try {
       await syncProfileFromStoreUser(updatedUser);
       setUser(updatedUser);
@@ -137,6 +154,8 @@ const EditProfileScreen = () => {
       const message = error instanceof Error ? error.message : 'Unable to sync profile.';
       Alert.alert('Sync failed', message);
       return;
+    } finally {
+      setIsSaving(false);
     }
 
     router.back();
@@ -167,7 +186,7 @@ const EditProfileScreen = () => {
               activeOpacity={0.84}
               className={`h-10 w-10 items-center justify-center rounded-full ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#E2D7CB]'}`}
             >
-              <Feather name="check" size={18} color="#FFFFFF" />
+              {isSaving ? <BrandedSpinner size={18} tone="light" /> : <Feather name="check" size={18} color="#FFFFFF" />}
             </TouchableOpacity>
           </Animated.View>
 
@@ -177,7 +196,7 @@ const EditProfileScreen = () => {
               <View className="absolute -left-12 bottom-0 h-32 w-32 rounded-full border border-[#2D2D2D]" />
 
               <View className="flex-row items-center">
-                <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.9} className="relative">
+                <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.9} disabled={isUploadingPhoto || isSaving} className="relative">
                   <View className="h-[92px] w-[92px] overflow-hidden rounded-full border-[4px] border-white bg-[#242628]">
                     {shouldShowPreviewImage ? (
                       <Image
@@ -191,6 +210,12 @@ const EditProfileScreen = () => {
                         <Text className="text-[29px] font-black text-[#FF7A00]">{previewInitials}</Text>
                       </View>
                     )}
+
+                    {isUploadingPhoto ? (
+                      <View className="absolute inset-0 items-center justify-center bg-black/40">
+                        <BrandedSpinner size={28} tone="light" />
+                      </View>
+                    ) : null}
                   </View>
 
                   <View className="absolute bottom-1 right-1 h-8 w-8 items-center justify-center rounded-full border-2 border-[#17191B] bg-[#FF7A00]">
@@ -203,8 +228,13 @@ const EditProfileScreen = () => {
                   <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#CFC8BE]">
                     This profile is used across attendance, Bible Journey, and community spaces.
                   </Text>
-                  <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.84} className="mt-3 self-start rounded-full bg-white/10 px-3 py-2">
-                    <Text className="text-[10px] font-black text-[#FFB56D]">Change photo</Text>
+                  <TouchableOpacity
+                    onPress={pickImageFromGallery}
+                    activeOpacity={0.84}
+                    disabled={isUploadingPhoto || isSaving}
+                    className="mt-3 self-start rounded-full bg-white/10 px-3 py-2"
+                  >
+                    <Text className="text-[10px] font-black text-[#FFB56D]">{isUploadingPhoto ? 'Uploading…' : 'Change photo'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -304,11 +334,25 @@ const EditProfileScreen = () => {
               activeOpacity={0.9}
               className={`h-14 flex-row items-center justify-center rounded-[18px] ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#D8C7B5]'}`}
             >
-              <Feather name="save" size={16} color="#FFFFFF" />
-              <Text className="ml-2 text-[14px] font-black text-white">Save Changes</Text>
+              {isSaving ? (
+                <>
+                  <BrandedSpinner size={18} tone="light" />
+                  <Text className="ml-2 text-[14px] font-black text-white">Saving…</Text>
+                </>
+              ) : (
+                <>
+                  <Feather name="save" size={16} color="#FFFFFF" />
+                  <Text className="ml-2 text-[14px] font-black text-white">Save Changes</Text>
+                </>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.82} className="items-center justify-center rounded-[18px] border border-[#E6D9C9] bg-white py-4">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.82}
+              disabled={isSaving}
+              className="items-center justify-center rounded-[18px] border border-[#E6D9C9] bg-white py-4"
+            >
               <Text className="text-[13px] font-black text-[#5F554B]">Cancel</Text>
             </TouchableOpacity>
           </Animated.View>

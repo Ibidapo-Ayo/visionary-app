@@ -1,4 +1,4 @@
-import type { DayReading } from "@/types";
+import type { DayReading, ProgressRangeKey } from "@/types";
 
 export const getInitials = (
   firstName?: string,
@@ -36,3 +36,55 @@ export const getBibleReadingDayNumber = (startDate: string) => {
 };
 
 export const formatDayReadingReference = (reading: DayReading) => `${reading.bookName} ${reading.chapter}`;
+
+export const toDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+export const getDateRangeBounds = (range: ProgressRangeKey) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const mondayOffset = (today.getDay() + 6) % 7;
+  const startOfThisWeek = new Date(today);
+  startOfThisWeek.setDate(today.getDate() - mondayOffset);
+
+  switch (range) {
+    case "lastWeek": {
+      const start = new Date(startOfThisWeek);
+      start.setDate(start.getDate() - 7);
+      const end = new Date(startOfThisWeek);
+      end.setDate(end.getDate() - 1);
+      return { start: toDateKey(start), end: toDateKey(end) };
+    }
+    case "month": {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { start: toDateKey(start), end: toDateKey(today) };
+    }
+    case "year": {
+      const start = new Date(today.getFullYear(), 0, 1);
+      return { start: toDateKey(start), end: toDateKey(today) };
+    }
+    case "week":
+    default:
+      return { start: toDateKey(startOfThisWeek), end: toDateKey(today) };
+  }
+};
+
+/** Converts a plan-relative day number (1-based) to the calendar date it falls on. */
+export const getDateKeyForPlanDay = (planStartDate: string, dayNumber: number) => {
+  const start = new Date(planStartDate);
+  start.setDate(start.getDate() + (dayNumber - 1));
+  return toDateKey(start);
+};
+
+export const getReadingSubtitle = (references: string[], period: "morning" | "evening", isLoading: boolean) => {
+  if (references.length) {
+    return references.join(" / ");
+  }
+
+  return isLoading ? `Loading ${period} readings...` : `No ${period} reading assigned yet.`;
+};

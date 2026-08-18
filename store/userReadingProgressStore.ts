@@ -3,9 +3,10 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { UserReadingProgressStore } from "@/types/index";
 import {
-  getCompletedUserReadingProgress,
+  getCompletedScheduleDaysForUser,
   upsertUserReadingProgress,
 } from "@/services/supabase/userReadingProgress";
+import { getDateKeyForPlanDay, getDateRangeBounds } from "@/lib/helper";
 
 export const calculateReadingProgressPercent = (
   totalChapters: number,
@@ -30,6 +31,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
   persist(
     (set, get) => ({
       completedScheduleIdsByUser: {},
+      completedScheduleDaysByUser: {},
       loadedUserId: null,
       isLoadingProgress: false,
       progressError: null,
@@ -48,16 +50,20 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
             return;
           }
 
-          const progressRows =
-            await getCompletedUserReadingProgress(supabaseUserId);
-          const completedScheduleIds = progressRows.map(
-            (row) => row.schedule_id,
+          const completedScheduleDays =
+            await getCompletedScheduleDaysForUser(supabaseUserId);
+          const completedScheduleIds = completedScheduleDays.map(
+            (row) => row.scheduleId,
           );
 
           set((state) => ({
             completedScheduleIdsByUser: {
               ...state.completedScheduleIdsByUser,
               [supabaseUserId]: completedScheduleIds,
+            },
+            completedScheduleDaysByUser: {
+              ...state.completedScheduleDaysByUser,
+              [supabaseUserId]: completedScheduleDays,
             },
             loadedUserId: supabaseUserId,
             isLoadingProgress: false,
@@ -146,12 +152,35 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           false
         );
       },
+      getProgressStatsForRange: (range, planStartDate) => {
+        const { completedScheduleDaysByUser, loadedUserId } = get();
+
+        if (!loadedUserId || !planStartDate) {
+          return { daysRead: 0, chapters: 0 };
+        }
+
+        const scheduleDays = completedScheduleDaysByUser[loadedUserId] ?? [];
+        const { start, end } = getDateRangeBounds(range);
+        const dateKeysInRange = new Set<string>();
+        let chapters = 0;
+
+        scheduleDays.forEach(({ dayNumber }) => {
+          const dateKey = getDateKeyForPlanDay(planStartDate, dayNumber);
+          if (dateKey >= start && dateKey <= end) {
+            chapters += 1;
+            dateKeysInRange.add(dateKey);
+          }
+        });
+
+        return { daysRead: dateKeysInRange.size, chapters };
+      },
     }),
     {
       name: "user-reading-progress-store",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         completedScheduleIdsByUser: state.completedScheduleIdsByUser,
+        completedScheduleDaysByUser: state.completedScheduleDaysByUser,
       }),
     },
   ),

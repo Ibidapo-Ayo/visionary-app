@@ -275,6 +275,12 @@ export interface StreakStats {
   totalCompletedDays: number;
 }
 
+export type ProgressRangeKey = 'week' | 'lastWeek' | 'month' | 'year';
+
+export interface ProgressRangeStats {
+  reflections: number;
+}
+
 export interface BibleJourneyStore {
   dailyProgressByDate: Record<string, DailyReadingProgress>;
   markSessionReadingCompleteForToday: (payload: {
@@ -298,6 +304,7 @@ export interface BibleJourneyStore {
   getCompletedChaptersForToday: (period: ReadingPeriod) => string[];
   getTodayProgress: () => DailyReadingProgress;
   getStreakStats: () => StreakStats;
+  getProgressStatsForRange: (range: ProgressRangeKey) => ProgressRangeStats;
 }
 
 export interface UserReadingProgressRow {
@@ -308,8 +315,19 @@ export interface UserReadingProgressRow {
   completed_at: string | null;
 }
 
+export interface CompletedScheduleDay {
+  scheduleId: string;
+  dayNumber: number;
+}
+
+export interface ReadingProgressRangeStats {
+  daysRead: number;
+  chapters: number;
+}
+
 export interface UserReadingProgressStore {
   completedScheduleIdsByUser: Record<string, string[]>;
+  completedScheduleDaysByUser: Record<string, CompletedScheduleDay[]>;
   loadedUserId: string | null;
   isLoadingProgress: boolean;
   progressError: string | null;
@@ -317,6 +335,7 @@ export interface UserReadingProgressStore {
   markScheduleComplete: (payload: { supabaseUserId: string; scheduleId: string }) => Promise<void>;
   getCompletedScheduleCount: (scheduleIds: string[]) => number;
   isScheduleComplete: (scheduleId: string) => boolean;
+  getProgressStatsForRange: (range: ProgressRangeKey, planStartDate: string | null | undefined) => ReadingProgressRangeStats;
 }
 
 export type ClerkGetToken = (options?: { template?: string }) => Promise<string | null>;
