@@ -7,6 +7,25 @@ type UpsertUserReadingProgressInput = {
   scheduleId: string;
 };
 
+export const getScheduleDayMetadata = async (
+  scheduleId: string,
+): Promise<{ dayNumber: number; session: CompletedScheduleDay['session'] }> => {
+  const response = await supabase
+    .from(READING_SCHEDULE_TABLE)
+    .select('day_number, session')
+    .eq('id', scheduleId)
+    .single();
+
+  if (response.error) {
+    throw response.error;
+  }
+
+  return {
+    dayNumber: response.data.day_number,
+    session: response.data.session,
+  };
+};
+
 export const getCompletedUserReadingProgress = async (
   userId: string,
 ): Promise<UserReadingProgressRow[]> => {
@@ -27,38 +46,22 @@ export const getCompletedUserReadingProgress = async (
 export const getCompletedScheduleDaysForUser = async (
   userId: string,
 ): Promise<CompletedScheduleDay[]> => {
-  const completedProgress = await getCompletedUserReadingProgress(userId);
-  const scheduleIds = Array.from(new Set(completedProgress.map((row) => row.schedule_id)));
+  const response = await supabase
+    .from(USER_READING_PROGRESS_TABLE)
+    .select(`schedule_id, ${READING_SCHEDULE_TABLE}!inner(day_number, session)`)
+    .eq("user_id", userId)
+    .eq("completed", true);
 
-  if (!scheduleIds.length) {
-    return [];
+  if (response.error) {
+    throw response.error;
   }
 
-  const scheduleResponse = await supabase
-    .from(READING_SCHEDULE_TABLE)
-    .select("id, day_number, session")
-    .in("id", scheduleIds);
-
-  if (scheduleResponse.error) {
-    throw scheduleResponse.error;
-  }
-
-  const scheduleById = new Map(
-    ((scheduleResponse.data ?? []) as { id: string; day_number: number; session: "morning" | "evening" }[]).map(
-      (row) => [row.id, row],
-    ),
-  );
-
-  return completedProgress
-    .map((row) => {
-      const schedule = scheduleById.get(row.schedule_id);
-      return schedule
-        ? { scheduleId: row.schedule_id, dayNumber: schedule.day_number, session: schedule.session }
-        : null;
-    })
-    .filter((entry): entry is CompletedScheduleDay => entry !== null);
+  return (response.data ?? []).map((row: any) => ({
+    scheduleId: row.schedule_id,
+    dayNumber: row[READING_SCHEDULE_TABLE].day_number,
+    session: row[READING_SCHEDULE_TABLE].session,
+  }));
 };
-
 export const upsertUserReadingProgress = async ({
   userId,
   scheduleId,

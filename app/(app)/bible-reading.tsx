@@ -10,6 +10,7 @@ import { formatDayReadingReference } from '@/lib/helper';
 import { useBibleChapter } from '@/hooks/useBibleChapter';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
@@ -65,6 +66,8 @@ const BibleReadingScreenView = () => {
   const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
+  const { isUnlocked } = useReadingPeriodLock();
+  const isSessionLocked = !isUnlocked(period);
 
   const sessionChapters = readingSchedule?.[period] ?? [];
 
@@ -82,15 +85,18 @@ const BibleReadingScreenView = () => {
 
   const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   useEffect(() => {
     setChapterIndex(initialChapterIndex);
   }, [initialChapterIndex]);
 
   const chapter = sessionChapters[Math.min(chapterIndex, Math.max(0, sessionChapters.length - 1))];
+  const currentChapterQuery = useBibleChapter(chapter?.bookName ?? null, chapter?.chapter ?? null);
   const chapterPosition = chapterIndex + 1;
   const totalChapters = sessionChapters.length;
   const currentReference = chapter ? formatDayReadingReference(chapter) : incomingReference;
+  const currentTranslationName = currentChapterQuery.data?.translation_name ?? 'Bible translation';
 
   const hasPrev = chapterIndex > 0;
   const hasNext = chapterIndex < totalChapters - 1;
@@ -106,16 +112,10 @@ const BibleReadingScreenView = () => {
 
   const markCurrentChapterComplete = async () => {
     if (!chapter) {
-      return false;
+      throw new Error('No chapter selected to complete.');
     }
 
-    try {
-      await markScheduleComplete(chapter.id);
-      return true;
-    } catch (error) {
-      console.warn('Unable to update user reading progress:', error);
-      return false;
-    }
+    await markScheduleComplete(chapter.id);
   };
 
   const goToPreviousChapter = () => {
@@ -132,32 +132,67 @@ const BibleReadingScreenView = () => {
     }
 
     setIsCompletingChapter(true);
-    const didComplete = await markCurrentChapterComplete();
-    setIsCompletingChapter(false);
+    setCompletionError(null);
 
-    if (!didComplete) {
-      return;
-    }
+    try {
+      await markCurrentChapterComplete();
 
-    if (hasNext) {
-      setChapterIndex((prev) => prev + 1);
-      return;
-    }
+      if (hasNext) {
+        setChapterIndex((prev) => prev + 1);
+        return;
+      }
 
-    markSessionReadingCompleteForToday({
-      period,
-      readingReference: formatDayReadingReference(chapter),
-    });
-
-    // Only once both morning and evening are done for today does this actually advance the streak.
-    if (getTodayProgress().dailyCompleted) {
-      void completeReadingDay().catch((error) => {
-        console.warn('Unable to update streak:', error);
+      markSessionReadingCompleteForToday({
+        period,
+        readingReference: formatDayReadingReference(chapter),
       });
-    }
 
-    router.replace('/(app)/bible-journey');
+      // Only once both morning and evening are done for today does this actually advance the streak.
+      if (getTodayProgress().dailyCompleted) {
+        await completeReadingDay();
+      }
+
+      router.replace('/(app)/bible-journey');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to complete this chapter. Please retry.';
+
+      setCompletionError(message);
+      console.warn('Unable to complete chapter:', error);
+    } finally {
+      setIsCompletingChapter(false);
+    }
   };
+
+  if (isSessionLocked) {
+    return (
+      <View className="flex-1 items-center justify-center bg-[#FFF9F1] px-6">
+        <StatusBar barStyle="dark-content" />
+        <View className="w-full items-center rounded-[24px] bg-[#151719] px-6 py-8">
+          <View className="h-16 w-16 items-center justify-center rounded-full border-[5px] border-[#FF8A18] bg-[#242628]">
+            <Feather name="lock" size={22} color="#FF7A00" />
+          </View>
+          <Text className="mt-5 text-[18px] font-black text-white">Evening Reading is locked</Text>
+          <Text className="mt-2 text-center text-[12px] font-semibold leading-5 text-[#D8D1C8]">
+            Finish every chapter in your morning session first. Evening unlocks automatically right after.
+          </Text>
+
+          <TouchableOpacity
+            onPress={() =>
+              router.replace({
+                pathname: '/(app)/bible-reading-select',
+                params: { period: 'morning' },
+              })
+            }
+            activeOpacity={0.88}
+            className="mt-6 flex-row items-center rounded-[16px] bg-[#FF7A00] px-5 py-3.5"
+          >
+            <Feather name="sunrise" size={16} color="#FFFFFF" />
+            <Text className="ml-2 text-[12px] font-black text-white">Go to Morning Reading</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (!chapter) {
     return (
@@ -187,7 +222,7 @@ const BibleReadingScreenView = () => {
 
           <View className="items-center">
             <Text className="text-[14px] font-black text-[#171717]">{currentReference}</Text>
-            <Text className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">New International Version</Text>
+            <Text className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">{currentTranslationName}</Text>
           </View>
 
           <View className="flex-row items-center">
@@ -209,6 +244,21 @@ const BibleReadingScreenView = () => {
             Let today's passages shape a steady rhythm of worship, wisdom, and obedience.
           </Text>
         </Animated.View>
+
+        {completionError ? (
+          <View className="mb-4 rounded-[16px] border border-[#F3D2C7] bg-[#FFF5F1] px-4 py-4">
+            <Text className="text-[12px] font-semibold leading-5 text-[#9A3412]">{completionError}</Text>
+            <TouchableOpacity
+              onPress={() => void goToNextChapter()}
+              disabled={isCompletingChapter}
+              activeOpacity={0.86}
+              className="mt-3 self-start rounded-full bg-[#FF7A00] px-4 py-2.5"
+              style={{ opacity: isCompletingChapter ? 0.65 : 1 }}
+            >
+              <Text className="text-[11px] font-black text-white">Retry completion</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <BibleChapterSection key={chapter.id} reading={chapter} />
       </ScrollView>

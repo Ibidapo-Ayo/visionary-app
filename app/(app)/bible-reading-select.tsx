@@ -9,6 +9,7 @@ import type { ReadingPeriod } from '@/types/index';
 import { formatDayReadingReference } from '@/lib/helper';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 
 const BibleReadingSelectScreen = () => {
   const router = useRouter();
@@ -18,8 +19,10 @@ const BibleReadingSelectScreen = () => {
 
   const { bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
   const { isChapterComplete, countCompleted } = useUserReadingProgress();
+  const { isUnlocked } = useReadingPeriodLock();
 
   const chapters = readingSchedule?.[period] ?? [];
+  const isSessionLocked = !isUnlocked(period);
 
   const completedCount = countCompleted(chapters.map((chapter) => chapter.id));
   const nextChapter = chapters.find((chapter) => !isChapterComplete(chapter.id)) ?? null;
@@ -46,6 +49,55 @@ const BibleReadingSelectScreen = () => {
       },
     });
   };
+
+  if (isSessionLocked) {
+    return (
+      <LinearGradient colors={['#FFFDF9', '#F8F2EA', '#F3EBDD']} className="flex-1">
+        <StatusBar barStyle="dark-content" />
+
+        <View className="px-5 pb-3" style={{ paddingTop: insets.top + 10 }}>
+          <Animated.View entering={FadeIn.duration(220)} className="flex-row items-center justify-between">
+            <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+              <Feather name="chevron-left" size={20} color="#1A1A1A" />
+            </TouchableOpacity>
+
+            <View className="items-center">
+              <Text className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
+              <Text className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
+            </View>
+
+            <View className="h-10 w-10" />
+          </Animated.View>
+        </View>
+
+        <View className="flex-1 items-center justify-center px-6">
+          <Animated.View entering={FadeInDown.delay(60).duration(300)} className="w-full items-center rounded-[24px] bg-[#151719] px-6 py-8">
+            <View className="h-16 w-16 items-center justify-center rounded-full border-[5px] border-[#FF8A18] bg-[#242628]">
+              <Feather name="lock" size={22} color="#FF7A00" />
+            </View>
+            <Text className="mt-5 text-[18px] font-black text-white">Evening Reading is locked</Text>
+            <Text className="mt-2 text-center text-[12px] font-semibold leading-5 text-[#D8D1C8]">
+              Finish every chapter in your morning session first. Evening unlocks automatically right after.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                router.replace({
+                  pathname: '/(app)/bible-reading-select',
+                  params: { period: 'morning' },
+                })
+              }
+              activeOpacity={0.88}
+              className="mt-6 flex-row items-center rounded-[16px] bg-[#FF7A00] px-5 py-3.5"
+            >
+              <Feather name="sunrise" size={16} color="#FFFFFF" />
+              <Text className="ml-2 text-[12px] font-black text-white">Go to Morning Reading</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F2EA', '#F3EBDD']} className="flex-1">

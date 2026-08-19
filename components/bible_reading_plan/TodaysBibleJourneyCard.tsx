@@ -6,23 +6,31 @@ import { Feather } from '@expo/vector-icons';
 import { formatDayReadingReference, getCurrentSession } from '@/lib/helper';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import type { ReadingPeriod } from '@/types/index';
 
 interface TodaysBibleJourneyCardProps {
   onOpenJourney: () => void;
-  onOpenMorningReading: () => void;
+  onOpenReading: (period: ReadingPeriod) => void;
 }
 
 const TodaysBibleJourneyCard = ({
   onOpenJourney,
-  onOpenMorningReading,
+  onOpenReading,
 }: TodaysBibleJourneyCardProps) => {
   const { readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan, bibleReadingPlanDayNumber } = useTodayReadingSchedule();
   const { countCompleted } = useUserReadingProgress();
-  const currentSession = getCurrentSession() as ReadingPeriod;
-  const sessionIcon: React.ComponentProps<typeof Feather>['name'] = currentSession === 'evening' ? 'moon' : 'sun';
-  const sessionLabel = currentSession === 'evening' ? 'Evening Reading' : 'Morning Reading';
-  const sessionReferences = readingSchedule?.[currentSession].map(formatDayReadingReference) ?? [];
+  const { isUnlocked, nextActionablePeriod } = useReadingPeriodLock();
+
+  const timeOfDaySession = getCurrentSession() as ReadingPeriod;
+  const fallbackSession: ReadingPeriod = nextActionablePeriod ?? timeOfDaySession;
+  // Never surface a locked session as the primary CTA; fall back to whatever the user can actually read next.
+  const activeSession: ReadingPeriod = isUnlocked(timeOfDaySession) ? timeOfDaySession : fallbackSession;
+  const isTimeOfDaySessionLocked = timeOfDaySession !== activeSession;
+
+  const sessionIcon: React.ComponentProps<typeof Feather>['name'] = activeSession === 'evening' ? 'moon' : 'sun';
+  const sessionLabel = activeSession === 'evening' ? 'Evening Reading' : 'Morning Reading';
+  const sessionReferences = readingSchedule?.[activeSession].map(formatDayReadingReference) ?? [];
   const morningScheduleIds = readingSchedule?.morning.map((chapter) => chapter.id) ?? [];
   const eveningScheduleIds = readingSchedule?.evening.map((chapter) => chapter.id) ?? [];
   const totalChapters = morningScheduleIds.length + eveningScheduleIds.length;
@@ -48,10 +56,24 @@ const TodaysBibleJourneyCard = ({
           )}
           </View>
           <Text className="mt-3 text-[22px] font-black text-white">{reference}</Text>
-          <Text className="mt-1 text-[11px] font-semibold text-[#C9EFD2]">{sessionLabel}</Text>
+          <View className="mt-1 flex-row items-center">
+            <Text className="text-[11px] font-semibold text-[#C9EFD2]">{sessionLabel}</Text>
+            {isTimeOfDaySessionLocked ? (
+              <View className="ml-2 flex-row items-center rounded-full bg-black/25 px-2 py-0.5">
+                <Feather name="lock" size={9} color="#FFD9A0" />
+                <Text className="ml-1 text-[9px] font-black uppercase tracking-[0.4px] text-[#FFD9A0]">Evening locked</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
-        <TouchableOpacity onPress={onOpenJourney} activeOpacity={0.85} className="h-8 w-8 items-center justify-center rounded-full bg-white/15">
+        <TouchableOpacity
+          onPress={onOpenJourney}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Open Bible journey"
+          className="h-8 w-8 items-center justify-center rounded-full bg-white/15"
+        >
           <Feather name="arrow-up-right" size={16} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -65,8 +87,10 @@ const TodaysBibleJourneyCard = ({
         </View>
 
         <TouchableOpacity
-          onPress={onOpenMorningReading}
+          onPress={() => onOpenReading(activeSession)}
           activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${sessionLabel}`}
           className="h-11 w-11 items-center justify-center rounded-full bg-white"
         >
           <Feather name="arrow-right" size={18} color="#145425" />

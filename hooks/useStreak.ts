@@ -8,7 +8,6 @@ import { useStreakStore } from '@/store/streakStore';
  */
 export const useStreak = () => {
   const user = useAuthStore((state) => state.user);
-  const supabaseUserId = useAuthStore((state) => state.supabaseUserId);
   const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
 
   const streak = useStreakStore((state) => state.streak);
@@ -17,47 +16,62 @@ export const useStreak = () => {
   const loadStreak = useStreakStore((state) => state.loadStreak);
   const completeReadingDayAction = useStreakStore((state) => state.completeReadingDay);
 
-  const resolveUserId = useCallback(async () => {
-    if (!user?.id) {
-      return null;
-    }
-
-    return supabaseUserId ?? resolveSupabaseUserId(user.id);
-  }, [user?.id, supabaseUserId, resolveSupabaseUserId]);
+  const isCurrentUser = useCallback((clerkUserId: string) => useAuthStore.getState().user?.id === clerkUserId, []);
 
   useEffect(() => {
     if (!user?.id) {
       return;
     }
 
-    void resolveUserId()
+    const initiatingClerkUserId = user.id;
+    let cancelled = false;
+
+    void resolveSupabaseUserId(initiatingClerkUserId)
       .then((resolvedUserId) => {
-        if (resolvedUserId) {
-          return loadStreak(resolvedUserId);
+        if (cancelled || !isCurrentUser(initiatingClerkUserId) || !resolvedUserId) {
+          return;
         }
+
+        return loadStreak(resolvedUserId);
       })
       .catch((error) => {
-        console.warn('Unable to load streak:', error);
+        if (!cancelled && isCurrentUser(initiatingClerkUserId)) {
+          console.warn('Unable to load streak:', error);
+        }
       });
-  }, [user?.id, resolveUserId, loadStreak]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, resolveSupabaseUserId, loadStreak, isCurrentUser]);
 
   const refreshStreak = useCallback(async () => {
-    const resolvedUserId = await resolveUserId();
-    if (!resolvedUserId) {
+    const initiatingClerkUserId = user?.id;
+    if (!initiatingClerkUserId) {
+      return;
+    }
+
+    const resolvedUserId = await resolveSupabaseUserId(initiatingClerkUserId);
+    if (!resolvedUserId || !isCurrentUser(initiatingClerkUserId)) {
       return;
     }
 
     await loadStreak(resolvedUserId, { force: true });
-  }, [resolveUserId, loadStreak]);
+  }, [user?.id, resolveSupabaseUserId, loadStreak, isCurrentUser]);
 
   const completeReadingDay = useCallback(async () => {
-    const resolvedUserId = await resolveUserId();
-    if (!resolvedUserId) {
+    const initiatingClerkUserId = user?.id;
+    if (!initiatingClerkUserId) {
+      return;
+    }
+
+    const resolvedUserId = await resolveSupabaseUserId(initiatingClerkUserId);
+    if (!resolvedUserId || !isCurrentUser(initiatingClerkUserId)) {
       return;
     }
 
     await completeReadingDayAction(resolvedUserId);
-  }, [resolveUserId, completeReadingDayAction]);
+  }, [user?.id, resolveSupabaseUserId, completeReadingDayAction, isCurrentUser]);
 
   return {
     currentStreak: streak?.current_streak ?? 0,

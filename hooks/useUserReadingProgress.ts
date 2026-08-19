@@ -10,6 +10,7 @@ import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 export const useUserReadingProgress = () => {
   const user = useAuthStore((state) => state.user);
   const supabaseUserId = useAuthStore((state) => state.supabaseUserId);
+  const supabaseUserIdClerkUserId = useAuthStore((state) => state.supabaseUserIdClerkUserId);
   const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
 
   const loadUserReadingProgress = useUserReadingProgressStore((state) => state.loadUserReadingProgress);
@@ -23,8 +24,12 @@ export const useUserReadingProgress = () => {
       return null;
     }
 
-    return supabaseUserId ?? resolveSupabaseUserId(user.id);
-  }, [user?.id, supabaseUserId, resolveSupabaseUserId]);
+    if (supabaseUserId && supabaseUserIdClerkUserId === user.id) {
+      return supabaseUserId;
+    }
+
+    return resolveSupabaseUserId(user.id);
+  }, [user?.id, supabaseUserId, supabaseUserIdClerkUserId, resolveSupabaseUserId]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -43,9 +48,13 @@ export const useUserReadingProgress = () => {
   }, [user?.id, resolveUserId, loadUserReadingProgress]);
 
   const completedScheduleIds = useMemo(() => {
-    const resolvedId = supabaseUserId ?? loadedUserId;
+    const resolvedId =
+      supabaseUserId && user?.id && supabaseUserIdClerkUserId === user.id
+        ? supabaseUserId
+        : loadedUserId;
+
     return new Set(resolvedId ? completedScheduleIdsByUser[resolvedId] ?? [] : []);
-  }, [completedScheduleIdsByUser, supabaseUserId, loadedUserId]);
+  }, [completedScheduleIdsByUser, supabaseUserId, supabaseUserIdClerkUserId, loadedUserId, user?.id]);
 
   const isChapterComplete = useCallback(
     (scheduleId: string) => completedScheduleIds.has(scheduleId),

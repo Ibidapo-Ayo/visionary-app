@@ -10,6 +10,7 @@ import { calculateReadingProgressPercent } from '@/store/userReadingProgressStor
 import { formatDayReadingReference, getReadingSubtitle } from '@/lib/helper';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
 import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
 
@@ -70,6 +71,7 @@ const BibleJourneyScreen = () => {
 
   const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
   const { countCompleted } = useUserReadingProgress();
+  const { eveningUnlocked, morningComplete: morningReadingDone, eveningComplete: eveningReadingDone } = useReadingPeriodLock();
   const { currentStreak, longestStreak } = useStreak();
 
   const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
@@ -84,15 +86,11 @@ const BibleJourneyScreen = () => {
   const totalTodayChapters = morningTotal + eveningTotal;
   const totalCompletedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
   const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
-  const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null
+  const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null && bibleReadingPlan.total_days > 0
     ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
     : 0;
   const morningSubtitle = getReadingSubtitle(morningReferences, 'morning', isLoadingReadingSchedule);
   const eveningSubtitle = getReadingSubtitle(eveningReferences, 'evening', isLoadingReadingSchedule);
-
-  const morningReadingDone = morningTotal > 0 && morningCompletedChapters >= morningTotal;
-  const eveningUnlocked = morningReadingDone;
-  const eveningReadingDone = eveningTotal > 0 && eveningCompletedChapters >= eveningTotal;
 
   const openReading = (period: ReadingPeriod) => {
     router.push({

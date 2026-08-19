@@ -5,6 +5,8 @@ import { completeReadingDay as requestCompleteReadingDay, getStreakForUser } fro
 type StreakStore = {
   streak: StreakRecord | null;
   loadedUserId: string | null;
+  loadingUserId: string | null;
+  streakRequestVersion: number;
   isLoadingStreak: boolean;
   streakError: string | null;
   loadStreak: (userId: string, options?: { force?: boolean }) => Promise<void>;
@@ -14,34 +16,122 @@ type StreakStore = {
 export const useStreakStore = create<StreakStore>((set, get) => ({
   streak: null,
   loadedUserId: null,
+  loadingUserId: null,
+  streakRequestVersion: 0,
   isLoadingStreak: false,
   streakError: null,
   loadStreak: async (userId, options) => {
-    const { isLoadingStreak, loadedUserId } = get();
+    const { isLoadingStreak, loadedUserId, loadingUserId, streakRequestVersion } = get();
     const force = options?.force ?? false;
 
-    if (isLoadingStreak || (loadedUserId === userId && !force)) {
+    if (loadedUserId === userId && !force) {
       return;
     }
 
-    set({ isLoadingStreak: true, streakError: null });
+    if (isLoadingStreak && loadingUserId === userId && !force) {
+      return;
+    }
+
+    const requestVersion = streakRequestVersion + 1;
+
+    set((state) => ({
+      ...(state.loadedUserId !== userId
+        ? {
+            streak: null,
+            loadedUserId: null,
+          }
+        : {}),
+      isLoadingStreak: true,
+      loadingUserId: userId,
+      streakRequestVersion: requestVersion,
+      streakError: null,
+    }));
 
     try {
       const streak = await getStreakForUser(userId);
-      set({ streak, loadedUserId: userId, isLoadingStreak: false });
+      const currentState = get();
+      if (
+        currentState.loadingUserId !== userId ||
+        currentState.streakRequestVersion !== requestVersion
+      ) {
+        return;
+      }
+
+      set({
+        streak,
+        loadedUserId: userId,
+        isLoadingStreak: false,
+        loadingUserId: null,
+      });
     } catch (error) {
+      const currentState = get();
+      if (
+        currentState.loadingUserId !== userId ||
+        currentState.streakRequestVersion !== requestVersion
+      ) {
+        return;
+      }
+
       set({
         streakError: error instanceof Error ? error.message : "Unable to load streak.",
         isLoadingStreak: false,
+        loadingUserId: null,
       });
+
+      throw error;
     }
   },
   completeReadingDay: async (userId) => {
+    const { streakRequestVersion } = get();
+    const requestVersion = streakRequestVersion + 1;
+
+    set((state) => ({
+      ...(state.loadedUserId !== userId
+        ? {
+            streak: null,
+            loadedUserId: null,
+          }
+        : {}),
+      isLoadingStreak: true,
+      loadingUserId: userId,
+      streakRequestVersion: requestVersion,
+      streakError: null,
+    }));
+
     try {
       const streak = await requestCompleteReadingDay(userId);
-      set({ streak, loadedUserId: userId });
+      const currentState = get();
+      if (
+        currentState.loadingUserId !== userId ||
+        currentState.streakRequestVersion !== requestVersion
+      ) {
+        return;
+      }
+
+      set({
+        streak,
+        loadedUserId: userId,
+        isLoadingStreak: false,
+        loadingUserId: null,
+        streakError: null,
+      });
     } catch (error) {
-      console.warn("Unable to complete reading day:", error);
+      const currentState = get();
+      if (
+        currentState.loadingUserId !== userId ||
+        currentState.streakRequestVersion !== requestVersion
+      ) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : "Unable to complete reading day.";
+
+      set({
+        streakError: message,
+        isLoadingStreak: false,
+        loadingUserId: null,
+      });
+      throw error;
     }
   },
 }));

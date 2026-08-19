@@ -18,7 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
-import { syncProfileFromStoreUser } from '@services/supabase';
+import { syncProfileFromStoreUser, uploadProfileImageAsset } from '@services/supabase';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
@@ -102,14 +102,25 @@ const EditProfileScreen = () => {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
 
       if (result.canceled || !result.assets?.length) {
         return;
       }
 
+      if (!user?.id) {
+        Alert.alert('Error', 'No user profile found.');
+        return;
+      }
+
+      const uploadedProfileImage = await uploadProfileImageAsset(user.id, result.assets[0].uri, result.assets[0].base64 ?? undefined);
+
       setAvatarLoadFailed(false);
-      setProfileImage(result.assets[0].uri);
+      setProfileImage(uploadedProfileImage);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to upload photo.';
+      Alert.alert('Upload failed', message);
     } finally {
       setIsUploadingPhoto(false);
     }

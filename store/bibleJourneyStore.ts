@@ -189,6 +189,34 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
     {
       name: 'bible-journey-store',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persistedState) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return persistedState;
+        }
+
+        const state = persistedState as {
+          dailyProgressByDate?: Record<string, DailyReadingProgress & { reflectionCompleted?: unknown }>;
+        };
+
+        const dailyProgressByDate = state.dailyProgressByDate ?? {};
+        const migratedDailyProgressByDate = Object.fromEntries(
+          Object.entries(dailyProgressByDate).map(([dateKey, progress]) => {
+            const { reflectionCompleted: _reflectionCompleted, ...rest } = progress;
+            const nextProgress: DailyReadingProgress = {
+              ...rest,
+              dailyCompleted: computeDailyCompleted(rest),
+            };
+
+            return [dateKey, nextProgress];
+          }),
+        );
+
+        return {
+          ...state,
+          dailyProgressByDate: migratedDailyProgressByDate,
+        };
+      },
     },
   ),
 );

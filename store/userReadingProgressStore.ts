@@ -4,9 +4,11 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { UserReadingProgressStore } from "@/types/index";
 import {
   getCompletedScheduleDaysForUser,
+  getScheduleDayMetadata,
   upsertUserReadingProgress,
 } from "@/services/supabase/userReadingProgress";
 import { getDateKeyForPlanDay, getDateRangeBounds } from "@/lib/helper";
+import type { CompletedScheduleDay } from "@/types/index";
 
 export const calculateReadingProgressPercent = (
   totalChapters: number,
@@ -27,30 +29,41 @@ const addCompletedScheduleId = (scheduleIds: string[], scheduleId: string) => {
   return [...scheduleIds, scheduleId];
 };
 
+const addCompletedScheduleDay = (
+  completedScheduleDays: CompletedScheduleDay[],
+  entry: CompletedScheduleDay,
+) => {
+  if (completedScheduleDays.some((day) => day.scheduleId === entry.scheduleId)) {
+    return completedScheduleDays;
+  }
+
+  return [...completedScheduleDays, entry];
+};
+
 export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
   persist(
     (set, get) => ({
       completedScheduleIdsByUser: {},
       completedScheduleDaysByUser: {},
       loadedUserId: null,
+      loadingUserId: null,
       isLoadingProgress: false,
       progressError: null,
       loadUserReadingProgress: async (supabaseUserId, options) => {
-        const { loadedUserId, isLoadingProgress } = get();
+        const { loadedUserId, loadingUserId } = get();
         const force = options?.force ?? false;
 
-        if (isLoadingProgress) {
+        if (loadedUserId === supabaseUserId && !force) {
           return;
         }
 
-        set({ isLoadingProgress: true, progressError: null });
+        if (loadingUserId === supabaseUserId) {
+          return;
+        }
+
+        set({ isLoadingProgress: true, loadingUserId: supabaseUserId, progressError: null });
 
         try {
-          if (loadedUserId === supabaseUserId && !force) {
-            set({ isLoadingProgress: false });
-            return;
-          }
-
           const completedScheduleDays =
             await getCompletedScheduleDaysForUser(supabaseUserId);
           const completedScheduleIds = completedScheduleDays.map(
@@ -68,6 +81,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
             },
             loadedUserId: supabaseUserId,
             isLoadingProgress: false,
+            loadingUserId: null,
           }));
         } catch (error) {
           const message =
@@ -78,12 +92,13 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           set({
             progressError: message,
             isLoadingProgress: false,
+            loadingUserId: null,
           });
 
           throw error;
         }
       },
-      markScheduleComplete: async ({ supabaseUserId, scheduleId }) => {
+      markScheduleComplete: async ({ supabaseUserId, scheduleId, dayNumber, session }) => {
         const cachedUserScheduleIds =
           get().completedScheduleIdsByUser[supabaseUserId] ?? [];
 
@@ -91,12 +106,30 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           return;
         }
 
+        const resolvedMetadata =
+          dayNumber !== undefined && session
+            ? { dayNumber, session }
+            : await getScheduleDayMetadata(scheduleId);
+
+        const optimisticDayEntry: CompletedScheduleDay = {
+          scheduleId,
+          dayNumber: resolvedMetadata.dayNumber,
+          session: resolvedMetadata.session,
+        };
+
         set((state) => ({
           completedScheduleIdsByUser: {
             ...state.completedScheduleIdsByUser,
             [supabaseUserId]: addCompletedScheduleId(
               state.completedScheduleIdsByUser[supabaseUserId] ?? [],
               scheduleId,
+            ),
+          },
+          completedScheduleDaysByUser: {
+            ...state.completedScheduleDaysByUser,
+            [supabaseUserId]: addCompletedScheduleDay(
+              state.completedScheduleDaysByUser[supabaseUserId] ?? [],
+              optimisticDayEntry,
             ),
           },
           loadedUserId: supabaseUserId,
@@ -116,6 +149,13 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
               [supabaseUserId]:
                 state.completedScheduleIdsByUser[supabaseUserId]?.filter(
                   (id) => id !== scheduleId,
+                ) ?? [],
+            },
+            completedScheduleDaysByUser: {
+              ...state.completedScheduleDaysByUser,
+              [supabaseUserId]:
+                state.completedScheduleDaysByUser[supabaseUserId]?.filter(
+                  (entry) => entry.scheduleId !== scheduleId,
                 ) ?? [],
             },
             progressError:

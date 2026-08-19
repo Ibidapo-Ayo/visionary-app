@@ -21,25 +21,32 @@ export function getCurrentSession() {
   return hour < 15 ? "morning" : "evening";
 }
 
-export const getBibleReadingDayNumber = (startDate: string) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(startDate);
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+const parseLocalDate = (dateValue: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateValue);
 
   if (!match) {
     return null;
   }
 
   const [, year, month, day] = match;
-  const start = new Date(Number(year), Number(month) - 1, Number(day));
+  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
 
-  if (Number.isNaN(start.getTime())) {
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const toUtcDayIndex = (date: Date) =>
+  Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY);
+
+export const getBibleReadingDayNumber = (startDate: string) => {
+  const start = parseLocalDate(startDate);
+  if (!start) {
     return null;
   }
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const diffTime = today.getTime() - start.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = toUtcDayIndex(today) - toUtcDayIndex(start);
 
   return diffDays + 1; // Adding 1 to make it 1-based instead of 0-based
 };
@@ -85,7 +92,12 @@ export const getDateRangeBounds = (range: ProgressRangeKey) => {
 
 /** Converts a plan-relative day number (1-based) to the calendar date it falls on. */
 export const getDateKeyForPlanDay = (planStartDate: string, dayNumber: number) => {
-  const start = new Date(planStartDate);
+  const start = parseLocalDate(planStartDate);
+
+  if (!start) {
+    return "";
+  }
+
   start.setDate(start.getDate() + (dayNumber - 1));
   return toDateKey(start);
 };

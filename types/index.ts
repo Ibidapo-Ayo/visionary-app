@@ -22,6 +22,7 @@ export interface User {
 export interface AuthState {
   user: User | null;
   supabaseUserId: string | null;
+  supabaseUserIdClerkUserId: string | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -335,10 +336,16 @@ export interface UserReadingProgressStore {
   completedScheduleIdsByUser: Record<string, string[]>;
   completedScheduleDaysByUser: Record<string, CompletedScheduleDay[]>;
   loadedUserId: string | null;
+  loadingUserId: string | null;
   isLoadingProgress: boolean;
   progressError: string | null;
   loadUserReadingProgress: (supabaseUserId: string, options?: { force?: boolean }) => Promise<void>;
-  markScheduleComplete: (payload: { supabaseUserId: string; scheduleId: string }) => Promise<void>;
+  markScheduleComplete: (payload: {
+    supabaseUserId: string;
+    scheduleId: string;
+    dayNumber?: number;
+    session?: ReadingPeriod;
+  }) => Promise<void>;
   getCompletedScheduleCount: (scheduleIds: string[]) => number;
   getTotalCompletedChapters: () => number;
   isScheduleComplete: (scheduleId: string) => boolean;

@@ -1,6 +1,9 @@
 import type { ClerkUserResource, SupabaseUserRow, User } from '@/types/index';
+import { decode } from 'base64-arraybuffer';
 import { supabase } from './client';
 import { USERS_TABLE } from './constants';
+
+const PROFILE_IMAGES_BUCKET = 'profile-images';
 
 const getPrimaryEmail = (user: ClerkUserResource): string =>
   user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '';
@@ -101,6 +104,66 @@ const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
   if (error) {
     throw new Error(`[supabase] Failed to upsert user for ${row.clerk_user_id}: ${error.message}`);
   }
+};
+
+const getImageExtensionFromUri = (uri: string): string => {
+  const cleanUri = uri.split('?')[0] ?? uri;
+  const extension = cleanUri.split('.').pop()?.toLowerCase();
+
+  if (!extension) {
+    return 'jpg';
+  }
+
+  if (extension === 'jpeg') {
+    return 'jpg';
+  }
+
+  return extension;
+};
+
+const getImageMimeType = (extension: string): string => {
+  switch (extension) {
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'heic':
+      return 'image/heic';
+    case 'jpg':
+    default:
+      return 'image/jpeg';
+  }
+};
+
+export const uploadProfileImageAsset = async (
+  userId: string,
+  localAssetUri: string,
+  imageBase64?: string,
+): Promise<string> => {
+  const extension = getImageExtensionFromUri(localAssetUri);
+  const contentType = getImageMimeType(extension);
+  const objectPath = `${userId}/${Date.now()}.${extension}`;
+
+  if (!imageBase64?.trim()) {
+    throw new Error('[supabase] Unable to read selected profile image for upload.');
+  }
+
+  const imageBuffer = decode(imageBase64);
+  const { error: uploadError } = await supabase.storage.from(PROFILE_IMAGES_BUCKET).upload(objectPath, imageBuffer, {
+    contentType,
+    upsert: true,
+  });
+
+  if (uploadError) {
+    throw new Error(`[supabase] Failed to upload profile image: ${uploadError.message}`);
+  }
+
+  const { data: publicUrlData } = supabase.storage.from(PROFILE_IMAGES_BUCKET).getPublicUrl(objectPath);
+  if (!publicUrlData?.publicUrl) {
+    throw new Error('[supabase] Profile image upload succeeded but no public URL was returned.');
+  }
+
+  return publicUrlData.publicUrl;
 };
 
 export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {

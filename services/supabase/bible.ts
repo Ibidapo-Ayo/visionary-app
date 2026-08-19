@@ -8,16 +8,14 @@ export const getBibleReadingPlan = async (): Promise<BibleReadingPlanData | null
       .from(BIBLE_READING_PLAN_TABLE)
       .select("*")
       .eq("is_active", true)
-      .order("group_plan_start_date", { ascending: false })
-      .limit(1);
+      .maybeSingle();
 
     if (response.error) {
       throw response.error;
     }
 
-    return (response.data?.[0] as BibleReadingPlanData | undefined) ?? null;
+    return (response.data as BibleReadingPlanData | null) ?? null;
   } catch (error) {
-    console.log(error);
     throw error;
   }
 };
@@ -79,10 +77,15 @@ export const getReadingScheduleByDay = async (
 
     scheduleRows.forEach((row) => {
       const bibleBook = bibleBooksById.get(row.bible_book_id);
+
+      if (!bibleBook || (row.session !== "morning" && row.session !== "evening")) {
+        return;
+      }
+
       const reading: DayReading = {
         id: row.id,
         orderNumber: row.order_number,
-        bookName: bibleBook?.name ?? "",
+        bookName: bibleBook.name,
         chapter: row.chapter,
       };
 
@@ -91,7 +94,6 @@ export const getReadingScheduleByDay = async (
 
     schedule.morning.sort((firstReading, secondReading) => firstReading.orderNumber - secondReading.orderNumber);
     schedule.evening.sort((firstReading, secondReading) => firstReading.orderNumber - secondReading.orderNumber);
-
     return schedule;
   } catch (error) {
     console.log(error);

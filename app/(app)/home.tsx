@@ -15,6 +15,7 @@ import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingP
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
 
 
@@ -44,13 +45,14 @@ const HomeScreen = () => {
   const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
   const { refreshProgress } = useUserReadingProgress();
+  const { eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
   const { currentStreak, refreshStreak } = useStreak();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
   const readingSchedule = useReadingScheduleStore((state) => state.readingSchedule);
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
-  const   loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
+  const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const queryClient = useQueryClient();
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
@@ -71,8 +73,6 @@ const HomeScreen = () => {
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
 
-  const period = getCurrentSession();
-
   useEffect(() => {
     if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
       return;
@@ -83,20 +83,29 @@ const HomeScreen = () => {
     });
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
+  const refreshReadingPlanAndSchedule = useCallback(async () => {
+    await loadBibleReadingPlan();
+
+    const { bibleReadingPlan: refreshedPlan, bibleReadingPlanDayNumber: refreshedDayNumber } =
+      useBibleReadingPlanStore.getState();
+
+    if (!refreshedPlan || refreshedDayNumber === null) {
+      return;
+    }
+
+    await loadReadingSchedule(refreshedPlan.id, refreshedDayNumber, { force: true });
+  }, [loadBibleReadingPlan, loadReadingSchedule]);
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const tasks: Promise<unknown>[] = [
         refreshProgress(),
         refreshStreak(),
-        loadBibleReadingPlan(),
+        refreshReadingPlanAndSchedule(),
         // Bible chapter text is cached indefinitely (staleTime: Infinity); force it to refetch.
         queryClient.invalidateQueries({ queryKey: ['bible-chapter'] }),
       ];
-
-      if (bibleReadingPlan && bibleReadingPlanDayNumber !== null) {
-        tasks.push(loadReadingSchedule(bibleReadingPlan.id, bibleReadingPlanDayNumber, { force: true }));
-      }
 
       await Promise.all(tasks);
     } catch (error) {
@@ -104,7 +113,7 @@ const HomeScreen = () => {
     } finally {
       setIsRefreshing(false);
     }
-  }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule, loadBibleReadingPlan, queryClient, refreshProgress, refreshStreak]);
+  }, [queryClient, refreshProgress, refreshReadingPlanAndSchedule, refreshStreak]);
 
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
@@ -126,7 +135,7 @@ const HomeScreen = () => {
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
-            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good  {getCurrentSession()},</Text>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
             <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
           </View>
 
@@ -183,10 +192,10 @@ const HomeScreen = () => {
 
         <TodaysBibleJourneyCard
           onOpenJourney={() => router.push('/(app)/bible-journey')}
-          onOpenMorningReading={() =>
+          onOpenReading={(readingPeriod) =>
             router.push({
               pathname: '/(app)/bible-reading-select',
-              params: { period },
+              params: { period: readingPeriod },
             })
           }
         />
@@ -249,10 +258,11 @@ const HomeScreen = () => {
               reference={nextEveningReference}
               chapterCount={eveningChapterCount}
               isLoading={isLoadingReadingSchedule}
+              locked={!eveningUnlocked}
               onPress={() =>
                 router.push({
                   pathname: '/(app)/bible-reading-select',
-                  params: { period: 'evening' },
+                  params: { period: eveningUnlocked ? 'evening' : (nextActionablePeriod ?? 'morning') },
                 })
               }
             />
