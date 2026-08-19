@@ -4,7 +4,13 @@ import { BIBLE_BOOKS_TABLE, BIBLE_READING_PLAN_TABLE, READING_SCHEDULE_TABLE } f
 
 export const getBibleReadingPlan = async (): Promise<BibleReadingPlanData | null> => {
   try {
-    const response = await supabase.from(BIBLE_READING_PLAN_TABLE).select("*");
+    const response = await supabase
+      .from(BIBLE_READING_PLAN_TABLE)
+      .select("*")
+      .eq("is_active", true)
+      .order("group_plan_start_date", { ascending: false })
+      .limit(1);
+
     if (response.error) {
       throw response.error;
     }

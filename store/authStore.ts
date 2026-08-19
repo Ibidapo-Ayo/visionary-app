@@ -13,7 +13,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set((state) => ({
       user,
       isAuthenticated: !!user,
-      supabaseUserId: user ? state.supabaseUserId : null,
+      supabaseUserId: user && state.user?.id === user.id ? state.supabaseUserId : null,
     })),
   setLoading: (isLoading) => set({ isLoading }),
   setSupabaseUserId: (supabaseUserId) => set({ supabaseUserId }),
@@ -29,7 +29,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     const resolvedId = await getSupabaseUserIdByClerkId(sourceClerkUserId);
-    set({ supabaseUserId: resolvedId });
+
+    // Only apply the result if the store still refers to the same Clerk user;
+    // otherwise a user switch/reset during the lookup would leak a stale id.
+    if (get().user?.id === sourceClerkUserId) {
+      set({ supabaseUserId: resolvedId });
+    }
+
     return resolvedId;
   },
   reset: () => set({ user: null, supabaseUserId: null, token: null, isAuthenticated: false, isLoading: false }),

@@ -42,10 +42,10 @@ export const useUserReadingProgress = () => {
       });
   }, [user?.id, resolveUserId, loadUserReadingProgress]);
 
-  const completedScheduleIds = useMemo(
-    () => new Set(loadedUserId ? completedScheduleIdsByUser[loadedUserId] ?? [] : []),
-    [completedScheduleIdsByUser, loadedUserId],
-  );
+  const completedScheduleIds = useMemo(() => {
+    const resolvedId = supabaseUserId ?? loadedUserId;
+    return new Set(resolvedId ? completedScheduleIdsByUser[resolvedId] ?? [] : []);
+  }, [completedScheduleIdsByUser, supabaseUserId, loadedUserId]);
 
   const isChapterComplete = useCallback(
     (scheduleId: string) => completedScheduleIds.has(scheduleId),
@@ -61,7 +61,7 @@ export const useUserReadingProgress = () => {
     async (scheduleId: string) => {
       const resolvedUserId = await resolveUserId();
       if (!resolvedUserId) {
-        return;
+        throw new Error('Unable to resolve the current user.');
       }
 
       await markScheduleCompleteAction({ supabaseUserId: resolvedUserId, scheduleId });

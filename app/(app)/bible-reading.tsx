@@ -24,7 +24,7 @@ const BibleChapterSection = ({ reading }: BibleChapterSectionProps) => {
   return (
     <Animated.View entering={FadeInDown.delay(60 + reading.orderNumber * 40).duration(280)} className="mb-7 overflow-hidden rounded-[24px] bg-white px-5 py-5">
       <Text className="text-[22px] font-black text-[#171717]">{reference}</Text>
-      <Text className="mt-1 text-[10px] font-bold uppercase tracking-[0.8px] text-[#9B9085]">New International Version</Text>
+      <Text className="mt-1 text-[10px] font-bold uppercase tracking-[0.8px] text-[#9B9085]">{chapterQuery.data?.translation_name}</Text>
 
       {chapterQuery.isLoading || chapterQuery.isFetching ? (
         <View className="mt-6 flex-row items-center rounded-[18px] bg-[#FFF7EF] px-4 py-4">
@@ -62,7 +62,7 @@ const BibleReadingScreenView = () => {
 
   const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
   const getTodayProgress = useBibleJourneyStore((state) => state.getTodayProgress);
-  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
+  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
 
@@ -81,6 +81,7 @@ const BibleReadingScreenView = () => {
   }, [completedScheduleIds, incomingReference, sessionChapters]);
 
   const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
+  const [isCompletingChapter, setIsCompletingChapter] = useState(false);
 
   useEffect(() => {
     setChapterIndex(initialChapterIndex);
@@ -105,10 +106,16 @@ const BibleReadingScreenView = () => {
 
   const markCurrentChapterComplete = async () => {
     if (!chapter) {
-      return;
+      return false;
     }
 
-    await markScheduleComplete(chapter.id);
+    try {
+      await markScheduleComplete(chapter.id);
+      return true;
+    } catch (error) {
+      console.warn('Unable to update user reading progress:', error);
+      return false;
+    }
   };
 
   const goToPreviousChapter = () => {
@@ -119,14 +126,18 @@ const BibleReadingScreenView = () => {
     setChapterIndex((prev) => prev - 1);
   };
 
-  const goToNextChapter = () => {
-    if (!chapter) {
+  const goToNextChapter = async () => {
+    if (!chapter || isCompletingChapter) {
       return;
     }
 
-    void markCurrentChapterComplete().catch((error) => {
-      console.warn('Unable to update user reading progress:', error);
-    });
+    setIsCompletingChapter(true);
+    const didComplete = await markCurrentChapterComplete();
+    setIsCompletingChapter(false);
+
+    if (!didComplete) {
+      return;
+    }
 
     if (hasNext) {
       setChapterIndex((prev) => prev + 1);
@@ -152,7 +163,7 @@ const BibleReadingScreenView = () => {
     return (
       <View className="flex-1 items-center justify-center bg-[#FFF9F1] px-6">
         <StatusBar barStyle="dark-content" />
-        {isLoadingReadingSchedule ? (
+        {isLoadingReadingSchedule || isLoadingBibleReadingPlan ? (
           <View className="items-center">
             <BrandedSpinner size={38} />
             <Text className="mt-4 text-center text-[15px] font-semibold text-[#2D241B]">Loading your assigned reading.</Text>
@@ -221,8 +232,14 @@ const BibleReadingScreenView = () => {
               </Text>
             </View>
 
-            <TouchableOpacity onPress={goToNextChapter} activeOpacity={0.9} className="h-12 w-12 items-center justify-center rounded-full bg-[#FF7A00]">
-              <Feather name="arrow-right" size={20} color="#FFFFFF" />
+            <TouchableOpacity
+              onPress={() => void goToNextChapter()}
+              disabled={isCompletingChapter}
+              activeOpacity={0.9}
+              className="h-12 w-12 items-center justify-center rounded-full bg-[#FF7A00]"
+              style={{ opacity: isCompletingChapter ? 0.7 : 1 }}
+            >
+              {isCompletingChapter ? <BrandedSpinner size={18} /> : <Feather name="arrow-right" size={20} color="#FFFFFF" />}
             </TouchableOpacity>
           </View>
         </Animated.View>

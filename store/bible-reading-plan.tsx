@@ -3,8 +3,20 @@ import type { BibleReadingPlanData } from "@/types";
 import { getBibleReadingDayNumber } from "@/lib/helper";
 import { getBibleReadingPlan } from "@/services/supabase/bible";
 
-const getPlanDayNumber = (plan: BibleReadingPlanData | null) =>
-  plan?.group_plan_start_date ? getBibleReadingDayNumber(plan.group_plan_start_date) : null;
+const getPlanDayNumber = (plan: BibleReadingPlanData | null) => {
+  if (!plan?.group_plan_start_date) {
+    return null;
+  }
+
+  const dayNumber = getBibleReadingDayNumber(plan.group_plan_start_date);
+
+  if (dayNumber === null) {
+    return null;
+  }
+
+  // Clamp to the plan's actual day range so we never query a day that has no schedule rows.
+  return Math.min(Math.max(dayNumber, 1), plan.total_days);
+};
 
 export const useBibleReadingPlanStore = create<{
   bibleReadingPlan: BibleReadingPlanData | null;

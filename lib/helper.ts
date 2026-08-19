@@ -22,12 +22,21 @@ export function getCurrentSession() {
 }
 
 export const getBibleReadingDayNumber = (startDate: string) => {
-  const start = new Date(startDate);
-  const today = new Date();
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(startDate);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  const start = new Date(Number(year), Number(month) - 1, Number(day));
 
   if (Number.isNaN(start.getTime())) {
     return null;
   }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   const diffTime = today.getTime() - start.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));

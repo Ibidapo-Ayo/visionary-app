@@ -191,6 +191,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       partialize: (state) => ({
         completedScheduleIdsByUser: state.completedScheduleIdsByUser,
         completedScheduleDaysByUser: state.completedScheduleDaysByUser,
+        loadedUserId: state.loadedUserId,
       }),
     },
   ),
