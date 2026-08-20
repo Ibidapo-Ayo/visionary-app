@@ -196,13 +196,13 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
         }
 
         const state = persistedState as {
-          dailyProgressByDate?: Record<string, DailyReadingProgress & { reflectionCompleted?: unknown }>;
+          dailyProgressByDate?: Record<string, DailyReadingProgress & { reflectionCompleted?: unknown; reflectionCompletedByPeriod?: unknown }>;
         };
 
         const dailyProgressByDate = state.dailyProgressByDate ?? {};
         const migratedDailyProgressByDate = Object.fromEntries(
           Object.entries(dailyProgressByDate).map(([dateKey, progress]) => {
-            const { reflectionCompleted: _reflectionCompleted, ...rest } = progress;
+            const { reflectionCompleted: _reflectionCompleted, reflectionCompletedByPeriod: _reflectionCompletedByPeriod, ...rest } = progress;
             const nextProgress: DailyReadingProgress = {
               ...rest,
               dailyCompleted: computeDailyCompleted(rest),
