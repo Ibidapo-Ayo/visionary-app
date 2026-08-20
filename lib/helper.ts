@@ -24,16 +24,29 @@ export function getCurrentSession() {
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const parseLocalDate = (dateValue: string) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateValue);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
 
   if (!match) {
     return null;
   }
 
   const [, year, month, day] = match;
-  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
+  const parsedYear = Number(year);
+  const parsedMonth = Number(month) - 1;
+  const parsedDay = Number(day);
+  const parsedDate = new Date(parsedYear, parsedMonth, parsedDay);
 
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.getFullYear() !== parsedYear ||
+    parsedDate.getMonth() !== parsedMonth ||
+    parsedDate.getDate() !== parsedDay
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+};
 };
 
 const toUtcDayIndex = (date: Date) =>
