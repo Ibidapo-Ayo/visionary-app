@@ -56,11 +56,16 @@ export const getCompletedScheduleDaysForUser = async (
     throw response.error;
   }
 
-  return (response.data ?? []).map((row: any) => ({
-    scheduleId: row.schedule_id,
-    dayNumber: row[READING_SCHEDULE_TABLE].day_number,
-    session: row[READING_SCHEDULE_TABLE].session,
-  }));
+  return (response.data ?? []).map((row): CompletedScheduleDay => {
+    const typedRow = row as { schedule_id: string } & Record<string, unknown>;
+    const schedule = typedRow[READING_SCHEDULE_TABLE] as { day_number: number; session: CompletedScheduleDay['session'] };
+
+    return {
+      scheduleId: typedRow.schedule_id,
+      dayNumber: schedule.day_number,
+      session: schedule.session,
+    };
+  });
 };
 export const upsertUserReadingProgress = async ({
   userId,
