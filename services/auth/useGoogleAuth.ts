@@ -2,14 +2,10 @@ import { useCallback } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useSSO } from '@clerk/expo';
-import { toAuthError, type AuthErrorShape } from './errors';
+import type { OAuthResult } from '@/types/index';
+import { toAuthError } from './errors';
 
 WebBrowser.maybeCompleteAuthSession();
-
-export interface OAuthResult {
-  complete: boolean;
-  error?: AuthErrorShape;
-}
 
 /**
  * Google sign-in via Clerk's `useSSO` hook.

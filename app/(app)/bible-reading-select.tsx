@@ -1,12 +1,15 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneySessionPlan, mockBibleReadingChapters } from '@services/mockData';
-import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+import type { ReadingPeriod } from '@/types/index';
+import { formatDayReadingReference } from '@/lib/helper';
+import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 
 const BibleReadingSelectScreen = () => {
   const router = useRouter();
@@ -14,21 +17,19 @@ const BibleReadingSelectScreen = () => {
   const params = useLocalSearchParams<{ period?: string }>();
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
 
-  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
-  const completedReferences = getCompletedChaptersForToday(period);
+  const { bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
+  const { isChapterComplete, countCompleted } = useUserReadingProgress();
+  const { isUnlocked } = useReadingPeriodLock();
 
-  const assignedReferences = period === 'morning' ? mockBibleJourneySessionPlan.morning : mockBibleJourneySessionPlan.evening;
-  const chapters = useMemo(
-    () =>
-      assignedReferences
-        .map((reference) => mockBibleReadingChapters.find((chapter) => chapter.reference === reference))
-        .filter((chapter): chapter is (typeof mockBibleReadingChapters)[number] => Boolean(chapter)),
-    [assignedReferences],
-  );
+  const chapters = readingSchedule?.[period] ?? [];
+  const isSessionLocked = !isUnlocked(period);
 
-  const completedCount = chapters.filter((chapter) => completedReferences.includes(chapter.reference)).length;
-  const nextChapter = chapters.find((chapter) => !completedReferences.includes(chapter.reference)) ?? chapters[0];
+  const completedCount = countCompleted(chapters.map((chapter) => chapter.id));
+  const nextChapter = chapters.find((chapter) => !isChapterComplete(chapter.id)) ?? null;
+  const nextChapterReference = nextChapter ? formatDayReadingReference(nextChapter) : null;
+  const allChaptersCompleted = chapters.length > 0 && completedCount === chapters.length;
   const sessionLabel = period === 'morning' ? 'Morning Reading' : 'Evening Reading';
+  const dayLabel = bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber}` : 'Today';
 
   const handleBackPress = () => {
     if (router.canGoBack()) {
@@ -49,6 +50,55 @@ const BibleReadingSelectScreen = () => {
     });
   };
 
+  if (isSessionLocked) {
+    return (
+      <LinearGradient colors={['#FFFDF9', '#F8F2EA', '#F3EBDD']} className="flex-1">
+        <StatusBar barStyle="dark-content" />
+
+        <View className="px-5 pb-3" style={{ paddingTop: insets.top + 10 }}>
+          <Animated.View entering={FadeIn.duration(220)} className="flex-row items-center justify-between">
+            <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
+              <Feather name="chevron-left" size={20} color="#1A1A1A" />
+            </TouchableOpacity>
+
+            <View className="mx-2 flex-1 items-center">
+              <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
+              <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
+            </View>
+
+            <View className="h-10 w-10 shrink-0" />
+          </Animated.View>
+        </View>
+
+        <View className="flex-1 items-center justify-center px-6">
+          <Animated.View entering={FadeInDown.delay(60).duration(300)} className="w-full items-center rounded-[24px] bg-[#151719] px-6 py-8">
+            <View className="h-16 w-16 items-center justify-center rounded-full border-[5px] border-[#FF8A18] bg-[#242628]">
+              <Feather name="lock" size={22} color="#FF7A00" />
+            </View>
+            <Text className="mt-5 text-[18px] font-black text-white">Evening Reading is locked</Text>
+            <Text className="mt-2 text-center text-[12px] font-semibold leading-5 text-[#D8D1C8]">
+              Finish every chapter in your morning session first. Evening unlocks automatically right after.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() =>
+                router.replace({
+                  pathname: '/(app)/bible-reading-select',
+                  params: { period: 'morning' },
+                })
+              }
+              activeOpacity={0.88}
+              className="mt-6 flex-row items-center rounded-[16px] bg-[#FF7A00] px-5 py-3.5"
+            >
+              <Feather name="sunrise" size={16} color="#FFFFFF" />
+              <Text className="ml-2 text-[12px] font-black text-white">Go to Morning Reading</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F2EA', '#F3EBDD']} className="flex-1">
       <StatusBar barStyle="dark-content" />
@@ -60,7 +110,7 @@ const BibleReadingSelectScreen = () => {
           </TouchableOpacity>
 
           <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">Choose Chapter</Text>
+            <Text className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
             <Text className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
           </View>
 
@@ -73,10 +123,10 @@ const BibleReadingSelectScreen = () => {
           <LinearGradient colors={period === 'morning' ? ['#202225', '#151719'] : ['#18223A', '#111827']} className="p-5">
             <View className="flex-row items-start justify-between">
               <View className="flex-1 pr-4">
-                <Text className="text-[11px] font-black uppercase tracking-[0.8px] text-[#FFB56D]">Today's Assignment</Text>
+                <Text className="text-[11px] font-black uppercase tracking-[0.8px] text-[#FFB56D]">{dayLabel} Assignment</Text>
                 <Text className="mt-2 text-[25px] font-black text-white">{chapters.length} chapters</Text>
                 <Text className="mt-1 text-[12px] font-semibold leading-5 text-[#D8D1C8]">
-                  Select any chapter for your {period} session. Your progress is saved as you read.
+                  {isLoadingReadingSchedule ? 'Loading your assigned reading schedule.' : `Select any chapter for your ${period} session. Your progress is saved as you read.`}
                 </Text>
               </View>
 
@@ -94,18 +144,30 @@ const BibleReadingSelectScreen = () => {
           </LinearGradient>
         </Animated.View>
 
-        {nextChapter ? (
+        {nextChapterReference ? (
           <Animated.View entering={FadeInDown.delay(100).duration(300)} className="mt-4">
-            <TouchableOpacity onPress={() => openChapter(nextChapter.reference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
+            <TouchableOpacity onPress={() => openChapter(nextChapterReference)} activeOpacity={0.88} className="flex-row items-center rounded-[20px] bg-[#FF7A00] px-4 py-4">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
                 <Feather name="play" size={16} color="#FFFFFF" />
               </View>
               <View className="ml-3 flex-1">
                 <Text className="text-[11px] font-bold uppercase tracking-[0.6px] text-white/80">Continue with</Text>
-                <Text className="mt-0.5 text-[15px] font-black text-white">{nextChapter.reference}</Text>
+                <Text className="mt-0.5 text-[15px] font-black text-white">{nextChapterReference}</Text>
               </View>
               <Feather name="arrow-right" size={18} color="#FFFFFF" />
             </TouchableOpacity>
+          </Animated.View>
+        ) : allChaptersCompleted ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(300)} className="mt-4">
+            <View className="flex-row items-center rounded-[20px] bg-[#16A34A] px-4 py-4">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                <Feather name="check" size={16} color="#FFFFFF" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[11px] font-bold uppercase tracking-[0.6px] text-white/80">{sessionLabel}</Text>
+                <Text className="mt-0.5 text-[15px] font-black text-white">All chapters completed</Text>
+              </View>
+            </View>
           </Animated.View>
         ) : null}
 
@@ -113,12 +175,13 @@ const BibleReadingSelectScreen = () => {
           <Text className="mb-3 text-[15px] font-black text-[#171717]">All Chapters</Text>
           <View className="gap-3">
             {chapters.map((chapter, index) => {
-              const isCompleted = completedReferences.includes(chapter.reference);
+              const reference = formatDayReadingReference(chapter);
+              const isCompleted = isChapterComplete(chapter.id);
 
               return (
                 <TouchableOpacity
                   key={chapter.id}
-                  onPress={() => openChapter(chapter.reference)}
+                  onPress={() => openChapter(reference)}
                   activeOpacity={0.86}
                   className="flex-row items-center rounded-[20px] border border-[#EFE4D7] bg-white px-4 py-4"
                 >
@@ -128,11 +191,11 @@ const BibleReadingSelectScreen = () => {
 
                   <View className="ml-3 flex-1">
                     <View className="flex-row items-center">
-                      <Text className="text-[15px] font-black text-[#1B1B1B]">{chapter.reference}</Text>
+                      <Text className="text-[15px] font-black text-[#1B1B1B]">{reference}</Text>
                       {isCompleted ? <Feather name="check-circle" size={14} color="#16A34A" style={{ marginLeft: 6 }} /> : null}
                     </View>
-                    <Text className="mt-1 text-[11px] font-semibold text-[#80776D]">{chapter.title}</Text>
-                    <Text className="mt-1 text-[10px] font-semibold text-[#A39A90]">{chapter.estimatedMinutes} min read</Text>
+                    <Text className="mt-1 text-[11px] font-semibold text-[#80776D]">{sessionLabel}</Text>
+                    <Text className="mt-1 text-[10px] font-semibold text-[#A39A90]">Order {chapter.orderNumber}</Text>
                   </View>
 
                   <Feather name="chevron-right" size={18} color="#B0A69B" />

@@ -4,6 +4,7 @@
     "strict": true,
     "jsx": "react-native",
     "esModuleInterop": true,
+    "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "bundler",

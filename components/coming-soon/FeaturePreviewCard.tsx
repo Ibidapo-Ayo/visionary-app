@@ -2,12 +2,7 @@ import React from 'react';
 import { Text, View, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-export type ComingSoonCapability = {
-  id: string;
-  label: string;
-  icon: React.ComponentProps<typeof Feather>['name'];
-};
+import type { ComingSoonCapability } from '@/types/index';
 
 type FeaturePreviewCardProps = {
   title: string;

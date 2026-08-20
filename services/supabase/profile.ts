@@ -1,39 +1,9 @@
-import type { User } from '@/types/index';
+import type { ClerkUserResource, SupabaseUserRow, User } from '@/types/index';
+import { decode } from 'base64-arraybuffer';
 import { supabase } from './client';
+import { USERS_TABLE } from './constants';
 
-type ClerkUserResource = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string;
-  createdAt: number | null;
-  updatedAt: number | null;
-  primaryEmailAddress?: { emailAddress?: string | null } | null;
-  emailAddresses: Array<{ emailAddress?: string | null }>;
-  primaryPhoneNumber?: { phoneNumber?: string | null } | null;
-  phoneNumbers: Array<{ phoneNumber?: string | null }>;
-  unsafeMetadata?: Record<string, unknown>;
-};
-
-export interface SupabaseUserRow {
-  id?: string;
-  clerk_user_id: string;
-  created_at: string;
-  updated_at: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone_number: string | null;
-  profile_image: string | null;
-  gender: string | null;
-  date_of_birth: string | null;
-  role: string;
-  department: string | null;
-  joined_at: string | null;
-  is_active: boolean;
-}
-
-const USERS_TABLE = 'users';
+const PROFILE_IMAGES_BUCKET = 'profile-images';
 
 const getPrimaryEmail = (user: ClerkUserResource): string =>
   user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '';
@@ -52,6 +22,14 @@ const toNullable = (value: string | null | undefined): string | null => {
 };
 
 const nowIso = (): string => new Date().toISOString();
+
+const getDeviceTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
 
 const normalizeRoleForSupabase = (role: string | null | undefined): string => {
   const normalized = (role ?? '').trim().toUpperCase();
@@ -96,6 +74,8 @@ const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | 
     department: existing?.department ?? null,
     joined_at: existing?.joined_at ?? createdAt,
     is_active: existing?.is_active ?? true,
+    // Refresh on every sync so a user's streak always uses their current device's timezone.
+    timezone: getDeviceTimezone(),
   };
 };
 
@@ -115,6 +95,7 @@ const baseRowFromStoreUser = (user: User, existing?: SupabaseUserRow | null): Su
   department: existing?.department ?? null,
   joined_at: existing?.joined_at ?? user.joinDate,
   is_active: existing?.is_active ?? true,
+  timezone: getDeviceTimezone(),
 });
 
 const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
@@ -125,7 +106,88 @@ const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
   }
 };
 
-const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
+const getImageExtensionFromUri = (uri: string): string => {
+  const cleanUri = uri.split('?')[0] ?? uri;
+  const extension = cleanUri.split('.').pop()?.toLowerCase();
+
+  if (!extension) {
+    return 'jpg';
+  }
+
+  if (extension === 'jpeg') {
+    return 'jpg';
+  }
+
+  return extension;
+};
+
+const ACCEPTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+
+const getImageMimeType = (extension: string): string => {
+  switch (extension) {
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'heic':
+      return 'image/heic';
+    case 'jpg':
+      return 'image/jpeg';
+    default:
+      throw new Error(`[supabase] Unsupported profile image type: .${extension}`);
+  }
+};
+
+export type UploadedProfileImage = {
+  publicUrl: string;
+  objectPath: string;
+};
+
+export const uploadProfileImageAsset = async (
+  userId: string,
+  localAssetUri: string,
+  imageBase64?: string,
+  pickerMimeType?: string,
+): Promise<UploadedProfileImage> => {
+  const extension = getImageExtensionFromUri(localAssetUri);
+  const normalizedPickerMimeType = pickerMimeType?.trim().toLowerCase();
+  const contentType = ACCEPTED_IMAGE_MIME_TYPES.has(normalizedPickerMimeType ?? '')
+    ? (normalizedPickerMimeType as string)
+    : getImageMimeType(extension);
+  const objectPath = `${userId}/${Date.now()}.${extension}`;
+
+  if (!imageBase64?.trim()) {
+    throw new Error('[supabase] Unable to read selected profile image for upload.');
+  }
+
+  const imageBuffer = decode(imageBase64);
+  const { error: uploadError } = await supabase.storage.from(PROFILE_IMAGES_BUCKET).upload(objectPath, imageBuffer, {
+    contentType,
+    upsert: true,
+  });
+
+  if (uploadError) {
+    throw new Error(`[supabase] Failed to upload profile image: ${uploadError.message}`);
+  }
+
+  const { data: publicUrlData } = supabase.storage.from(PROFILE_IMAGES_BUCKET).getPublicUrl(objectPath);
+  if (!publicUrlData?.publicUrl) {
+    throw new Error('[supabase] Profile image upload succeeded but no public URL was returned.');
+  }
+
+  return { publicUrl: publicUrlData.publicUrl, objectPath };
+};
+
+// Best-effort cleanup for uploads that never become the persisted profile image.
+export const deleteProfileImageAsset = async (objectPath: string): Promise<void> => {
+  const { error } = await supabase.storage.from(PROFILE_IMAGES_BUCKET).remove([objectPath]);
+
+  if (error) {
+    console.warn(`[supabase] Failed to delete orphaned profile image ${objectPath}: ${error.message}`);
+  }
+};
+
+export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
   const { data, error } = await supabase
     .from(USERS_TABLE)
     .select('*')
@@ -139,6 +201,16 @@ const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null
   }
 
   return data;
+};
+
+export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<string> => {
+  const user = await getUserByClerkId(clerkId);
+
+  if (!user?.id) {
+    throw new Error('[supabase] Unable to resolve Supabase user id for reading progress.');
+  }
+
+  return user.id;
 };
 
 export const syncProfileFromClerkUser = async (clerkUser: ClerkUserResource): Promise<void> => {

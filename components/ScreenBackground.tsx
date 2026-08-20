@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { gradients } from '../lib/theme';
+import { MAX_CONTENT_WIDTH, useResponsive } from '../lib/responsive';
 
 interface ScreenBackgroundProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ interface ScreenBackgroundProps {
 }
 
 const ScreenBackground = ({ children, style }: ScreenBackgroundProps) => {
+  const { isTablet } = useResponsive();
   const driftA = useSharedValue(0);
   const driftB = useSharedValue(0);
 
@@ -79,7 +81,11 @@ const ScreenBackground = ({ children, style }: ScreenBackgroundProps) => {
           ]}
         />
       ))}
-      <View className="flex-1 bg-[rgba(255,255,255,0.82)]">{children}</View>
+      <View className={`flex-1 bg-[rgba(255,255,255,0.82)] ${isTablet ? 'items-center' : ''}`}>
+        <View style={isTablet ? { width: '100%', maxWidth: MAX_CONTENT_WIDTH, flex: 1 } : { flex: 1, width: '100%' }}>
+          {children}
+        </View>
+      </View>
     </View>
   );
 };

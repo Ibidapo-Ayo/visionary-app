@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import Card from '@components/Card';
-import type { MockSpiritualActivity } from '@services/mockData';
+import type { MockSpiritualActivity } from '@/types/index';
 
 interface RecentSpiritualActivityProps {
   isDark: boolean;

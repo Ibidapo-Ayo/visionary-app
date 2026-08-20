@@ -1,20 +1,7 @@
 import { useCallback } from 'react';
 import { useSignUp } from '@clerk/expo';
-import { toAuthError, type AuthErrorShape } from './errors';
-
-export interface SignUpInput {
-  firstName: string;
-  lastName: string;
-  emailAddress: string;
-  phone?: string;
-  password: string;
-}
-
-export interface SignUpResult {
-  needsEmailVerification: boolean;
-  complete: boolean;
-  error?: AuthErrorShape;
-}
+import type { AuthErrorShape, SignUpInput, SignUpResult } from '@/types/index';
+import { toAuthError } from './errors';
 
 /**
  * `useAuthSignUp` wraps Clerk's `useSignUp` hook and exposes ministry-shaped

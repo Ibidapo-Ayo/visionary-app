@@ -7,7 +7,11 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
 import { useSignOut } from '@services/auth';
-import { mockProfileAchievements, mockRecentSpiritualActivities, mockSpiritualMetrics } from '@services/mockData';
+import { mockProfileAchievements, mockRecentSpiritualActivities } from '@services/mockData';
+import { useStreak } from '@/hooks/useStreak';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
+import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
   const firstInitial = firstName?.trim()?.charAt(0) ?? '';
@@ -30,15 +34,63 @@ const StatCard = ({ icon, value, label, tint }: { icon: React.ComponentProps<typ
   </View>
 );
 
-const AchievementBadge = ({ icon, title, subtitle, tint }: { icon: React.ReactNode; title: string; subtitle: string; tint: string }) => (
-  <View className="w-[23%] items-center">
-    <View className="h-[52px] w-[52px] items-center justify-center rounded-full" style={{ backgroundColor: `${tint}18` }}>
-      {icon}
+const AchievementBadge = ({
+  icon,
+  title,
+  subtitle,
+  tint,
+  unlocked,
+}: {
+  icon: (color: string) => React.ReactNode;
+  title: string;
+  subtitle: string;
+  tint: string;
+  unlocked: boolean;
+}) => {
+  const color = unlocked ? tint : '#B7AEA2';
+
+  return (
+    <View className="w-[23%] items-center">
+      <View className="relative h-[52px] w-[52px] items-center justify-center rounded-full" style={{ backgroundColor: unlocked ? `${tint}18` : '#F1ECE4' }}>
+        {icon(color)}
+        {!unlocked ? (
+          <View className="absolute -bottom-1 -right-1 h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-[#A79C8E]">
+            <Feather name="lock" size={9} color="#FFFFFF" />
+          </View>
+        ) : null}
+      </View>
+      <Text className={`mt-2 text-center text-[10px] font-black leading-3 ${unlocked ? 'text-[#25211C]' : 'text-[#ADA599]'}`}>{title}</Text>
+      <Text className={`mt-0.5 text-center text-[8px] font-semibold leading-[10px] ${unlocked ? 'text-[#8B8278]' : 'text-[#BCB4A8]'}`}>
+        {unlocked ? subtitle : 'Locked'}
+      </Text>
     </View>
-    <Text className="mt-2 text-center text-[10px] font-black leading-3 text-[#25211C]">{title}</Text>
-    <Text className="mt-0.5 text-center text-[8px] font-semibold leading-[10px] text-[#8B8278]">{subtitle}</Text>
-  </View>
-);
+  );
+};
+
+const ACHIEVEMENT_TIERS: {
+  days: number;
+  title: string;
+  subtitle: string;
+  tint: string;
+  icon: (color: string) => React.ReactNode;
+}[] = [
+  { days: 7, title: '7 Days', subtitle: 'Starter', tint: '#16A34A', icon: (color) => <Feather name="leaf" size={23} color={color} /> },
+  {
+    days: 14,
+    title: '14 Days',
+    subtitle: 'Consistent',
+    tint: '#FF7A00',
+    icon: (color) => <FontAwesome5 name="fire" size={22} color={color} solid />,
+  },
+  {
+    days: 30,
+    title: '30 Days',
+    subtitle: 'Dedicated',
+    tint: '#7257D6',
+    icon: (color) => <FontAwesome5 name="crown" size={21} color={color} solid />,
+  },
+  { days: 365, title: '365 Days', subtitle: 'Champion', tint: '#F6B21A', icon: (color) => <Feather name="star" size={23} color={color} /> },
+];
 
 const RecentReflectionRow = ({ title, subtitle, icon }: { title: string; subtitle: string; icon: React.ComponentProps<typeof Feather>['name'] }) => (
   <TouchableOpacity activeOpacity={0.84} className="flex-row items-center rounded-[16px] border border-[#EFE7DD] bg-white px-3 py-3">
@@ -59,14 +111,22 @@ const ProfileScreen = () => {
   const user = useAuthStore((state) => state.user);
   const logout = useSignOut();
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+  const { currentStreak, longestStreak, totalDaysCompleted } = useStreak();
+  useUserReadingProgress();
+  const totalChaptersRead = useUserReadingProgressStore((state) => state.getTotalCompletedChapters());
+  const getMonthlyProgressStats = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
+  const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
 
   const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
 
-  const yearlyGoal = mockSpiritualMetrics.find((metric) => metric.id === 'metric_overall')?.progress ?? 0.71;
-  const monthlyGoalPercent = 20;
+  const now = new Date();
+  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthlyStats = getMonthlyProgressStats('month', bibleReadingPlan?.group_plan_start_date);
+  const monthlyGoalDaysRead = monthlyStats.daysRead;
+  const monthlyGoalProgressPercent = daysInCurrentMonth > 0 ? Math.min(100, Math.round((monthlyGoalDaysRead / daysInCurrentMonth) * 100)) : 0;
   const recentReflections = mockRecentSpiritualActivities.filter((activity) => activity.type === 'reflection' || activity.type === 'bibleReading').slice(0, 3);
 
   const handleLogout = async () => {
@@ -127,9 +187,9 @@ const ProfileScreen = () => {
 
         <View className="-mt-4 px-5">
           <Animated.View entering={FadeInDown.delay(80).duration(320)} className="flex-row gap-2">
-            <StatCard icon="zap" value="18" label="Current Streak" tint="#FF7A00" />
-            <StatCard icon="book-open" value={`${Math.round(yearlyGoal * 100)}%`} label="Total Days" tint="#16A34A" />
-            <StatCard icon="award" value="312" label="Chapters Read" tint="#3768D8" />
+            <StatCard icon="zap" value={`${currentStreak}`} label="Current Streak" tint="#FF7A00" />
+            <StatCard icon="book-open" value={`${totalDaysCompleted}`} label="Total Days" tint="#16A34A" />
+            <StatCard icon="award" value={`${totalChaptersRead}`} label="Chapters Read" tint="#3768D8" />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(140).duration(320)} className="mt-5">
@@ -141,10 +201,16 @@ const ProfileScreen = () => {
             </View>
 
             <View className="flex-row justify-between rounded-[22px] border border-[#EFE7DD] bg-white px-3 py-4">
-              <AchievementBadge icon={<Feather name="leaf" size={23} color="#16A34A" />} title="7 Days" subtitle="Starter" tint="#16A34A" />
-              <AchievementBadge icon={<FontAwesome5 name="fire" size={22} color="#FF7A00" solid />} title="14 Days" subtitle="Consistent" tint="#FF7A00" />
-              <AchievementBadge icon={<FontAwesome5 name="crown" size={21} color="#7257D6" solid />} title="30 Days" subtitle="Dedicated" tint="#7257D6" />
-              <AchievementBadge icon={<Feather name="star" size={23} color="#F6B21A" />} title="365 Days" subtitle="Champion" tint="#F6B21A" />
+              {ACHIEVEMENT_TIERS.map((tier) => (
+                <AchievementBadge
+                  key={tier.days}
+                  icon={tier.icon}
+                  title={tier.title}
+                  subtitle={tier.subtitle}
+                  tint={tier.tint}
+                  unlocked={longestStreak >= tier.days}
+                />
+              ))}
             </View>
           </Animated.View>
 
@@ -153,11 +219,11 @@ const ProfileScreen = () => {
               <View className="flex-1 pr-4">
                 <Text className="text-[12px] font-black text-[#2C4E28]">Monthly Goal</Text>
                 <View className="mt-3 flex-row items-end">
-                  <Text className="text-[28px] font-black leading-[30px] text-[#1D5B2A]">{monthlyGoalPercent}</Text>
-                  <Text className="mb-1 ml-1 text-[13px] font-bold text-[#4E714B]">/30 days</Text>
+                  <Text className="text-[28px] font-black leading-[30px] text-[#1D5B2A]">{monthlyGoalDaysRead}</Text>
+                  <Text className="mb-1 ml-1 text-[13px] font-bold text-[#4E714B]">/{daysInCurrentMonth} days</Text>
                 </View>
                 <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-white">
-                  <View className="h-full rounded-full bg-[#16A34A]" style={{ width: `${(monthlyGoalPercent / 30) * 100}%` }} />
+                  <View className="h-full rounded-full bg-[#16A34A]" style={{ width: `${monthlyGoalProgressPercent}%` }} />
                 </View>
               </View>
 

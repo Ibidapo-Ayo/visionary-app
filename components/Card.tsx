@@ -6,6 +6,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { moderateScale, useResponsive } from '../lib/responsive';
 
 interface CardProps {
   children: React.ReactNode;
@@ -23,11 +24,11 @@ const cardVariantClass: Record<NonNullable<CardProps['variant']>, string> = {
   elevated: 'border-[rgba(10,147,54,0.24)]',
 };
 
-const paddingClass: Record<NonNullable<CardProps['padding']>, string> = {
-  none: 'p-0',
-  sm: 'p-3.5',
-  md: 'p-[18px]',
-  lg: 'p-7',
+const paddingValue: Record<NonNullable<CardProps['padding']>, number> = {
+  none: 0,
+  sm: 14,
+  md: 18,
+  lg: 28,
 };
 
 const blurClass: Record<NonNullable<CardProps['blurVariant']>, string> = {
@@ -50,12 +51,15 @@ const Card = React.forwardRef<View, CardProps>(
     ref
   ) => {
     const Component = onPress ? TouchableOpacity : View;
+    const { isTablet } = useResponsive();
+    const basePadding = paddingValue[padding];
+    const resolvedPadding = basePadding === 0 ? 0 : moderateScale(basePadding, isTablet ? 0.7 : 0.35);
 
     return (
       <Animated.View ref={ref as any} entering={animated ? FadeIn.duration(240) : undefined}>
         <Component
-          className={`rounded-3xl border ${cardVariantClass[variant]} ${paddingClass[padding]} ${blurClass[blurVariant]}`}
-          style={style}
+          className={`rounded-3xl border ${cardVariantClass[variant]} ${blurClass[blurVariant]}`}
+          style={[{ padding: resolvedPadding }, style]}
           onPress={onPress}
           activeOpacity={onPress ? 0.9 : 1}
         >

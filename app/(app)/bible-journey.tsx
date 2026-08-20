@@ -3,10 +3,16 @@ import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { mockBibleJourneyProgress, mockBibleJourneySessionPlan } from '@services/mockData';
-import { ReadingPeriod, useBibleJourneyStore } from '@store/bibleJourneyStore';
+import type { ReadingPeriod } from '@/types/index';
+import { calculateReadingProgressPercent } from '@/store/userReadingProgressStore';
+import { formatDayReadingReference, getReadingSubtitle } from '@/lib/helper';
+import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
+import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
+import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
+import { useStreak } from '@/hooks/useStreak';
+import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
 
 type JourneyStepProps = {
   title: string;
@@ -63,41 +69,32 @@ const BibleJourneyScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const getCompletedChaptersForToday = useBibleJourneyStore((state) => state.getCompletedChaptersForToday);
-  const isReflectionCompleteForToday = useBibleJourneyStore((state) => state.isReflectionCompleteForToday);
-  const getStreakStats = useBibleJourneyStore((state) => state.getStreakStats);
+  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
+  const { countCompleted } = useUserReadingProgress();
+  const { eveningUnlocked, morningComplete: morningReadingDone, eveningComplete: eveningReadingDone } = useReadingPeriodLock();
+  const { currentStreak, longestStreak } = useStreak();
 
-  const streakStats = getStreakStats();
-  const morningCompletedChapters = getCompletedChaptersForToday('morning').filter((reference) =>
-    mockBibleJourneySessionPlan.morning.includes(reference),
-  ).length;
-  const eveningCompletedChapters = getCompletedChaptersForToday('evening').filter((reference) =>
-    mockBibleJourneySessionPlan.evening.includes(reference),
-  ).length;
+  const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
+  const eveningReferences = readingSchedule?.evening.map(formatDayReadingReference) ?? [];
+  const morningScheduleIds = readingSchedule?.morning.map((reading) => reading.id) ?? [];
+  const eveningScheduleIds = readingSchedule?.evening.map((reading) => reading.id) ?? [];
+  const morningCompletedChapters = countCompleted(morningScheduleIds);
+  const eveningCompletedChapters = countCompleted(eveningScheduleIds);
 
-  const morningTotal = mockBibleJourneySessionPlan.morning.length;
-  const eveningTotal = mockBibleJourneySessionPlan.evening.length;
+  const morningTotal = morningReferences.length;
+  const eveningTotal = eveningReferences.length;
   const totalTodayChapters = morningTotal + eveningTotal;
-  const totalCompletedChapters = morningCompletedChapters + eveningCompletedChapters;
-  const dayProgressPercent = totalTodayChapters ? Math.round((totalCompletedChapters / totalTodayChapters) * 100) : 0;
-  const yearlyProgressPercent = Math.round((mockBibleJourneyProgress.completedReadings / mockBibleJourneyProgress.totalReadings) * 100);
-
-  const morningReadingDone = morningCompletedChapters >= morningTotal;
-  const morningReflectionDone = isReflectionCompleteForToday('morning');
-  const eveningUnlocked = morningReadingDone && morningReflectionDone;
-  const eveningReadingDone = eveningCompletedChapters >= eveningTotal;
-  const eveningReflectionDone = isReflectionCompleteForToday('evening');
+  const totalCompletedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
+  const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
+  const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null && bibleReadingPlan.total_days > 0
+    ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
+    : 0;
+  const morningSubtitle = getReadingSubtitle(morningReferences, 'morning', isLoadingReadingSchedule);
+  const eveningSubtitle = getReadingSubtitle(eveningReferences, 'evening', isLoadingReadingSchedule);
 
   const openReading = (period: ReadingPeriod) => {
     router.push({
       pathname: '/(app)/bible-reading-select',
-      params: { period },
-    });
-  };
-
-  const openReflectionIntro = (period: ReadingPeriod) => {
-    router.push({
-      pathname: '/(app)/bible-reflection-intro',
       params: { period },
     });
   };
@@ -121,50 +118,31 @@ const BibleJourneyScreen = () => {
         className="px-5"
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
             <Feather name="chevron-left" size={20} color="#181818" />
           </TouchableOpacity>
 
-          <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">Bible Journey</Text>
-            <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
+          <View className="mx-2 flex-1 items-center">
+            <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">{bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber} Bible Journey` : 'Bible Journey'}</Text>
+            <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
           </View>
 
-          <TouchableOpacity onPress={() => router.push('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+          <TouchableOpacity onPress={() => router.push('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
             <Feather name="home" size={17} color="#181818" />
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(70).duration(320)} className="mt-5 overflow-hidden rounded-[24px] bg-[#17191B]">
-          <LinearGradient colors={['#202225', '#151719']} className="p-5">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-4">
-                <View className="flex-row items-center">
-                  <FontAwesome5 name="fire" size={13} color="#FF7A00" solid />
-                  <Text className="ml-2 text-[11px] font-black uppercase tracking-[0.7px] text-[#FFB56D]">Today&apos;s Journey</Text>
-                </View>
-                <Text className="mt-3 text-[32px] font-black leading-[36px] text-white">{dayProgressPercent}%</Text>
-                <Text className="mt-1 text-[12px] font-semibold leading-5 text-[#CFC8BE]">
-                  {totalCompletedChapters} of {totalTodayChapters} chapters completed today.
-                </Text>
-              </View>
-
-              <View className="h-[88px] w-[88px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
-                <Text className="text-[20px] font-black text-white">{streakStats.currentStreak}</Text>
-                <Text className="text-[9px] font-bold text-[#D8D1C8]">days</Text>
-              </View>
-            </View>
-
-            <View className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/15">
-              <View className="h-full rounded-full bg-[#FF7A00]" style={{ width: `${dayProgressPercent}%` }} />
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        <TodayJourneyProgressCard
+          progressPercent={dayProgressPercent}
+          completedChapters={totalCompletedChapters}
+          totalChapters={totalTodayChapters}
+          currentStreak={currentStreak}
+        />
 
         <Animated.View entering={FadeInDown.delay(120).duration(320)} className="mt-4 flex-row gap-3">
           <MiniStat icon="book-open" value={`${yearlyProgressPercent}%`} label="Year Goal" tint="#16A34A" />
           <MiniStat icon="calendar" value={`${totalTodayChapters}`} label="Chapters Today" tint="#FF7A00" />
-          <MiniStat icon="award" value={`${streakStats.longestStreak}`} label="Best Streak" tint="#3768D8" />
+          <MiniStat icon="award" value={`${longestStreak}`} label="Best Streak" tint="#3768D8" />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(170).duration(320)} className="mt-5">
@@ -176,7 +154,7 @@ const BibleJourneyScreen = () => {
           <View className="gap-3">
             <JourneyStep
               title="Morning Reading"
-              subtitle={mockBibleJourneySessionPlan.morning.join(' / ')}
+              subtitle={morningSubtitle}
               meta={`${morningCompletedChapters}/${morningTotal} chapters complete`}
               icon="sunrise"
               accent="#FF7A00"
@@ -186,39 +164,15 @@ const BibleJourneyScreen = () => {
             />
 
             <JourneyStep
-              title="Morning Reflection"
-              subtitle="Pause, process, and capture what stood out from the morning reading."
-              meta={morningReadingDone ? 'Unlocked after reading' : 'Finish morning chapters first'}
-              icon="edit-3"
-              accent="#16A34A"
-              complete={morningReflectionDone}
-              locked={!morningReadingDone}
-              buttonLabel={morningReflectionDone ? 'Open Reflection' : 'Reflect on Morning Reading'}
-              onPress={() => openReflectionIntro('morning')}
-            />
-
-            <JourneyStep
               title="Evening Reading"
-              subtitle={mockBibleJourneySessionPlan.evening.join(' / ')}
-              meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reflection'}
+              subtitle={eveningSubtitle}
+              meta={eveningUnlocked ? `${eveningCompletedChapters}/${eveningTotal} chapters complete` : 'Unlocks after morning reading'}
               icon="moon"
               accent="#3768D8"
               complete={eveningReadingDone}
               locked={!eveningUnlocked}
               buttonLabel={eveningReadingDone ? 'Review Evening Chapters' : 'Select Evening Chapter'}
               onPress={() => openReading('evening')}
-            />
-
-            <JourneyStep
-              title="Evening Reflection"
-              subtitle="Close the day by writing what God highlighted through the evening chapters."
-              meta={eveningReadingDone ? 'Ready for reflection' : 'Finish evening chapters first'}
-              icon="heart"
-              accent="#16A34A"
-              complete={eveningReflectionDone}
-              locked={!eveningReadingDone}
-              buttonLabel={eveningReflectionDone ? 'Open Reflection' : 'Reflect on Evening Reading'}
-              onPress={() => openReflectionIntro('evening')}
             />
           </View>
         </Animated.View>
@@ -231,7 +185,7 @@ const BibleJourneyScreen = () => {
             <View className="ml-3 flex-1">
               <Text className="text-[13px] font-black text-[#171717]">Stay steady today</Text>
               <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">
-                Complete the reading first, then reflection. The evening session opens after your morning reflection is done.
+                Complete the morning reading first. The evening session opens right after.
               </Text>
             </View>
           </View>

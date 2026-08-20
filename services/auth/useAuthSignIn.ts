@@ -1,17 +1,7 @@
 import { useCallback } from 'react';
 import { useSignIn } from '@clerk/expo';
-import { toAuthError, type AuthErrorShape } from './errors';
-
-export interface SignInInput {
-  identifier: string;
-  password: string;
-}
-
-export interface SignInResult {
-  complete: boolean;
-  needsSecondFactor?: boolean;
-  error?: AuthErrorShape;
-}
+import type { SignInInput, SignInResult } from '@/types/index';
+import { toAuthError } from './errors';
 
 export const useAuthSignIn = () => {
   const { signIn, fetchStatus } = useSignIn();

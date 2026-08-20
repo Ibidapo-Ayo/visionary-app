@@ -1,70 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-export type ReadingReaction =
-  | 'Encouraging'
-  | 'Challenging'
-  | 'Peaceful'
-  | 'Eye-opening'
-  | 'I need more understanding';
-
-export type ReadingPeriod = 'morning' | 'evening';
-
-export interface DailyReadingProgress {
-  dateKey: string;
-  morningCompleted: boolean;
-  eveningCompleted: boolean;
-  dailyCompleted: boolean;
-  reflectionCompletedByPeriod: Partial<Record<ReadingPeriod, boolean>>;
-  completedChaptersByPeriod: Partial<Record<ReadingPeriod, string[]>>;
-  reactions: Partial<Record<ReadingPeriod, ReadingReaction>>;
-  reflections: Partial<Record<ReadingPeriod, string>>;
-  completedAtByPeriod: Partial<Record<ReadingPeriod, string>>;
-  readingReferenceByPeriod: Partial<Record<ReadingPeriod, string>>;
-}
-
-export interface StreakStats {
-  currentStreak: number;
-  longestStreak: number;
-  totalCompletedDays: number;
-}
-
-interface BibleJourneyStore {
-  dailyProgressByDate: Record<string, DailyReadingProgress>;
-  markSessionReadingCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    readingReference: string;
-  }) => void;
-  markReflectionCompleteForToday: (payload: {
-    period: ReadingPeriod;
-  }) => void;
-  isReflectionCompleteForToday: (period: ReadingPeriod) => boolean;
-  markPeriodCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    readingReference: string;
-  }) => void;
-  completeReadingForToday: (payload: {
-    period: ReadingPeriod;
-    reaction: ReadingReaction;
-    reflection?: string;
-    readingReference: string;
-  }) => void;
-  markChapterCompleteForToday: (payload: {
-    period: ReadingPeriod;
-    chapterReference: string;
-  }) => void;
-  getCompletedChaptersForToday: (period: ReadingPeriod) => string[];
-  getTodayProgress: () => DailyReadingProgress;
-  getStreakStats: () => StreakStats;
-}
-
-const toDateKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import type { BibleJourneyStore, DailyReadingProgress } from '@/types/index';
+import { getDateRangeBounds, toDateKey } from '@/lib/helper';
 
 const getDateKey = () => toDateKey(new Date());
 
@@ -73,7 +11,6 @@ const getDefaultDailyProgress = (dateKey: string): DailyReadingProgress => ({
   morningCompleted: false,
   eveningCompleted: false,
   dailyCompleted: false,
-  reflectionCompletedByPeriod: {},
   completedChaptersByPeriod: {},
   reactions: {},
   reflections: {},
@@ -81,19 +18,8 @@ const getDefaultDailyProgress = (dateKey: string): DailyReadingProgress => ({
   readingReferenceByPeriod: {},
 });
 
-const dateDiffInDays = (fromDateKey: string, toDateKey: string) => {
-  const from = new Date(`${fromDateKey}T00:00:00`);
-  const to = new Date(`${toDateKey}T00:00:00`);
-  return Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
-};
-
 const computeDailyCompleted = (progress: DailyReadingProgress) =>
-  Boolean(
-    progress.morningCompleted &&
-      progress.eveningCompleted &&
-      progress.reflectionCompletedByPeriod?.morning &&
-      progress.reflectionCompletedByPeriod?.evening,
-  );
+  Boolean(progress.morningCompleted && progress.eveningCompleted);
 
 export const useBibleJourneyStore = create<BibleJourneyStore>()(
   persist(
@@ -130,37 +56,6 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
             },
           };
         });
-      },
-      markReflectionCompleteForToday: ({ period }) => {
-        const dateKey = getDateKey();
-
-        set((state) => {
-          const dailyProgressByDate = state.dailyProgressByDate ?? {};
-          const todayState = dailyProgressByDate[dateKey] ?? getDefaultDailyProgress(dateKey);
-
-          const nextProgress: DailyReadingProgress = {
-            ...todayState,
-            reflectionCompletedByPeriod: {
-              ...todayState.reflectionCompletedByPeriod,
-              [period]: true,
-            },
-          };
-
-          return {
-            dailyProgressByDate: {
-              ...dailyProgressByDate,
-              [dateKey]: {
-                ...nextProgress,
-                dailyCompleted: computeDailyCompleted(nextProgress),
-              },
-            },
-          };
-        });
-      },
-      isReflectionCompleteForToday: (period) => {
-        const dateKey = getDateKey();
-        const dailyProgressByDate = get().dailyProgressByDate ?? {};
-        return Boolean(dailyProgressByDate[dateKey]?.reflectionCompletedByPeriod?.[period]);
       },
       markPeriodCompleteForToday: ({ period, readingReference }) => {
         const dateKey = getDateKey();
@@ -274,52 +169,54 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
         const dailyProgressByDate = get().dailyProgressByDate ?? {};
         return dailyProgressByDate[dateKey] ?? getDefaultDailyProgress(dateKey);
       },
-      getStreakStats: () => {
-        const entries = Object.values(get().dailyProgressByDate ?? {})
-          .filter((entry) => entry.dailyCompleted)
-          .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+      getProgressStatsForRange: (range) => {
+        const { start, end } = getDateRangeBounds(range);
+        const entries = Object.values(get().dailyProgressByDate ?? {}).filter(
+          (entry) => entry.dateKey >= start && entry.dateKey <= end,
+        );
 
-        if (!entries.length) {
-          return {
-            currentStreak: 0,
-            longestStreak: 0,
-            totalCompletedDays: 0,
-          };
-        }
+        const reflections = entries.reduce((count, entry) => {
+          const reflectionCount = [entry.reflections?.morning, entry.reflections?.evening].filter((reflection) =>
+            Boolean(reflection?.trim()),
+          ).length;
 
-        let longest = 1;
-        let running = 1;
+          return count + reflectionCount;
+        }, 0);
 
-        for (let i = 1; i < entries.length; i += 1) {
-          const prev = entries[i - 1];
-          const current = entries[i];
-          if (dateDiffInDays(prev.dateKey, current.dateKey) === 1) {
-            running += 1;
-          } else {
-            running = 1;
-          }
-
-          longest = Math.max(longest, running);
-        }
-
-        const completedKeySet = new Set(entries.map((entry) => entry.dateKey));
-        let currentStreak = 0;
-        let cursor = new Date();
-        while (completedKeySet.has(toDateKey(cursor))) {
-          currentStreak += 1;
-          cursor.setDate(cursor.getDate() - 1);
-        }
-
-        return {
-          currentStreak,
-          longestStreak: longest,
-          totalCompletedDays: entries.length,
-        };
+        return { reflections };
       },
     }),
     {
       name: 'bible-journey-store',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persistedState) => {
+        if (!persistedState || typeof persistedState !== 'object') {
+          return persistedState;
+        }
+
+        const state = persistedState as {
+          dailyProgressByDate?: Record<string, DailyReadingProgress & { reflectionCompleted?: unknown; reflectionCompletedByPeriod?: unknown }>;
+        };
+
+        const dailyProgressByDate = state.dailyProgressByDate ?? {};
+        const migratedDailyProgressByDate = Object.fromEntries(
+          Object.entries(dailyProgressByDate).map(([dateKey, progress]) => {
+            const { reflectionCompleted: _reflectionCompleted, reflectionCompletedByPeriod: _reflectionCompletedByPeriod, ...rest } = progress;
+            const nextProgress: DailyReadingProgress = {
+              ...rest,
+              dailyCompleted: computeDailyCompleted(rest),
+            };
+
+            return [dateKey, nextProgress];
+          }),
+        );
+
+        return {
+          ...state,
+          dailyProgressByDate: migratedDailyProgressByDate,
+        };
+      },
     },
   ),
 );

@@ -1,3 +1,5 @@
+import type { SupabaseEnv } from '@/types/index';
+
 const requireEnv = (name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANON_KEY'): string => {
   const value = process.env[name]?.trim();
 
@@ -9,11 +11,6 @@ const requireEnv = (name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANO
 
   return value;
 };
-
-export interface SupabaseEnv {
-  url: string;
-  anonKey: string;
-}
 
 export const getSupabaseEnv = (): SupabaseEnv => ({
   url: requireEnv('EXPO_PUBLIC_SUPABASE_URL'),

@@ -1,12 +1,11 @@
 import 'react-native-url-polyfill/auto';
 
 import { createClient } from '@supabase/supabase-js';
+import type { ClerkGetToken } from '@/types/index';
 import { getSupabaseEnv } from './env';
 
 const SUPABASE_JWT_TEMPLATE = 'supabase';
 const TOKEN_CACHE_TTL_MS = 55_000;
-
-type ClerkGetToken = (options?: { template?: string }) => Promise<string | null>;
 
 let clerkGetToken: ClerkGetToken | null = null;
 let cachedToken: string | null = null;

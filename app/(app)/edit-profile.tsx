@@ -18,7 +18,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
-import { syncProfileFromStoreUser } from '@services/supabase';
+import { deleteProfileImageAsset, syncProfileFromStoreUser, uploadProfileImageAsset } from '@services/supabase';
+import BrandedSpinner from '@/components/BrandedSpinner';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
   const firstInitial = firstName?.trim()?.charAt(0) ?? '';
@@ -73,14 +74,22 @@ const EditProfileScreen = () => {
   const [bio, setBio] = React.useState(user?.bio ?? '');
   const [profileImage, setProfileImage] = React.useState(user?.profileImage ?? '');
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  // Object path of an uploaded photo not yet confirmed by a successful save.
+  const pendingUploadObjectPathRef = React.useRef<string | null>(null);
 
   const previewInitials = getInitials(firstName, lastName, email);
   const trimmedImage = profileImage.trim();
   const shouldShowPreviewImage = !!trimmedImage && !avatarLoadFailed;
   const previewName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Visionary Member';
-  const isReadyToSave = Boolean(firstName.trim() && lastName.trim() && email.trim());
+  const isReadyToSave = Boolean(firstName.trim() && lastName.trim() && email.trim()) && !isSaving && !isUploadingPhoto;
 
   const pickImageFromGallery = async () => {
+    if (isUploadingPhoto || isSaving) {
+      return;
+    }
+
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permissionResult.granted) {
@@ -88,22 +97,55 @@ const EditProfileScreen = () => {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    setIsUploadingPhoto(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
 
-    if (result.canceled || !result.assets?.length) {
-      return;
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      if (!user?.id) {
+        Alert.alert('Error', 'No user profile found.');
+        return;
+      }
+
+      const { publicUrl, objectPath } = await uploadProfileImageAsset(
+        user.id,
+        result.assets[0].uri,
+        result.assets[0].base64 ?? undefined,
+        result.assets[0].mimeType,
+      );
+
+      // Replacing a still-unsaved upload: remove the previous orphan before tracking the new one.
+      const previousPendingObjectPath = pendingUploadObjectPathRef.current;
+      pendingUploadObjectPathRef.current = objectPath;
+
+      setAvatarLoadFailed(false);
+      setProfileImage(publicUrl);
+
+      if (previousPendingObjectPath) {
+        void deleteProfileImageAsset(previousPendingObjectPath);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to upload photo.';
+      Alert.alert('Upload failed', message);
+    } finally {
+      setIsUploadingPhoto(false);
     }
-
-    setAvatarLoadFailed(false);
-    setProfileImage(result.assets[0].uri);
   };
 
   const handleSave = async () => {
+    if (isSaving) {
+      return;
+    }
+
     if (!user) {
       Alert.alert('Error', 'No user profile found.');
       return;
@@ -130,13 +172,41 @@ const EditProfileScreen = () => {
       updatedAt: new Date().toISOString(),
     };
 
+    setIsSaving(true);
     try {
       await syncProfileFromStoreUser(updatedUser);
       setUser(updatedUser);
+      // Save succeeded, so the pending upload is now the persisted profile image.
+      pendingUploadObjectPathRef.current = null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sync profile.';
       Alert.alert('Sync failed', message);
+
+      const pendingObjectPath = pendingUploadObjectPathRef.current;
+      if (pendingObjectPath) {
+        pendingUploadObjectPathRef.current = null;
+        void deleteProfileImageAsset(pendingObjectPath);
+        setAvatarLoadFailed(false);
+        setProfileImage(user.profileImage ?? '');
+      }
+
       return;
+    } finally {
+      setIsSaving(false);
+    }
+
+    router.back();
+  };
+
+  const handleCancel = () => {
+    if (isSaving || isUploadingPhoto) {
+      return;
+    }
+
+    const pendingObjectPath = pendingUploadObjectPathRef.current;
+    if (pendingObjectPath) {
+      pendingUploadObjectPathRef.current = null;
+      void deleteProfileImageAsset(pendingObjectPath);
     }
 
     router.back();
@@ -152,22 +222,22 @@ const EditProfileScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <TouchableOpacity onPress={handleCancel} activeOpacity={0.82} disabled={isSaving || isUploadingPhoto} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
               <Feather name="chevron-left" size={20} color="#181818" />
             </TouchableOpacity>
 
-            <View className="items-center">
-              <Text className="text-[16px] font-black text-[#171717]">Edit Profile</Text>
-              <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Identity and contact</Text>
+            <View className="mx-2 flex-1 items-center">
+              <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">Edit Profile</Text>
+              <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Identity and contact</Text>
             </View>
 
             <TouchableOpacity
               onPress={handleSave}
               disabled={!isReadyToSave}
               activeOpacity={0.84}
-              className={`h-10 w-10 items-center justify-center rounded-full ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#E2D7CB]'}`}
+              className={`h-10 w-10 shrink-0 items-center justify-center rounded-full ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#E2D7CB]'}`}
             >
-              <Feather name="check" size={18} color="#FFFFFF" />
+              {isSaving ? <BrandedSpinner size={18} tone="light" /> : <Feather name="check" size={18} color="#FFFFFF" />}
             </TouchableOpacity>
           </Animated.View>
 
@@ -177,7 +247,7 @@ const EditProfileScreen = () => {
               <View className="absolute -left-12 bottom-0 h-32 w-32 rounded-full border border-[#2D2D2D]" />
 
               <View className="flex-row items-center">
-                <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.9} className="relative">
+                <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.9} disabled={isUploadingPhoto || isSaving} className="relative">
                   <View className="h-[92px] w-[92px] overflow-hidden rounded-full border-[4px] border-white bg-[#242628]">
                     {shouldShowPreviewImage ? (
                       <Image
@@ -191,6 +261,12 @@ const EditProfileScreen = () => {
                         <Text className="text-[29px] font-black text-[#FF7A00]">{previewInitials}</Text>
                       </View>
                     )}
+
+                    {isUploadingPhoto ? (
+                      <View className="absolute inset-0 items-center justify-center bg-black/40">
+                        <BrandedSpinner size={28} tone="light" />
+                      </View>
+                    ) : null}
                   </View>
 
                   <View className="absolute bottom-1 right-1 h-8 w-8 items-center justify-center rounded-full border-2 border-[#17191B] bg-[#FF7A00]">
@@ -203,8 +279,13 @@ const EditProfileScreen = () => {
                   <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#CFC8BE]">
                     This profile is used across attendance, Bible Journey, and community spaces.
                   </Text>
-                  <TouchableOpacity onPress={pickImageFromGallery} activeOpacity={0.84} className="mt-3 self-start rounded-full bg-white/10 px-3 py-2">
-                    <Text className="text-[10px] font-black text-[#FFB56D]">Change photo</Text>
+                  <TouchableOpacity
+                    onPress={pickImageFromGallery}
+                    activeOpacity={0.84}
+                    disabled={isUploadingPhoto || isSaving}
+                    className="mt-3 self-start rounded-full bg-white/10 px-3 py-2"
+                  >
+                    <Text className="text-[10px] font-black text-[#FFB56D]">{isUploadingPhoto ? 'Uploading…' : 'Change photo'}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -304,11 +385,25 @@ const EditProfileScreen = () => {
               activeOpacity={0.9}
               className={`h-14 flex-row items-center justify-center rounded-[18px] ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#D8C7B5]'}`}
             >
-              <Feather name="save" size={16} color="#FFFFFF" />
-              <Text className="ml-2 text-[14px] font-black text-white">Save Changes</Text>
+              {isSaving ? (
+                <>
+                  <BrandedSpinner size={18} tone="light" />
+                  <Text className="ml-2 text-[14px] font-black text-white">Saving…</Text>
+                </>
+              ) : (
+                <>
+                  <Feather name="save" size={16} color="#FFFFFF" />
+                  <Text className="ml-2 text-[14px] font-black text-white">Save Changes</Text>
+                </>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.82} className="items-center justify-center rounded-[18px] border border-[#E6D9C9] bg-white py-4">
+            <TouchableOpacity
+              onPress={handleCancel}
+              activeOpacity={0.82}
+              disabled={isSaving || isUploadingPhoto}
+              className="items-center justify-center rounded-[18px] border border-[#E6D9C9] bg-white py-4"
+            >
               <Text className="text-[13px] font-black text-[#5F554B]">Cancel</Text>
             </TouchableOpacity>
           </Animated.View>

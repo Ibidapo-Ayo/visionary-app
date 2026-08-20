@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, View, ViewStyle } from 'react-native';
+import { moderateScale, scaleFont } from '../lib/responsive';
 
 type BadgeVariant = 'default' | 'new' | 'at-risk' | 'success' | 'info' | 'primary';
 
@@ -28,8 +29,11 @@ const labelVariantClass: Record<BadgeVariant, string> = {
 };
 
 const Badge = ({ label, variant = 'default', style }: BadgeProps) => (
-  <View className={`self-start rounded-full border px-2.5 py-1 ${badgeVariantClass[variant]}`} style={style}>
-    <Text className={`text-[11px] font-bold capitalize ${labelVariantClass[variant]}`}>{label}</Text>
+  <View
+    className={`self-start rounded-full border ${badgeVariantClass[variant]}`}
+    style={[{ paddingHorizontal: moderateScale(10, 0.35), paddingVertical: moderateScale(4, 0.35) }, style]}
+  >
+    <Text className={`font-bold capitalize ${labelVariantClass[variant]}`} style={{ fontSize: scaleFont(11) }}>{label}</Text>
   </View>
 );
 

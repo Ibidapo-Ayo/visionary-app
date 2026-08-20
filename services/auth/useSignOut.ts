@@ -1,12 +1,8 @@
 import { useCallback } from 'react';
 import { useClerk } from '@clerk/expo';
 import { useAuthStore } from '@store/authStore';
-import { toAuthError, type AuthErrorShape } from './errors';
-
-export interface SignOutResult {
-  success: boolean;
-  error?: AuthErrorShape;
-}
+import type { SignOutResult } from '@/types/index';
+import { toAuthError } from './errors';
 
 export const useSignOut = () => {
   const { signOut } = useClerk();
