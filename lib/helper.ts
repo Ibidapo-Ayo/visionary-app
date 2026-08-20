@@ -15,11 +15,10 @@ export const getInitials = (
   return (email?.trim()?.charAt(0) ?? "V").toUpperCase();
 };
 
-export function getCurrentSession() {
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const getCurrentSession = (): "morning" | "evening" => {
   const hour = new Date().getHours();
   return hour < 15 ? "morning" : "evening";
-}
+};
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
