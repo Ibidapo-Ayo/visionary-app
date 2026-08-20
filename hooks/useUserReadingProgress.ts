@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 
@@ -31,14 +31,20 @@ export const useUserReadingProgress = () => {
     return resolveSupabaseUserId(user.id);
   }, [user?.id, supabaseUserId, supabaseUserIdClerkUserId, resolveSupabaseUserId]);
 
+  // Remembers which Clerk user the currently loaded Supabase progress belongs to.
+  const loadedUserOwnerRef = useRef<{ clerkUserId: string; supabaseUserId: string } | null>(null);
+
   useEffect(() => {
     if (!user?.id) {
       return;
     }
 
+    const clerkUserId = user.id;
+
     void resolveUserId()
       .then((resolvedUserId) => {
         if (resolvedUserId) {
+          loadedUserOwnerRef.current = { clerkUserId, supabaseUserId: resolvedUserId };
           return loadUserReadingProgress(resolvedUserId);
         }
       })
@@ -48,12 +54,15 @@ export const useUserReadingProgress = () => {
   }, [user?.id, resolveUserId, loadUserReadingProgress]);
 
   const completedScheduleIds = useMemo(() => {
-    const resolvedId =
-      supabaseUserId && user?.id && supabaseUserIdClerkUserId === user.id
-        ? supabaseUserId
-        : loadedUserId;
+    if (supabaseUserId && user?.id && supabaseUserIdClerkUserId === user.id) {
+      return new Set(completedScheduleIdsByUser[supabaseUserId] ?? []);
+    }
 
-    return new Set(resolvedId ? completedScheduleIdsByUser[resolvedId] ?? [] : []);
+    const owner = loadedUserOwnerRef.current;
+    const canUseLoadedFallback =
+      owner && user?.id && owner.clerkUserId === user.id && owner.supabaseUserId === loadedUserId;
+
+    return new Set(canUseLoadedFallback ? completedScheduleIdsByUser[loadedUserId] ?? [] : []);
   }, [completedScheduleIdsByUser, supabaseUserId, supabaseUserIdClerkUserId, loadedUserId, user?.id]);
 
   const isChapterComplete = useCallback(

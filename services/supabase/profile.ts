@@ -121,6 +121,8 @@ const getImageExtensionFromUri = (uri: string): string => {
   return extension;
 };
 
+const ACCEPTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+
 const getImageMimeType = (extension: string): string => {
   switch (extension) {
     case 'png':
@@ -130,18 +132,28 @@ const getImageMimeType = (extension: string): string => {
     case 'heic':
       return 'image/heic';
     case 'jpg':
-    default:
       return 'image/jpeg';
+    default:
+      throw new Error(`[supabase] Unsupported profile image type: .${extension}`);
   }
+};
+
+export type UploadedProfileImage = {
+  publicUrl: string;
+  objectPath: string;
 };
 
 export const uploadProfileImageAsset = async (
   userId: string,
   localAssetUri: string,
   imageBase64?: string,
-): Promise<string> => {
+  pickerMimeType?: string,
+): Promise<UploadedProfileImage> => {
   const extension = getImageExtensionFromUri(localAssetUri);
-  const contentType = getImageMimeType(extension);
+  const normalizedPickerMimeType = pickerMimeType?.trim().toLowerCase();
+  const contentType = ACCEPTED_IMAGE_MIME_TYPES.has(normalizedPickerMimeType ?? '')
+    ? (normalizedPickerMimeType as string)
+    : getImageMimeType(extension);
   const objectPath = `${userId}/${Date.now()}.${extension}`;
 
   if (!imageBase64?.trim()) {
@@ -163,7 +175,16 @@ export const uploadProfileImageAsset = async (
     throw new Error('[supabase] Profile image upload succeeded but no public URL was returned.');
   }
 
-  return publicUrlData.publicUrl;
+  return { publicUrl: publicUrlData.publicUrl, objectPath };
+};
+
+// Best-effort cleanup for uploads that never become the persisted profile image.
+export const deleteProfileImageAsset = async (objectPath: string): Promise<void> => {
+  const { error } = await supabase.storage.from(PROFILE_IMAGES_BUCKET).remove([objectPath]);
+
+  if (error) {
+    console.warn(`[supabase] Failed to delete orphaned profile image ${objectPath}: ${error.message}`);
+  }
 };
 
 export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {

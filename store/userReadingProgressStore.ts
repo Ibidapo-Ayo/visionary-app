@@ -47,10 +47,11 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       completedScheduleDaysByUser: {},
       loadedUserId: null,
       loadingUserId: null,
+      progressRequestVersion: 0,
       isLoadingProgress: false,
       progressError: null,
       loadUserReadingProgress: async (supabaseUserId, options) => {
-        const { loadedUserId, loadingUserId } = get();
+        const { loadedUserId, loadingUserId, progressRequestVersion } = get();
         const force = options?.force ?? false;
 
         if (loadedUserId === supabaseUserId && !force) {
@@ -61,7 +62,14 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           return;
         }
 
-        set({ isLoadingProgress: true, loadingUserId: supabaseUserId, progressError: null });
+        const requestVersion = progressRequestVersion + 1;
+
+        set({
+          isLoadingProgress: true,
+          loadingUserId: supabaseUserId,
+          progressRequestVersion: requestVersion,
+          progressError: null,
+        });
 
         try {
           const completedScheduleDays =
@@ -69,6 +77,14 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           const completedScheduleIds = completedScheduleDays.map(
             (row) => row.scheduleId,
           );
+
+          const currentState = get();
+          if (
+            currentState.loadingUserId !== supabaseUserId ||
+            currentState.progressRequestVersion !== requestVersion
+          ) {
+            return;
+          }
 
           set((state) => ({
             completedScheduleIdsByUser: {
@@ -84,6 +100,14 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
             loadingUserId: null,
           }));
         } catch (error) {
+          const currentState = get();
+          if (
+            currentState.loadingUserId !== supabaseUserId ||
+            currentState.progressRequestVersion !== requestVersion
+          ) {
+            return;
+          }
+
           const message =
             error instanceof Error
               ? error.message
@@ -106,30 +130,12 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           return;
         }
 
-        const resolvedMetadata =
-          dayNumber !== undefined && session
-            ? { dayNumber, session }
-            : await getScheduleDayMetadata(scheduleId);
-
-        const optimisticDayEntry: CompletedScheduleDay = {
-          scheduleId,
-          dayNumber: resolvedMetadata.dayNumber,
-          session: resolvedMetadata.session,
-        };
-
         set((state) => ({
           completedScheduleIdsByUser: {
             ...state.completedScheduleIdsByUser,
             [supabaseUserId]: addCompletedScheduleId(
               state.completedScheduleIdsByUser[supabaseUserId] ?? [],
               scheduleId,
-            ),
-          },
-          completedScheduleDaysByUser: {
-            ...state.completedScheduleDaysByUser,
-            [supabaseUserId]: addCompletedScheduleDay(
-              state.completedScheduleDaysByUser[supabaseUserId] ?? [],
-              optimisticDayEntry,
             ),
           },
           loadedUserId: supabaseUserId,
@@ -151,13 +157,6 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
                   (id) => id !== scheduleId,
                 ) ?? [],
             },
-            completedScheduleDaysByUser: {
-              ...state.completedScheduleDaysByUser,
-              [supabaseUserId]:
-                state.completedScheduleDaysByUser[supabaseUserId]?.filter(
-                  (entry) => entry.scheduleId !== scheduleId,
-                ) ?? [],
-            },
             progressError:
               error instanceof Error
                 ? error.message
@@ -165,6 +164,34 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
           }));
 
           throw error;
+        }
+
+        // Best-effort for stats: the schedule-ID completion above already stuck even if this fails.
+        try {
+          const resolvedMetadata =
+            dayNumber !== undefined && session
+              ? { dayNumber, session }
+              : await getScheduleDayMetadata(scheduleId);
+
+          if (resolvedMetadata) {
+            const completedDayEntry: CompletedScheduleDay = {
+              scheduleId,
+              dayNumber: resolvedMetadata.dayNumber,
+              session: resolvedMetadata.session,
+            };
+
+            set((state) => ({
+              completedScheduleDaysByUser: {
+                ...state.completedScheduleDaysByUser,
+                [supabaseUserId]: addCompletedScheduleDay(
+                  state.completedScheduleDaysByUser[supabaseUserId] ?? [],
+                  completedDayEntry,
+                ),
+              },
+            }));
+          }
+        } catch (error) {
+          console.log("Error resolving schedule day metadata:", error);
         }
       },
       getCompletedScheduleCount: (scheduleIds) => {

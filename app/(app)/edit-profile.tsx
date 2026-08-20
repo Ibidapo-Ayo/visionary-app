@@ -18,7 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
-import { syncProfileFromStoreUser, uploadProfileImageAsset } from '@services/supabase';
+import { deleteProfileImageAsset, syncProfileFromStoreUser, uploadProfileImageAsset } from '@services/supabase';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
@@ -76,6 +76,8 @@ const EditProfileScreen = () => {
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  // Object path of an uploaded photo not yet confirmed by a successful save.
+  const pendingUploadObjectPathRef = React.useRef<string | null>(null);
 
   const previewInitials = getInitials(firstName, lastName, email);
   const trimmedImage = profileImage.trim();
@@ -114,10 +116,23 @@ const EditProfileScreen = () => {
         return;
       }
 
-      const uploadedProfileImage = await uploadProfileImageAsset(user.id, result.assets[0].uri, result.assets[0].base64 ?? undefined);
+      const { publicUrl, objectPath } = await uploadProfileImageAsset(
+        user.id,
+        result.assets[0].uri,
+        result.assets[0].base64 ?? undefined,
+        result.assets[0].mimeType,
+      );
+
+      // Replacing a still-unsaved upload: remove the previous orphan before tracking the new one.
+      const previousPendingObjectPath = pendingUploadObjectPathRef.current;
+      pendingUploadObjectPathRef.current = objectPath;
 
       setAvatarLoadFailed(false);
-      setProfileImage(uploadedProfileImage);
+      setProfileImage(publicUrl);
+
+      if (previousPendingObjectPath) {
+        void deleteProfileImageAsset(previousPendingObjectPath);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to upload photo.';
       Alert.alert('Upload failed', message);
@@ -161,12 +176,37 @@ const EditProfileScreen = () => {
     try {
       await syncProfileFromStoreUser(updatedUser);
       setUser(updatedUser);
+      // Save succeeded, so the pending upload is now the persisted profile image.
+      pendingUploadObjectPathRef.current = null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sync profile.';
       Alert.alert('Sync failed', message);
+
+      const pendingObjectPath = pendingUploadObjectPathRef.current;
+      if (pendingObjectPath) {
+        pendingUploadObjectPathRef.current = null;
+        void deleteProfileImageAsset(pendingObjectPath);
+        setAvatarLoadFailed(false);
+        setProfileImage(user.profileImage ?? '');
+      }
+
       return;
     } finally {
       setIsSaving(false);
+    }
+
+    router.back();
+  };
+
+  const handleCancel = () => {
+    if (isSaving || isUploadingPhoto) {
+      return;
+    }
+
+    const pendingObjectPath = pendingUploadObjectPathRef.current;
+    if (pendingObjectPath) {
+      pendingUploadObjectPathRef.current = null;
+      void deleteProfileImageAsset(pendingObjectPath);
     }
 
     router.back();
@@ -182,20 +222,20 @@ const EditProfileScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => router.back()} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <TouchableOpacity onPress={handleCancel} activeOpacity={0.82} disabled={isSaving || isUploadingPhoto} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
               <Feather name="chevron-left" size={20} color="#181818" />
             </TouchableOpacity>
 
-            <View className="items-center">
-              <Text className="text-[16px] font-black text-[#171717]">Edit Profile</Text>
-              <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Identity and contact</Text>
+            <View className="mx-2 flex-1 items-center">
+              <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">Edit Profile</Text>
+              <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Identity and contact</Text>
             </View>
 
             <TouchableOpacity
               onPress={handleSave}
               disabled={!isReadyToSave}
               activeOpacity={0.84}
-              className={`h-10 w-10 items-center justify-center rounded-full ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#E2D7CB]'}`}
+              className={`h-10 w-10 shrink-0 items-center justify-center rounded-full ${isReadyToSave ? 'bg-[#FF7A00]' : 'bg-[#E2D7CB]'}`}
             >
               {isSaving ? <BrandedSpinner size={18} tone="light" /> : <Feather name="check" size={18} color="#FFFFFF" />}
             </TouchableOpacity>
@@ -359,9 +399,9 @@ const EditProfileScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={handleCancel}
               activeOpacity={0.82}
-              disabled={isSaving}
+              disabled={isSaving || isUploadingPhoto}
               className="items-center justify-center rounded-[18px] border border-[#E6D9C9] bg-white py-4"
             >
               <Text className="text-[13px] font-black text-[#5F554B]">Cancel</Text>

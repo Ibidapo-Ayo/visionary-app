@@ -38,8 +38,12 @@ export const useReadingPeriodLockStore = create<ReadingPeriodLockState>()(() => 
       return true;
     }
 
+    if (!schedule) {
+      return false;
+    }
+
     const previousPeriod = PERIOD_ORDER[periodIndex - 1];
-    const previousChapters = schedule?.[previousPeriod] ?? [];
+    const previousChapters = schedule[previousPeriod] ?? [];
 
     if (previousChapters.length === 0) {
       return true;

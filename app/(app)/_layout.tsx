@@ -10,6 +10,7 @@ import { useSyncClerkAuth } from '@services/auth';
 import { useSupabaseClerkAuth } from '@services/supabase';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
 import { colors } from '../../lib/theme';
+import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '../../lib/responsive';
 
 const iconMap: Record<string, React.ComponentProps<typeof Feather>['name']> = {
   home: 'home',
@@ -90,7 +91,10 @@ const CenterTabIcon = ({ focused, icon }: { focused: boolean; icon: React.Compon
 
 const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const insets = useSafeAreaInsets();
+  const { isTablet, width } = useResponsive();
   const [containerWidth, setContainerWidth] = React.useState(0);
+  const sideMargin = isTablet ? Math.max((width - MAX_CONTENT_WIDTH) / 2, 18) : 18;
+  const tabBarHeight = moderateScale(64, 0.25);
 
   const activeRoute = state.routes[state.index];
   const shouldHideTabBar =
@@ -114,8 +118,8 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
     <View
       style={{
         position: 'absolute',
-        left: 18,
-        right: 18,
+        left: sideMargin,
+        right: sideMargin,
         bottom: Math.max(insets.bottom, 12),
       }}
     >
@@ -125,7 +129,7 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          height: 64,
+          height: tabBarHeight,
           borderRadius: 20,
           paddingHorizontal: 6,
           backgroundColor: '#FFFFFF',
@@ -170,7 +174,13 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
               ) : (
                 <>
                   <TabIcon focused={isFocused} icon={iconMap[route.name]} />
-                  <Text className={`mt-[3px] text-[8px] font-bold ${isFocused ? 'text-[#FF7A00]' : 'text-[#111111]'}`}>{label}</Text>
+                  <Text
+                    numberOfLines={1}
+                    className={`mt-[3px] font-bold ${isFocused ? 'text-[#FF7A00]' : 'text-[#111111]'}`}
+                    style={{ fontSize: scaleFont(9) }}
+                  >
+                    {label}
+                  </Text>
                   <View className={`mt-[3px] h-[2px] w-[14px] rounded-full ${isFocused ? 'bg-[#FF7A00]' : 'bg-transparent'}`} />
                 </>
               )}

@@ -9,15 +9,19 @@ type UpsertUserReadingProgressInput = {
 
 export const getScheduleDayMetadata = async (
   scheduleId: string,
-): Promise<{ dayNumber: number; session: CompletedScheduleDay['session'] }> => {
+): Promise<{ dayNumber: number; session: CompletedScheduleDay['session'] } | null> => {
   const response = await supabase
     .from(READING_SCHEDULE_TABLE)
     .select('day_number, session')
     .eq('id', scheduleId)
-    .single();
+    .maybeSingle();
 
   if (response.error) {
     throw response.error;
+  }
+
+  if (!response.data) {
+    return null;
   }
 
   return {
@@ -46,17 +50,35 @@ export const getCompletedUserReadingProgress = async (
 export const getCompletedScheduleDaysForUser = async (
   userId: string,
 ): Promise<CompletedScheduleDay[]> => {
-  const response = await supabase
-    .from(USER_READING_PROGRESS_TABLE)
-    .select(`schedule_id, ${READING_SCHEDULE_TABLE}!inner(day_number, session)`)
-    .eq("user_id", userId)
-    .eq("completed", true);
+  const pageSize = 1000;
+  const rows: Record<string, unknown>[] = [];
 
-  if (response.error) {
-    throw response.error;
+  // PostgREST caps unpaginated selects at ~1000 rows, so page through with stable ordering.
+  for (let page = 0; ; page += 1) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const response = await supabase
+      .from(USER_READING_PROGRESS_TABLE)
+      .select(`schedule_id, ${READING_SCHEDULE_TABLE}!inner(day_number, session)`)
+      .eq("user_id", userId)
+      .eq("completed", true)
+      .order("schedule_id", { ascending: true })
+      .range(from, to);
+
+    if (response.error) {
+      throw response.error;
+    }
+
+    const pageRows = (response.data ?? []) as Record<string, unknown>[];
+    rows.push(...pageRows);
+
+    if (pageRows.length < pageSize) {
+      break;
+    }
   }
 
-  return (response.data ?? []).map((row): CompletedScheduleDay => {
+  return rows.map((row): CompletedScheduleDay => {
     const typedRow = row as { schedule_id: string } & Record<string, unknown>;
     const schedule = typedRow[READING_SCHEDULE_TABLE] as { day_number: number; session: CompletedScheduleDay['session'] };
 

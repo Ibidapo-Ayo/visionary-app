@@ -337,6 +337,7 @@ export interface UserReadingProgressStore {
   completedScheduleDaysByUser: Record<string, CompletedScheduleDay[]>;
   loadedUserId: string | null;
   loadingUserId: string | null;
+  progressRequestVersion: number;
   isLoadingProgress: boolean;
   progressError: string | null;
   loadUserReadingProgress: (supabaseUserId: string, options?: { force?: boolean }) => Promise<void>;

@@ -118,16 +118,16 @@ const BibleJourneyScreen = () => {
         className="px-5"
       >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
             <Feather name="chevron-left" size={20} color="#181818" />
           </TouchableOpacity>
 
-          <View className="items-center">
-            <Text className="text-[16px] font-black text-[#171717]">{bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber} Bible Journey` : 'Bible Journey'}</Text>
-            <Text className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
+          <View className="mx-2 flex-1 items-center">
+            <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">{bibleReadingPlanDayNumber !== null ? `Day ${bibleReadingPlanDayNumber} Bible Journey` : 'Bible Journey'}</Text>
+            <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#81776D]">Daily rhythm</Text>
           </View>
 
-          <TouchableOpacity onPress={() => router.push('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+          <TouchableOpacity onPress={() => router.push('/(app)/home')} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
             <Feather name="home" size={17} color="#181818" />
           </TouchableOpacity>
         </Animated.View>

@@ -216,16 +216,16 @@ const BibleReadingScreenView = () => {
 
       <View className="px-5 pb-2" style={{ paddingTop: insets.top + 10 }}>
         <Animated.View entering={FadeIn.duration(220)} className="flex-row items-center justify-between">
-          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full">
+          <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full">
             <Feather name="chevron-left" size={21} color="#1C1C1C" />
           </TouchableOpacity>
 
-          <View className="items-center">
-            <Text className="text-[14px] font-black text-[#171717]">{currentReference}</Text>
-            <Text className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">{currentTranslationName}</Text>
+          <View className="mx-2 flex-1 items-center">
+            <Text numberOfLines={1} className="text-[14px] font-black text-[#171717]">{currentReference}</Text>
+            <Text numberOfLines={1} className="mt-0.5 text-[9px] font-semibold text-[#8A8176]">{currentTranslationName}</Text>
           </View>
 
-          <View className="flex-row items-center">
+          <View className="flex-row shrink-0 items-center">
             <TouchableOpacity activeOpacity={0.8} className="h-10 w-8 items-center justify-center">
               <Feather name="book-open" size={16} color="#1C1C1C" />
             </TouchableOpacity>

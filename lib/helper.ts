@@ -46,7 +46,6 @@ const parseLocalDate = (dateValue: string) => {
 
   return parsedDate;
 };
-};
 
 const toUtcDayIndex = (date: Date) =>
   Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY);

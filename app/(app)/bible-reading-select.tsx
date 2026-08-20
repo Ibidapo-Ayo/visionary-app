@@ -57,16 +57,16 @@ const BibleReadingSelectScreen = () => {
 
         <View className="px-5 pb-3" style={{ paddingTop: insets.top + 10 }}>
           <Animated.View entering={FadeIn.duration(220)} className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white">
+            <TouchableOpacity onPress={handleBackPress} activeOpacity={0.82} className="h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
               <Feather name="chevron-left" size={20} color="#1A1A1A" />
             </TouchableOpacity>
 
-            <View className="items-center">
-              <Text className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
-              <Text className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
+            <View className="mx-2 flex-1 items-center">
+              <Text numberOfLines={1} className="text-[16px] font-black text-[#171717]">{dayLabel} Bible Reading</Text>
+              <Text numberOfLines={1} className="mt-0.5 text-[10px] font-semibold text-[#80776D]">{sessionLabel}</Text>
             </View>
 
-            <View className="h-10 w-10" />
+            <View className="h-10 w-10 shrink-0" />
           </Animated.View>
         </View>
 
