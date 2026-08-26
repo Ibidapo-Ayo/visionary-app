@@ -102,7 +102,8 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
     activeRoute.name === 'edit-profile' ||
     activeRoute.name === 'ai' ||
     activeRoute.name === 'bible-reading-select' ||
-    activeRoute.name === 'bible-reading';
+    activeRoute.name === 'bible-reading' ||
+    activeRoute.name === 'reading-complete';
 
   const visibleRoutes = visibleTabOrder
     .map((routeName) => state.routes.find((route) => route.name === routeName))
@@ -248,6 +249,13 @@ const AppLayout = () => {
       />
       <Tabs.Screen
         name="bible-reading"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="reading-complete"
         options={{
           href: null,
           tabBarStyle: { display: 'none' },

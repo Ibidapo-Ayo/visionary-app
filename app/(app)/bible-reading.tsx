@@ -6,6 +6,9 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DayReading, ReadingPeriod } from '@/types/index';
 import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { useAuthStore } from '@/store/authStore';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
+import { useReadingPeriodLockStore } from '@/store/readingPeriodLockStore';
 import { formatDayReadingReference } from '@/lib/helper';
 import { useBibleChapter } from '@/hooks/useBibleChapter';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
@@ -62,11 +65,12 @@ const BibleReadingScreenView = () => {
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
   const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
-  const getTodayProgress = useBibleJourneyStore((state) => state.getTodayProgress);
-  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
+  const { readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
   const { isUnlocked } = useReadingPeriodLock();
+  const clerkUserId = useAuthStore((state) => state.user?.id);
+  const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
   const isSessionLocked = !isUnlocked(period);
 
   const sessionChapters = readingSchedule?.[period] ?? [];
@@ -142,17 +146,37 @@ const BibleReadingScreenView = () => {
         return;
       }
 
+      const completedReference = formatDayReadingReference(chapter);
+
       markSessionReadingCompleteForToday({
         period,
-        readingReference: formatDayReadingReference(chapter),
+        readingReference: completedReference,
       });
 
-      // Only once both morning and evening are done for today does this actually advance the streak.
-      if (getTodayProgress().dailyCompleted) {
-        await completeReadingDay();
+      // Check the real DB-backed completion state (not the locally-mirrored flags above) so the
+      // streak reliably updates the moment both sessions are actually done, even across devices/reinstalls.
+      const resolvedUserId = clerkUserId ? await resolveSupabaseUserId(clerkUserId) : null;
+      const freshCompletedIds = resolvedUserId
+        ? new Set(useUserReadingProgressStore.getState().completedScheduleIdsByUser[resolvedUserId] ?? [])
+        : completedScheduleIds;
+      const { isPeriodComplete } = useReadingPeriodLockStore.getState();
+      const bothSessionsComplete =
+        isPeriodComplete('morning', readingSchedule, freshCompletedIds) &&
+        isPeriodComplete('evening', readingSchedule, freshCompletedIds);
+
+      // Streak sync is best-effort here — it must never block the user from seeing the completion screen.
+      if (bothSessionsComplete) {
+        try {
+          await completeReadingDay();
+        } catch (streakError) {
+          console.warn('Unable to sync streak:', streakError);
+        }
       }
 
-      router.replace('/(app)/bible-journey');
+      router.replace({
+        pathname: '/(app)/reading-complete',
+        params: { period, reference: completedReference },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to complete this chapter. Please retry.';
 

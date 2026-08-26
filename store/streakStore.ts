@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { StreakRecord } from "@/types/index";
-import { completeReadingDay as requestCompleteReadingDay, getStreakForUser } from "@/services/supabase/streaks";
+import { completeReadingDay as requestCompleteReadingDay, syncStreakStatus } from "@/services/supabase/streaks";
 
 type StreakStore = {
   streak: StreakRecord | null;
@@ -48,7 +48,7 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
     }));
 
     try {
-      const streak = await getStreakForUser(userId);
+      const streak = await syncStreakStatus(userId);
       const currentState = get();
       if (
         currentState.loadingUserId !== userId ||
