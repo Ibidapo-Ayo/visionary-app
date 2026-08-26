@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import '../global.css';
+import '../lib/nativewind-interop';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Font from 'expo-font';

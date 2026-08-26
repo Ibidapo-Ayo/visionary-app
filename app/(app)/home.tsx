@@ -17,14 +17,20 @@ import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
+import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '@/lib/responsive';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
   <View className="flex-1 items-center rounded-[18px] border border-[#ECE6DD] bg-white px-2 py-3">
-    <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${tint}18` }}>
+    <View
+      style={{ height: moderateScale(32), width: moderateScale(32), backgroundColor: `${tint}18` }}
+      className="items-center justify-center rounded-full"
+    >
       <Feather name={icon} size={15} color={tint} />
     </View>
-    <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]">{value}</Text>
+    <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]" style={{ fontSize: scaleFont(18) }}>
+      {value}
+    </Text>
     <Text className="mt-0.5 text-center text-[10px] font-semibold text-[#7A746C]">{label}</Text>
   </View>
 );
@@ -41,6 +47,7 @@ const progressRangeOptions: { key: ProgressRangeKey; label: string }[] = [
 const HomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width, isTablet } = useResponsive();
   const user = useAuthStore((state) => state.user);
   const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
@@ -72,6 +79,8 @@ const HomeScreen = () => {
   const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
+  // Center content within a readable max width on tablets instead of stretching edge-to-edge.
+  const horizontalPadding = isTablet ? Math.max((width - MAX_CONTENT_WIDTH) / 2, 20) : 10;
 
   useEffect(() => {
     if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
@@ -121,8 +130,11 @@ const HomeScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom + 118, 136) }}
-        className="px-5"
+        contentContainerStyle={{
+          paddingTop: insets.top + 14,
+          paddingBottom: Math.max(insets.bottom + 118, 136),
+          paddingHorizontal: horizontalPadding,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -143,13 +155,19 @@ const HomeScreen = () => {
             <TouchableOpacity
               onPress={() => router.push('/(app)/digest')}
               activeOpacity={0.85}
-              className="relative h-10 w-10 items-center justify-center rounded-full bg-white"
+              style={{ height: moderateScale(40), width: moderateScale(40) }}
+              className="relative items-center justify-center rounded-full bg-white"
             >
               <Feather name="bell" size={17} color="#252525" />
               <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#FF7A00]" />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/(app)/profile')} activeOpacity={0.9} className="h-11 w-11 overflow-hidden rounded-full bg-[#171717]">
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/profile')}
+              activeOpacity={0.9}
+              style={{ height: moderateScale(44), width: moderateScale(44) }}
+              className="overflow-hidden rounded-full bg-[#171717]"
+            >
               {shouldShowProfileImage ? (
                 <Image
                   source={{ uri: profileImage }}
@@ -167,22 +185,30 @@ const HomeScreen = () => {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(110).duration(360)} className="mt-5 overflow-hidden rounded-[20px] bg-[#17191B]">
-          <LinearGradient colors={['#202225', '#151719']} className="p-4">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-4">
+          <LinearGradient colors={['#202225', '#151719']}>
+            <View className="flex-row items-center justify-between p-4">
+              <View className="flex-1 pr-2">
                 <View className="flex-row items-center">
                   <View className="h-2.5 w-2.5 rounded-full bg-[#FF7A00]" />
                   <Text className="ml-2 text-[11px] font-bold text-white">Current Streak</Text>
                 </View>
                 <View className="mt-4 flex-row items-end">
-                  <Text className="text-[42px] font-black leading-[44px] text-white">{currentStreak}</Text>
+                  <Text className="font-black leading-[44px] text-white" style={{ fontSize: scaleFont(42) }}>
+                    {currentStreak}
+                  </Text>
                   <Text className="mb-1.5 ml-2 text-[16px] font-bold text-[#E6E0D8]">days</Text>
                 </View>
                 <Text className="mt-2 text-[11px] font-semibold text-[#BEB7AE]">Keep the flame steady.</Text>
               </View>
 
-              <View className="h-[92px] w-[92px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
-                <View className="h-[66px] w-[66px] items-center justify-center rounded-full bg-[#151719]">
+              <View
+                style={{ height: moderateScale(92), width: moderateScale(92), borderWidth: moderateScale(6) }}
+                className="items-center justify-center rounded-full border-[#FF8A18] bg-[#242628]"
+              >
+                <View
+                  style={{ height: moderateScale(66), width: moderateScale(66) }}
+                  className="items-center justify-center rounded-full bg-[#151719]"
+                >
                   <FontAwesome5 name="fire" size={30} color="#FF7A00" solid />
                 </View>
               </View>
@@ -201,9 +227,9 @@ const HomeScreen = () => {
         />
 
         <Animated.View entering={FadeInDown.delay(210).duration(360)} className="mt-5">
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center justify-between" style={{ zIndex: 30, elevation: 30 }}>
             <Text className="text-[15px] font-black text-[#181818]">Your Progress</Text>
-            <View className="items-end" style={{ zIndex: 20 }}>
+            <View className="items-end">
               <TouchableOpacity
                 onPress={() => setIsProgressRangeOpen((isOpen) => !isOpen)}
                 activeOpacity={0.8}
@@ -238,7 +264,7 @@ const HomeScreen = () => {
             </View>
           </View>
 
-          <View className="mt-3 flex-row gap-3">
+          <View className="mt-3 flex-row gap-3" style={{ zIndex: 1 }}>
             <StatPill icon="book-open" label="Days Read" value={`${progressStats.daysRead}`} tint="#16A34A" />
             <StatPill icon="award" label="Chapters" value={`${progressStats.chapters}`} tint="#FF7A00" />
             <StatPill icon="message-circle" label="Reflections" value={`${progressStats.reflections}`} tint="#7257D6" />
