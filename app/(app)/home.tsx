@@ -238,6 +238,27 @@ const HomeScreen = () => {
           }
         />
 
+        {isTodayComplete ? (
+          <Animated.View entering={FadeInDown.delay(190).duration(360)} className="mt-5">
+            <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
+              <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
+                <Feather name="award" size={13} color="#FFFFFF" />
+              </View>
+              <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#C65A00]">
+                Hurray! You are done reading for today
+              </Text>
+            </View>
+
+            <TomorrowMorningLockedPreviewCard
+              dayNumber={tomorrowDayNumber}
+              reference={tomorrowMorningReference}
+              chapterCount={tomorrowMorningChapterCount}
+              isLoading={isLoadingTomorrowReadingSchedule}
+              message={completionMessage}
+            />
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(210).duration(360)} className="mt-5">
           <View className="flex-row items-center justify-between" style={{ zIndex: 30, elevation: 30 }}>
             <Text className="text-[15px] font-black text-[#181818]">Your Progress</Text>
@@ -283,24 +304,16 @@ const HomeScreen = () => {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(260).duration(360)} className="mt-5">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[15px] font-black text-[#181818]">Continue Your Journey</Text>
-            <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.8}>
-              <Text className="text-[11px] font-bold text-[#716A61]">View all</Text>
-            </TouchableOpacity>
-          </View>
+        {!isTodayComplete ? (
+          <Animated.View entering={FadeInDown.delay(260).duration(360)} className="mt-5">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[15px] font-black text-[#181818]">Continue Your Journey</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.8}>
+                <Text className="text-[11px] font-bold text-[#716A61]">View all</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View className="mt-3">
-            {isTodayComplete ? (
-              <TomorrowMorningLockedPreviewCard
-                dayNumber={tomorrowDayNumber}
-                reference={tomorrowMorningReference}
-                chapterCount={tomorrowMorningChapterCount}
-                isLoading={isLoadingTomorrowReadingSchedule}
-                message={completionMessage}
-              />
-            ) : (
+            <View className="mt-3">
               <NextReadingPreviewCard
                 reference={nextEveningReference}
                 chapterCount={eveningChapterCount}
@@ -313,9 +326,9 @@ const HomeScreen = () => {
                   })
                 }
               />
-            )}
-          </View>
-        </Animated.View>
+            </View>
+          </Animated.View>
+        ) : null}
 
       </ScrollView>
     </LinearGradient>
