@@ -61,6 +61,13 @@ const SectionTitle = ({ title, subtitle }: { title: string; subtitle: string }) 
   </View>
 );
 
+const GENDER_OPTIONS = [
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+  { label: 'Other', value: 'other' },
+  { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+];
+
 const EditProfileScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -72,6 +79,8 @@ const EditProfileScreen = () => {
   const [email, setEmail] = React.useState(user?.email ?? '');
   const [phone, setPhone] = React.useState(user?.phone ?? '');
   const [bio, setBio] = React.useState(user?.bio ?? '');
+  const [gender, setGender] = React.useState((user?.gender ?? '').trim().toLowerCase());
+  const [isGenderDropdownOpen, setIsGenderDropdownOpen] = React.useState(false);
   const [profileImage, setProfileImage] = React.useState(user?.profileImage ?? '');
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false);
@@ -81,6 +90,8 @@ const EditProfileScreen = () => {
 
   const previewInitials = getInitials(firstName, lastName, email);
   const trimmedImage = profileImage.trim();
+  const selectedGenderLabel =
+    GENDER_OPTIONS.find((option) => option.value === gender)?.label ?? 'Select gender';
   const shouldShowPreviewImage = !!trimmedImage && !avatarLoadFailed;
   const previewName = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Visionary Member';
   const isReadyToSave = Boolean(firstName.trim() && lastName.trim() && email.trim()) && !isSaving && !isUploadingPhoto;
@@ -135,6 +146,7 @@ const EditProfileScreen = () => {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to upload photo.';
+      console.log('Profile image upload failed:', error);
       Alert.alert('Upload failed', message);
     } finally {
       setIsUploadingPhoto(false);
@@ -168,6 +180,7 @@ const EditProfileScreen = () => {
       email: email.trim(),
       phone: phone.trim(),
       bio: bio.trim() || undefined,
+      gender: gender || undefined,
       profileImage: trimmedImage || undefined,
       updatedAt: new Date().toISOString(),
     };
@@ -195,7 +208,7 @@ const EditProfileScreen = () => {
       setIsSaving(false);
     }
 
-    router.back();
+    router.replace('/(app)/profile?profileUpdated=1');
   };
 
   const handleCancel = () => {
@@ -332,6 +345,48 @@ const EditProfileScreen = () => {
                   style={{ minHeight: 92 }}
                   className="text-[15px] font-semibold leading-6 text-[#171717]"
                 />
+              </Field>
+
+              <Field label="Gender" icon="users">
+                <TouchableOpacity
+                  onPress={() => setIsGenderDropdownOpen((prev) => !prev)}
+                  activeOpacity={0.84}
+                  className="h-12 flex-row items-center justify-between rounded-[14px] border border-[#EFE5D8] bg-[#FFFCF8] px-3"
+                >
+                  <Text className={`text-[14px] font-semibold ${gender ? 'text-[#171717]' : 'text-[#B4AA9F]'}`}>
+                    {selectedGenderLabel}
+                  </Text>
+                  <Feather
+                    name={isGenderDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color="#7A7167"
+                  />
+                </TouchableOpacity>
+
+                {isGenderDropdownOpen ? (
+                  <View className="mt-2 overflow-hidden rounded-[14px] border border-[#EFE5D8] bg-white">
+                    {GENDER_OPTIONS.map((option, index) => {
+                      const isSelected = option.value === gender;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          onPress={() => {
+                            setGender(option.value);
+                            setIsGenderDropdownOpen(false);
+                          }}
+                          activeOpacity={0.84}
+                          className="flex-row items-center justify-between px-3 py-3"
+                          style={{ borderBottomWidth: index === GENDER_OPTIONS.length - 1 ? 0 : 1, borderBottomColor: '#F3EBDD' }}
+                        >
+                          <Text className={`text-[14px] font-semibold ${isSelected ? 'text-[#FF7A00]' : 'text-[#2B2219]'}`}>
+                            {option.label}
+                          </Text>
+                          {isSelected ? <Feather name="check" size={14} color="#FF7A00" /> : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </Field>
             </View>
           </Animated.View>

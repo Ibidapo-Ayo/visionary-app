@@ -15,6 +15,7 @@ export interface User {
   joinDate: string;
   profileImage?: string;
   bio?: string;
+  gender?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -380,6 +381,7 @@ export interface SupabaseUserRow {
   email: string | null;
   phone_number: string | null;
   profile_image: string | null;
+  bio: string | null;
   gender: string | null;
   date_of_birth: string | null;
   role: string;

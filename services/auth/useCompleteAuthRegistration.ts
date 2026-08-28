@@ -73,6 +73,14 @@ export const useSyncUserToBackend = () => {
       setUser(projectedUser);
 
       const row = await syncProfileFromClerkUser(readyUser);
+      setUser({
+        ...projectedUser,
+        profileImage: row.profile_image ?? projectedUser.profileImage,
+        bio: row.bio ?? projectedUser.bio,
+        gender: row.gender ?? projectedUser.gender,
+        updatedAt: row.updated_at,
+      });
+
       if (row.id) {
         setSupabaseUserId(row.id);
       } else {

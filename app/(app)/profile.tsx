@@ -1,8 +1,8 @@
 import React from 'react';
 import { Alert, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
@@ -107,10 +107,12 @@ const RecentReflectionRow = ({ title, subtitle, icon }: { title: string; subtitl
 
 const ProfileScreen = () => {
   const router = useRouter();
+  const { profileUpdated } = useLocalSearchParams<{ profileUpdated?: string }>();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useSignOut();
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+  const [showUpdatedToast, setShowUpdatedToast] = React.useState(false);
   const { currentStreak, longestStreak, totalDaysCompleted } = useStreak();
   useUserReadingProgress();
   const totalChaptersRead = useUserReadingProgressStore((state) => state.getTotalCompletedChapters());
@@ -128,6 +130,26 @@ const ProfileScreen = () => {
   const monthlyGoalDaysRead = monthlyStats.daysRead;
   const monthlyGoalProgressPercent = daysInCurrentMonth > 0 ? Math.min(100, Math.round((monthlyGoalDaysRead / daysInCurrentMonth) * 100)) : 0;
   const recentReflections = mockRecentSpiritualActivities.filter((activity) => activity.type === 'reflection' || activity.type === 'bibleReading').slice(0, 3);
+
+  React.useEffect(() => {
+    if (profileUpdated !== '1') {
+      return;
+    }
+
+    setShowUpdatedToast(true);
+    const hideTimer = setTimeout(() => {
+      setShowUpdatedToast(false);
+    }, 1800);
+
+    const clearParamTimer = setTimeout(() => {
+      router.replace('/(app)/profile');
+    }, 2100);
+
+    return () => {
+      clearTimeout(hideTimer);
+      clearTimeout(clearParamTimer);
+    };
+  }, [profileUpdated, router]);
 
   const handleLogout = async () => {
     const result = await logout();
@@ -149,6 +171,30 @@ const ProfileScreen = () => {
   return (
     <View className="flex-1 bg-[#F7F1E8]">
       <StatusBar barStyle="light-content" />
+
+      {showUpdatedToast ? (
+        <Animated.View
+          entering={FadeInDown.duration(260)}
+          exiting={FadeOutUp.duration(220)}
+          className="absolute left-5 right-5 z-50"
+          style={{ top: insets.top + 8 }}
+        >
+          <LinearGradient
+            colors={['#1E8E3E', '#16A34A']}
+            className="rounded-[16px] border border-[#B4E7C3] px-4 py-3"
+          >
+            <View className="flex-row items-center">
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                <Feather name="check" size={16} color="#FFFFFF" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[12px] font-black text-white">Profile Updated</Text>
+                <Text className="mt-0.5 text-[10px] font-semibold text-[#E7F9EC]">Your changes were saved successfully.</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 116, 136) }}>
         <LinearGradient colors={['#101010', '#151515', '#1B1B1B']} className="rounded-b-[28px] px-5 pb-7" style={{ paddingTop: insets.top + 14 }}>

@@ -3,7 +3,8 @@ import { decode } from 'base64-arraybuffer';
 import { supabase } from './client';
 import { USERS_TABLE } from './constants';
 
-const PROFILE_IMAGES_BUCKET = 'profile-images';
+const PROFILE_IMAGES_BUCKET = 'visionary-app-bucket';
+const PROFILE_IMAGES_FOLDER = 'profile_images';
 
 const getPrimaryEmail = (user: ClerkAuthUserResource): string =>
   user.primaryEmailAddress?.emailAddress ?? user.emailAddresses?.[0]?.emailAddress ?? '';
@@ -65,7 +66,10 @@ const baseRowFromClerk = (user: ClerkAuthUserResource, existing?: SupabaseUserRo
     last_name: toNullable(user.lastName) ?? existing?.last_name ?? null,
     // Preserve a previously saved phone number when Clerk does not have one.
     phone_number: phoneFromClerk ?? phoneFromMetadata ?? existing?.phone_number ?? null,
-    profile_image: toNullable(user.imageUrl) ?? existing?.profile_image ?? null,
+    // Keep an existing saved profile image (including app uploads) instead of
+    // overwriting it on every Clerk sync.
+    profile_image: existing?.profile_image ?? toNullable(user.imageUrl) ?? null,
+    bio: existing?.bio ?? null,
     gender: existing?.gender ?? null,
     date_of_birth: existing?.date_of_birth ?? null,
     role: normalizeRoleForSupabase(existing?.role ?? 'MEMBER'),
@@ -84,9 +88,10 @@ const baseRowFromStoreUser = (user: User, existing?: SupabaseUserRow | null): Su
   email: toNullable(user.email) ?? existing?.email ?? null,
   first_name: toNullable(user.firstName) ?? existing?.first_name ?? null,
   last_name: toNullable(user.lastName) ?? existing?.last_name ?? null,
-  phone_number: toNullable(user.phone),
-  profile_image: toNullable(user.profileImage),
-  gender: existing?.gender ?? null,
+  phone_number: toNullable(user.phone) ?? existing?.phone_number ?? null,
+  profile_image: toNullable(user.profileImage) ?? existing?.profile_image ?? null,
+  bio: toNullable(user.bio) ?? existing?.bio ?? null,
+  gender: toNullable(user.gender) ?? existing?.gender ?? null,
   date_of_birth: existing?.date_of_birth ?? null,
   role: normalizeRoleForSupabase(user.role),
   department: existing?.department ?? null,
@@ -104,6 +109,16 @@ const upsertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
 
   if (error) {
     throw new Error(`[supabase] Failed to upsert user for ${row.clerk_user_id}: ${error.message}`);
+  }
+
+  return data;
+};
+
+const insertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase.from(USERS_TABLE).insert(row).select('*').single<SupabaseUserRow>();
+
+  if (error) {
+    throw new Error(`[supabase] Failed to insert user for ${row.clerk_user_id}: ${error.message}`);
   }
 
   return data;
@@ -157,7 +172,7 @@ export const uploadProfileImageAsset = async (
   const contentType = ACCEPTED_IMAGE_MIME_TYPES.has(normalizedPickerMimeType ?? '')
     ? (normalizedPickerMimeType as string)
     : getImageMimeType(extension);
-  const objectPath = `${userId}/${Date.now()}.${extension}`;
+  const objectPath = `${PROFILE_IMAGES_FOLDER}/${userId}/${Date.now()}.${extension}`;
 
   if (!imageBase64?.trim()) {
     throw new Error('[supabase] Unable to read selected profile image for upload.');
@@ -170,6 +185,12 @@ export const uploadProfileImageAsset = async (
   });
 
   if (uploadError) {
+    if (uploadError.message.toLowerCase().includes('row-level security policy')) {
+      throw new Error(
+        '[supabase] Failed to upload profile image: blocked by storage policy. Allow uploads to visionary-app-bucket/profile_images for this user.',
+      );
+    }
+
     throw new Error(`[supabase] Failed to upload profile image: ${uploadError.message}`);
   }
 
@@ -177,6 +198,8 @@ export const uploadProfileImageAsset = async (
   if (!publicUrlData?.publicUrl) {
     throw new Error('[supabase] Profile image upload succeeded but no public URL was returned.');
   }
+
+  console.log("Public URL for uploaded profile image:", publicUrlData.publicUrl);
 
   return { publicUrl: publicUrlData.publicUrl, objectPath };
 };
@@ -219,8 +242,26 @@ export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<strin
 
 export const syncProfileFromClerkUser = async (clerkUser: ClerkAuthUserResource): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(clerkUser.id);
-  console.log("Existing user", existing);
-  return upsertUser(baseRowFromClerk(clerkUser, existing));
+
+  // Important: once a user exists in Supabase, profile updates should come from
+  // in-app edits (syncProfileFromStoreUser), not from Clerk fields on sign-in.
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await insertUser(baseRowFromClerk(clerkUser, null));
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : '';
+    if (message.includes('duplicate key value violates unique constraint')) {
+      const rowAfterConflict = await getUserByClerkId(clerkUser.id);
+      if (rowAfterConflict) {
+        return rowAfterConflict;
+      }
+    }
+
+    throw error;
+  }
 };
 
 export const syncProfileFromStoreUser = async (user: User): Promise<SupabaseUserRow> => {
