@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
@@ -20,6 +28,9 @@ import { useTomorrowReadingSchedule } from '@/hooks/useTomorrowReadingSchedule';
 import { useRotatingCompletionMessage } from '@/hooks/useRotatingCompletionMessage';
 import TomorrowMorningLockedPreviewCard from '@/components/bible_reading_plan/TomorrowMorningLockedPreviewCard';
 import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '@/lib/responsive';
+import ReminderPermissionCard from '@/components/home/ReminderPermissionCard';
+import { useNotificationReminderStore } from '@/store/notificationReminderStore';
+import { openNotificationSettings } from '@/services/notifications/bibleReadingReminders';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
@@ -67,10 +78,22 @@ const HomeScreen = () => {
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const queryClient = useQueryClient();
+  const reminderPermissionStatus = useNotificationReminderStore((state) => state.permissionStatus);
+  const canAskReminderPermission = useNotificationReminderStore((state) => state.canAskAgain);
+  const isReminderStoreHydrated = useNotificationReminderStore((state) => state.isHydrated);
+  const hideReminderCardForExistingUsers = useNotificationReminderStore((state) => state.hidePromptForExistingUser);
+  const hydrateReminderStore = useNotificationReminderStore((state) => state.hydrate);
+  const syncReminderPermissionStatus = useNotificationReminderStore((state) => state.syncPermissionStatus);
+  const requestReminderPermission = useNotificationReminderStore((state) => state.requestPermission);
+  const setHideReminderCardForExistingUsers = useNotificationReminderStore((state) => state.setHidePromptForExistingUser);
+  const registerSignedInReminderVisit = useNotificationReminderStore((state) => state.registerSignedInVisit);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
+  const [isReminderPromptDismissed, setIsReminderPromptDismissed] = useState(false);
+  const reminderIconBounceY = useSharedValue(0);
 
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
@@ -91,6 +114,33 @@ const HomeScreen = () => {
   const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
+  const notificationPermissionGranted = reminderPermissionStatus === 'granted';
+  const shouldBounceReminderIcon = !notificationPermissionGranted;
+  const shouldShowReminderPermissionCard = useMemo(() => {
+    if (!isReminderStoreHydrated || isExistingUser === null) {
+      return false;
+    }
+
+    if (notificationPermissionGranted || isReminderPromptDismissed) {
+      return false;
+    }
+
+    if (isExistingUser && hideReminderCardForExistingUsers) {
+      return false;
+    }
+
+    return true;
+  }, [
+    hideReminderCardForExistingUsers,
+    isExistingUser,
+    isReminderPromptDismissed,
+    isReminderStoreHydrated,
+    notificationPermissionGranted,
+  ]);
+
+  const reminderIconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reminderIconBounceY.value }],
+  }));
   // Center content within a readable max width on tablets instead of stretching edge-to-edge.
   const horizontalPadding = isTablet ? Math.max((width - MAX_CONTENT_WIDTH) / 2, 20) : 10;
 
@@ -103,6 +153,49 @@ const HomeScreen = () => {
       console.warn('Unable to load reading schedule:', error);
     });
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+
+  useEffect(() => {
+    void hydrateReminderStore().catch((error) => {
+      console.warn('Unable to hydrate notification reminder state:', error);
+    });
+  }, [hydrateReminderStore]);
+
+  useEffect(() => {
+    if (!user?.id || !isReminderStoreHydrated || isExistingUser !== null) {
+      return;
+    }
+
+    void registerSignedInReminderVisit()
+      .then((existingUser) => {
+        setIsExistingUser(existingUser);
+      })
+      .catch((error) => {
+        console.warn('Unable to register reminder prompt visit:', error);
+        setIsExistingUser(true);
+      });
+  }, [isExistingUser, isReminderStoreHydrated, registerSignedInReminderVisit, user?.id]);
+
+  useEffect(() => {
+    if (notificationPermissionGranted) {
+      setIsReminderPromptDismissed(true);
+    }
+  }, [notificationPermissionGranted]);
+
+  useEffect(() => {
+    if (!shouldBounceReminderIcon) {
+      reminderIconBounceY.value = withTiming(0, { duration: 180 });
+      return;
+    }
+
+    reminderIconBounceY.value = withRepeat(
+      withSequence(
+        withTiming(-4, { duration: 320 }),
+        withTiming(0, { duration: 320 }),
+      ),
+      -1,
+      false,
+    );
+  }, [reminderIconBounceY, shouldBounceReminderIcon]);
 
   const refreshReadingPlanAndSchedule = useCallback(async () => {
     await loadBibleReadingPlan();
@@ -136,27 +229,51 @@ const HomeScreen = () => {
     }
   }, [queryClient, refreshProgress, refreshReadingPlanAndSchedule, refreshStreak]);
 
+  const handleEnableReminderNotifications = useCallback(async () => {
+    try {
+      if (canAskReminderPermission) {
+        const nextStatus = await requestReminderPermission();
+        if (nextStatus === 'granted') {
+          setIsReminderPromptDismissed(true);
+        }
+        return;
+      }
+
+      await openNotificationSettings();
+      await syncReminderPermissionStatus();
+    } catch (error) {
+      console.warn('Unable to update reminder notification permission:', error);
+    }
+  }, [canAskReminderPermission, requestReminderPermission, syncReminderPermissionStatus]);
+
+  const handleReminderIconPress = useCallback(() => {
+    setIsReminderPromptDismissed(false);
+    void handleEnableReminderNotifications();
+  }, [handleEnableReminderNotifications]);
+
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
       <StatusBar barStyle="dark-content" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingTop: insets.top + 14,
-          paddingBottom: Math.max(insets.bottom + 118, 136),
-          paddingHorizontal: horizontalPadding,
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor="#FF7A00"
-            colors={['#FF7A00']}
-            progressBackgroundColor="#FFFFFF"
-          />
-        }
-      >
+      <View className="flex-1">
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: insets.top + 14,
+            paddingBottom: Math.max(insets.bottom + 118, 136),
+            paddingHorizontal: horizontalPadding,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#FF7A00"
+              colors={['#FF7A00']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
+        >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
             <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
@@ -164,15 +281,21 @@ const HomeScreen = () => {
           </View>
 
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/digest')}
-              activeOpacity={0.85}
-              style={{ height: moderateScale(40), width: moderateScale(40) }}
-              className="relative items-center justify-center rounded-full bg-white"
-            >
-              <Feather name="bell" size={17} color="#252525" />
-              <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#FF7A00]" />
-            </TouchableOpacity>
+            <Animated.View style={reminderIconStyle}>
+              <TouchableOpacity
+                onPress={handleReminderIconPress}
+                activeOpacity={0.85}
+                style={{ height: moderateScale(40), width: moderateScale(40) }}
+                className="relative items-center justify-center rounded-full bg-white"
+              >
+                <Feather name="clock" size={17} color="#252525" />
+                <View
+                  className={`absolute right-2.5 top-2.5 h-2 w-2 rounded-full ${
+                    notificationPermissionGranted ? 'bg-[#16A34A]' : 'bg-[#FF7A00]'
+                  }`}
+                />
+              </TouchableOpacity>
+            </Animated.View>
 
             <TouchableOpacity
               onPress={() => router.push('/(app)/profile')}
@@ -330,7 +453,22 @@ const HomeScreen = () => {
           </Animated.View>
         ) : null}
 
-      </ScrollView>
+        </ScrollView>
+
+        <ReminderPermissionCard
+          visible={shouldShowReminderPermissionCard}
+          isExistingUser={Boolean(isExistingUser)}
+          doNotShowAgain={hideReminderCardForExistingUsers}
+          canAskAgain={canAskReminderPermission}
+          onToggleDoNotShowAgain={(nextValue) => {
+            void setHideReminderCardForExistingUsers(nextValue);
+          }}
+          onEnablePress={() => {
+            void handleEnableReminderNotifications();
+          }}
+          onDismissPress={() => setIsReminderPromptDismissed(true)}
+        />
+      </View>
     </LinearGradient>
   );
 };

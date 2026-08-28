@@ -9,6 +9,7 @@ import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
 import { useSupabaseClerkAuth } from '@services/supabase';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useBibleReadingReminderScheduler } from '@/hooks/useBibleReadingReminderScheduler';
 import { colors } from '../../lib/theme';
 import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '../../lib/responsive';
 
@@ -98,7 +99,6 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 
   const activeRoute = state.routes[state.index];
   const shouldHideTabBar =
-    activeRoute.name === 'digest' ||
     activeRoute.name === 'edit-profile' ||
     activeRoute.name === 'ai' ||
     activeRoute.name === 'bible-reading-select' ||
@@ -196,6 +196,7 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 const AppLayout = () => {
   useSupabaseClerkAuth();
   useSyncClerkAuth();
+  useBibleReadingReminderScheduler();
   const { isLoaded, isSignedIn } = useAuth();
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
 
@@ -227,13 +228,6 @@ const AppLayout = () => {
       })}
     >
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
-      <Tabs.Screen
-        name="digest"
-        options={{
-          href: null,
-          tabBarStyle: { display: 'none' },
-        }}
-      />
       <Tabs.Screen
         name="bible-journey"
         options={{
