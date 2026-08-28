@@ -6,6 +6,8 @@ type StreakStore = {
   streak: StreakRecord | null;
   loadedUserId: string | null;
   loadingUserId: string | null;
+  lastCompletedUserId: string | null;
+  lastCompletionWasNewRecord: boolean;
   streakRequestVersion: number;
   isLoadingStreak: boolean;
   streakError: string | null;
@@ -17,6 +19,8 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
   streak: null,
   loadedUserId: null,
   loadingUserId: null,
+  lastCompletedUserId: null,
+  lastCompletionWasNewRecord: false,
   streakRequestVersion: 0,
   isLoadingStreak: false,
   streakError: null,
@@ -82,7 +86,14 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
     }
   },
   completeReadingDay: async (userId) => {
-    const { streakRequestVersion } = get();
+    const { isLoadingStreak, loadingUserId, streakRequestVersion } = get();
+
+    if (isLoadingStreak && loadingUserId === userId) {
+      return;
+    }
+
+    const previousLongestStreak =
+      get().loadedUserId === userId && get().streak ? get().streak?.longest_streak ?? 0 : 0;
     const requestVersion = streakRequestVersion + 1;
 
     set((state) => ({
@@ -108,11 +119,15 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
         return;
       }
 
+      const isNewRecord = streak.longest_streak > previousLongestStreak;
+
       set({
         streak,
         loadedUserId: userId,
         isLoadingStreak: false,
         loadingUserId: null,
+        lastCompletedUserId: userId,
+        lastCompletionWasNewRecord: isNewRecord,
         streakError: null,
       });
     } catch (error) {

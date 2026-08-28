@@ -1,11 +1,12 @@
 import type { StreakRecord } from "@/types/index";
+import { toDateKey } from "@/lib/helper";
 import { supabase } from "./client";
 import { STREAKS_TABLE } from "./constants";
 
 const STREAK_COLUMNS = "id, user_id, current_streak, longest_streak, last_read_date, total_days_completed, created_at, updated_at";
 
 /** Returns today's date as YYYY-MM-DD, matching the `streaks.last_read_date` column type. */
-const toDateOnly = (date: Date): string => date.toISOString().slice(0, 10);
+const toDateOnly = (date: Date): string => toDateKey(date);
 
 const getTodayDateOnly = (): string => toDateOnly(new Date());
 
@@ -90,6 +91,14 @@ export const completeReadingDay = async (userId: string): Promise<StreakRecord> 
       .single<StreakRecord>();
 
     if (response.error) {
+      const message = response.error.message.toLowerCase();
+      if (message.includes('duplicate key value violates unique constraint')) {
+        const rowAfterConflict = await getStreakForUser(userId);
+        if (rowAfterConflict) {
+          return rowAfterConflict;
+        }
+      }
+
       throw response.error;
     }
 

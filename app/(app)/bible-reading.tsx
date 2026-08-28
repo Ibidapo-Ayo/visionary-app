@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -85,13 +85,12 @@ const BibleReadingScreenView = () => {
     return firstIncomplete >= 0 ? firstIncomplete : 0;
   }, [completedScheduleIds, incomingReference, sessionChapters]);
 
-  const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
+  // Lock initial chapter selection to mount time; wrapper key remount handles new selections.
+  const initialChapterIndexRef = useRef(initialChapterIndex);
+
+  const [chapterIndex, setChapterIndex] = useState(initialChapterIndexRef.current);
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setChapterIndex(initialChapterIndex);
-  }, [initialChapterIndex]);
 
   const chapter = sessionChapters[Math.min(chapterIndex, Math.max(0, sessionChapters.length - 1))];
   const currentChapterQuery = useBibleChapter(chapter?.bookName ?? null, chapter?.chapter ?? null);

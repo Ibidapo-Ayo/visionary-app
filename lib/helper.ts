@@ -20,6 +20,20 @@ export const getCurrentSession = (): "morning" | "evening" => {
   return hour < 15 ? "morning" : "evening";
 };
 
+export const getCurrentGreeting = (): "morning" | "afternoon" | "evening" => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) {
+    return "morning";
+  }
+
+  if (hour < 18) {
+    return "afternoon";
+  }
+
+  return "evening";
+};
+
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const parseLocalDate = (dateValue: string) => {

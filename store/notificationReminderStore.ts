@@ -8,6 +8,7 @@ import {
 type NotificationPermissionState = 'granted' | 'denied' | 'undetermined';
 
 interface StoredNotificationPreference {
+  clerkUserId: string | null;
   hidePromptForExistingUser: boolean;
   hasSeenSignedInHome: boolean;
 }
@@ -16,18 +17,20 @@ interface NotificationReminderStore {
   permissionStatus: NotificationPermissionState;
   canAskAgain: boolean;
   isHydrated: boolean;
+  clerkUserId: string | null;
   hidePromptForExistingUser: boolean;
   hasSeenSignedInHome: boolean;
   hydrate: () => Promise<void>;
   syncPermissionStatus: () => Promise<NotificationPermissionState>;
   requestPermission: () => Promise<NotificationPermissionState>;
   setHidePromptForExistingUser: (value: boolean) => Promise<void>;
-  registerSignedInVisit: () => Promise<boolean>;
+  registerSignedInVisit: (clerkUserId: string) => Promise<boolean>;
 }
 
 const STORAGE_KEY = 'visionary-notification-preferences-v1';
 
 const DEFAULT_STORED_PREFERENCES: StoredNotificationPreference = {
+  clerkUserId: null,
   hidePromptForExistingUser: false,
   hasSeenSignedInHome: false,
 };
@@ -42,6 +45,7 @@ const readStoredPreferences = async (): Promise<StoredNotificationPreference> =>
     const parsed = JSON.parse(raw) as Partial<StoredNotificationPreference>;
 
     return {
+      clerkUserId: typeof parsed.clerkUserId === 'string' ? parsed.clerkUserId : null,
       hidePromptForExistingUser: Boolean(parsed.hidePromptForExistingUser),
       hasSeenSignedInHome: Boolean(parsed.hasSeenSignedInHome),
     };
@@ -62,6 +66,7 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
   permissionStatus: 'undetermined',
   canAskAgain: true,
   isHydrated: false,
+  clerkUserId: null,
   hidePromptForExistingUser: false,
   hasSeenSignedInHome: false,
 
@@ -73,6 +78,7 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
     const stored = await readStoredPreferences();
 
     set({
+      clerkUserId: stored.clerkUserId,
       hidePromptForExistingUser: stored.hidePromptForExistingUser,
       hasSeenSignedInHome: stored.hasSeenSignedInHome,
       isHydrated: true,
@@ -107,12 +113,31 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
     const stored = await readStoredPreferences();
     await writeStoredPreferences({
       ...stored,
+      clerkUserId: get().clerkUserId,
       hidePromptForExistingUser: value,
     });
   },
 
-  registerSignedInVisit: async () => {
-    if (get().hasSeenSignedInHome) {
+  registerSignedInVisit: async (clerkUserId) => {
+    const current = get();
+
+    if (current.clerkUserId !== clerkUserId) {
+      set({
+        clerkUserId,
+        hasSeenSignedInHome: true,
+        hidePromptForExistingUser: false,
+      });
+
+      await writeStoredPreferences({
+        clerkUserId,
+        hasSeenSignedInHome: true,
+        hidePromptForExistingUser: false,
+      });
+
+      return false;
+    }
+
+    if (current.hasSeenSignedInHome) {
       return true;
     }
 
@@ -121,6 +146,7 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
     const stored = await readStoredPreferences();
     await writeStoredPreferences({
       ...stored,
+      clerkUserId,
       hasSeenSignedInHome: true,
     });
 

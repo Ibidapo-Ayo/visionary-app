@@ -12,7 +12,12 @@ interface NextReadingPreviewCardProps {
 }
 
 const NextReadingPreviewCard = ({ reference, chapterCount, isLoading, locked, onPress }: NextReadingPreviewCardProps) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.88} className="overflow-hidden rounded-[22px] bg-[#17201A]">
+  <TouchableOpacity
+    onPress={locked ? undefined : onPress}
+    disabled={Boolean(locked)}
+    activeOpacity={0.88}
+    className="overflow-hidden rounded-[22px] bg-[#17201A]"
+  >
     <LinearGradient
       colors={locked ? ['#2B2B2B', '#1C1C1C', '#141414'] : ['#1F6F36', '#174A29', '#141D16']}
       start={{ x: 0, y: 0 }}

@@ -33,17 +33,34 @@ export const getScheduleDayMetadata = async (
 export const getCompletedUserReadingProgress = async (
   userId: string,
 ): Promise<UserReadingProgressRow[]> => {
-  const response = await supabase
-    .from(USER_READING_PROGRESS_TABLE)
-    .select("id, user_id, schedule_id, completed, completed_at")
-    .eq("user_id", userId)
-    .eq("completed", true);
+  const pageSize = 1000;
+  const rows: UserReadingProgressRow[] = [];
 
-  if (response.error) {
-    throw response.error;
+  for (let page = 0; ; page += 1) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const response = await supabase
+      .from(USER_READING_PROGRESS_TABLE)
+      .select("id, user_id, schedule_id, completed, completed_at")
+      .eq("user_id", userId)
+      .eq("completed", true)
+      .order("schedule_id", { ascending: true })
+      .range(from, to);
+
+    if (response.error) {
+      throw response.error;
+    }
+
+    const pageRows = (response.data ?? []) as UserReadingProgressRow[];
+    rows.push(...pageRows);
+
+    if (pageRows.length < pageSize) {
+      break;
+    }
   }
 
-  return (response.data ?? []) as UserReadingProgressRow[];
+  return rows;
 };
 
 /** Joins the user's completed schedule_ids against reading_schedule to resolve each chapter's plan day number. */

@@ -63,8 +63,6 @@ export const initializeBibleReadingNotifications = async () => {
     return;
   }
 
-  notificationsInitialized = true;
-
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Bible Reading Reminders',
@@ -75,6 +73,8 @@ export const initializeBibleReadingNotifications = async () => {
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
   }
+
+  notificationsInitialized = true;
 };
 
 const isReminderRequest = (request: Notifications.NotificationRequest) => {

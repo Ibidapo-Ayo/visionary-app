@@ -70,8 +70,6 @@ export const useSyncUserToBackend = () => {
         };
       }
 
-      setUser(projectedUser);
-
       const row = await syncProfileFromClerkUser(readyUser);
       setUser({
         ...projectedUser,

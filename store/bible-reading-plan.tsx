@@ -24,6 +24,7 @@ export const useBibleReadingPlanStore = create<{
   isLoadingBibleReadingPlan: boolean;
   bibleReadingPlanError: string | null;
   setBibleReadingPlan: (plan: BibleReadingPlanData | null) => void;
+  refreshBibleReadingPlanDayNumber: () => void;
   loadBibleReadingPlan: () => Promise<BibleReadingPlanData | null>;
 }>((set, get) => ({
   bibleReadingPlan: null,
@@ -35,6 +36,13 @@ export const useBibleReadingPlanStore = create<{
       bibleReadingPlan: plan,
       bibleReadingPlanDayNumber: getPlanDayNumber(plan),
       bibleReadingPlanError: null,
+    });
+  },
+  refreshBibleReadingPlanDayNumber: () => {
+    const { bibleReadingPlan } = get();
+
+    set({
+      bibleReadingPlanDayNumber: getPlanDayNumber(bibleReadingPlan),
     });
   },
   loadBibleReadingPlan: async () => {

@@ -23,10 +23,11 @@ const TodaysBibleJourneyCard = ({
   const { isUnlocked, nextActionablePeriod } = useReadingPeriodLock();
 
   const timeOfDaySession = getCurrentSession() as ReadingPeriod;
-  const fallbackSession: ReadingPeriod = nextActionablePeriod ?? timeOfDaySession;
-  // Never surface a locked session as the primary CTA; fall back to whatever the user can actually read next.
-  const activeSession: ReadingPeriod = isUnlocked(timeOfDaySession) ? timeOfDaySession : fallbackSession;
-  const isTimeOfDaySessionLocked = timeOfDaySession !== activeSession;
+  const preferredSession: ReadingPeriod = nextActionablePeriod ?? timeOfDaySession;
+  const fallbackSession: ReadingPeriod = isUnlocked('morning') ? 'morning' : 'evening';
+  // Prioritize the next actionable period so users who finish morning move directly to evening.
+  const activeSession: ReadingPeriod = isUnlocked(preferredSession) ? preferredSession : fallbackSession;
+  const isTimeOfDaySessionLocked = !isUnlocked(timeOfDaySession);
 
   const sessionIcon: React.ComponentProps<typeof Feather>['name'] = activeSession === 'evening' ? 'moon' : 'sun';
   const sessionLabel = activeSession === 'evening' ? 'Evening Reading' : 'Morning Reading';
@@ -61,7 +62,7 @@ const TodaysBibleJourneyCard = ({
             {isTimeOfDaySessionLocked ? (
               <View className="ml-2 flex-row items-center rounded-full bg-black/25 px-2 py-0.5">
                 <Feather name="lock" size={9} color="#FFD9A0" />
-                <Text className="ml-1 text-[9px] font-black uppercase tracking-[0.4px] text-[#FFD9A0]">Evening locked</Text>
+                <Text className="ml-1 text-[9px] font-black uppercase tracking-[0.4px] text-[#FFD9A0]">Complete morning first</Text>
               </View>
             ) : null}
           </View>

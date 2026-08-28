@@ -8,13 +8,20 @@ import { useStreakStore } from '@/store/streakStore';
  */
 export const useStreak = () => {
   const user = useAuthStore((state) => state.user);
+  const supabaseUserId = useAuthStore((state) => state.supabaseUserId);
   const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
 
   const streak = useStreakStore((state) => state.streak);
   const isLoadingStreak = useStreakStore((state) => state.isLoadingStreak);
   const streakError = useStreakStore((state) => state.streakError);
+  const lastCompletedUserId = useStreakStore((state) => state.lastCompletedUserId);
+  const lastCompletionWasNewRecord = useStreakStore((state) => state.lastCompletionWasNewRecord);
   const loadStreak = useStreakStore((state) => state.loadStreak);
   const completeReadingDayAction = useStreakStore((state) => state.completeReadingDay);
+
+  const newRecordThisCompletion = Boolean(
+    supabaseUserId && lastCompletedUserId === supabaseUserId && lastCompletionWasNewRecord,
+  );
 
   const isCurrentUser = useCallback((clerkUserId: string) => useAuthStore.getState().user?.id === clerkUserId, []);
 
@@ -79,6 +86,7 @@ export const useStreak = () => {
     totalDaysCompleted: streak?.total_days_completed ?? 0,
     isLoadingStreak,
     streakError,
+    newRecordThisCompletion,
     completeReadingDay,
     refreshStreak,
   };

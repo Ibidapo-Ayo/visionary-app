@@ -124,19 +124,21 @@ const insertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
   return data;
 };
 
-const getImageExtensionFromUri = (uri: string): string => {
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'png', 'webp', 'heic']);
+
+const getImageExtensionFromUri = (uri: string): string | null => {
   const cleanUri = uri.split('?')[0] ?? uri;
-  const extension = cleanUri.split('.').pop()?.toLowerCase();
+  const extension = cleanUri.includes('.') ? cleanUri.split('.').pop()?.toLowerCase() : null;
 
   if (!extension) {
-    return 'jpg';
+    return null;
   }
 
   if (extension === 'jpeg') {
     return 'jpg';
   }
 
-  return extension;
+  return SUPPORTED_IMAGE_EXTENSIONS.has(extension) ? extension : null;
 };
 
 const ACCEPTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
@@ -156,6 +158,21 @@ const getImageMimeType = (extension: string): string => {
   }
 };
 
+const getImageExtensionFromMimeType = (mimeType: string): string => {
+  switch (mimeType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/heic':
+      return 'heic';
+    case 'image/jpeg':
+      return 'jpg';
+    default:
+      return 'jpg';
+  }
+};
+
 export type UploadedProfileImage = {
   publicUrl: string;
   objectPath: string;
@@ -167,11 +184,13 @@ export const uploadProfileImageAsset = async (
   imageBase64?: string,
   pickerMimeType?: string,
 ): Promise<UploadedProfileImage> => {
-  const extension = getImageExtensionFromUri(localAssetUri);
+  const extensionFromUri = getImageExtensionFromUri(localAssetUri);
   const normalizedPickerMimeType = pickerMimeType?.trim().toLowerCase();
+  const fallbackContentType = getImageMimeType(extensionFromUri ?? 'jpg');
   const contentType = ACCEPTED_IMAGE_MIME_TYPES.has(normalizedPickerMimeType ?? '')
     ? (normalizedPickerMimeType as string)
-    : getImageMimeType(extension);
+    : fallbackContentType;
+  const extension = getImageExtensionFromMimeType(contentType);
   const objectPath = `${PROFILE_IMAGES_FOLDER}/${userId}/${Date.now()}.${extension}`;
 
   if (!imageBase64?.trim()) {
@@ -199,8 +218,6 @@ export const uploadProfileImageAsset = async (
     throw new Error('[supabase] Profile image upload succeeded but no public URL was returned.');
   }
 
-  console.log("Public URL for uploaded profile image:", publicUrlData.publicUrl);
-
   return { publicUrl: publicUrlData.publicUrl, objectPath };
 };
 
@@ -211,6 +228,33 @@ export const deleteProfileImageAsset = async (objectPath: string): Promise<void>
   if (error) {
     console.warn(`[supabase] Failed to delete orphaned profile image ${objectPath}: ${error.message}`);
   }
+};
+
+export const deleteProfileImageByPublicUrl = async (
+  userId: string,
+  publicUrl: string | null | undefined,
+): Promise<void> => {
+  const trimmedUserId = userId.trim();
+  const trimmedUrl = publicUrl?.trim();
+
+  if (!trimmedUserId || !trimmedUrl) {
+    return;
+  }
+
+  const marker = `/object/public/${PROFILE_IMAGES_BUCKET}/`;
+  const markerIndex = trimmedUrl.indexOf(marker);
+  if (markerIndex < 0) {
+    return;
+  }
+
+  const encodedObjectPath = trimmedUrl.slice(markerIndex + marker.length).split('?')[0] ?? '';
+  const objectPath = decodeURIComponent(encodedObjectPath);
+
+  if (!objectPath.startsWith(`${PROFILE_IMAGES_FOLDER}/${trimmedUserId}/`)) {
+    return;
+  }
+
+  await deleteProfileImageAsset(objectPath);
 };
 
 export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
@@ -266,6 +310,5 @@ export const syncProfileFromClerkUser = async (clerkUser: ClerkAuthUserResource)
 
 export const syncProfileFromStoreUser = async (user: User): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(user.id);
-  console.log("Existing store user", existing);
   return upsertUser(baseRowFromStoreUser(user, existing));
 };

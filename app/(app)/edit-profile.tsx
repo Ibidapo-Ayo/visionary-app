@@ -18,7 +18,12 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@store/authStore';
-import { deleteProfileImageAsset, syncProfileFromStoreUser, uploadProfileImageAsset } from '@services/supabase';
+import {
+  deleteProfileImageAsset,
+  deleteProfileImageByPublicUrl,
+  syncProfileFromStoreUser,
+  uploadProfileImageAsset,
+} from '@services/supabase';
 import BrandedSpinner from '@/components/BrandedSpinner';
 
 const getInitials = (firstName?: string, lastName?: string, email?: string) => {
@@ -87,6 +92,16 @@ const EditProfileScreen = () => {
   const [isSaving, setIsSaving] = React.useState(false);
   // Object path of an uploaded photo not yet confirmed by a successful save.
   const pendingUploadObjectPathRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      const pendingObjectPath = pendingUploadObjectPathRef.current;
+      if (pendingObjectPath) {
+        pendingUploadObjectPathRef.current = null;
+        void deleteProfileImageAsset(pendingObjectPath);
+      }
+    };
+  }, []);
 
   const previewInitials = getInitials(firstName, lastName, email);
   const trimmedImage = profileImage.trim();
@@ -173,6 +188,8 @@ const EditProfileScreen = () => {
       return;
     }
 
+    const previousProfileImage = user.profileImage?.trim() ?? '';
+
     const updatedUser = {
       ...user,
       firstName: firstName.trim(),
@@ -189,6 +206,12 @@ const EditProfileScreen = () => {
     try {
       await syncProfileFromStoreUser(updatedUser);
       setUser(updatedUser);
+      const pendingObjectPath = pendingUploadObjectPathRef.current;
+
+      if (pendingObjectPath && previousProfileImage && previousProfileImage !== (updatedUser.profileImage ?? '')) {
+        await deleteProfileImageByPublicUrl(user.id, previousProfileImage);
+      }
+
       // Save succeeded, so the pending upload is now the persisted profile image.
       pendingUploadObjectPathRef.current = null;
     } catch (error) {

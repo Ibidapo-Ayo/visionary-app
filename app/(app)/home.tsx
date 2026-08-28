@@ -15,7 +15,7 @@ import Animated, {
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
-import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
+import { formatDayReadingReference, getCurrentGreeting, getInitials } from '@/lib/helper';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
 import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingPreviewCard';
@@ -93,6 +93,7 @@ const HomeScreen = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
   const [isReminderPromptDismissed, setIsReminderPromptDismissed] = useState(false);
+  const [greetingPeriod, setGreetingPeriod] = useState(() => getCurrentGreeting());
   const reminderIconBounceY = useSharedValue(0);
 
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
@@ -100,6 +101,10 @@ const HomeScreen = () => {
   const progressStats = { ...dbProgressStats, reflections: 0 };
   const isTodayComplete = morningComplete && eveningComplete;
   const completionMessage = useRotatingCompletionMessage(isTodayComplete);
+  const shouldShowTomorrowPreview = isTodayComplete || (morningComplete && !eveningComplete);
+  const tomorrowPreviewMessage = isTodayComplete
+    ? completionMessage
+    : 'Morning completed. Finish your evening session to unlock tomorrow morning.';
   const nextEveningReading = readingSchedule?.evening[0] ?? null;
   const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
   const eveningChapterCount = readingSchedule?.evening.length ?? 0;
@@ -155,17 +160,34 @@ const HomeScreen = () => {
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
 
   useEffect(() => {
+    setGreetingPeriod(getCurrentGreeting());
+
+    const intervalId = setInterval(() => {
+      setGreetingPeriod(getCurrentGreeting());
+    }, 60 * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
     void hydrateReminderStore().catch((error) => {
       console.warn('Unable to hydrate notification reminder state:', error);
     });
   }, [hydrateReminderStore]);
 
   useEffect(() => {
+    setIsExistingUser(null);
+    setIsReminderPromptDismissed(false);
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!user?.id || !isReminderStoreHydrated || isExistingUser !== null) {
       return;
     }
 
-    void registerSignedInReminderVisit()
+    void registerSignedInReminderVisit(user.id)
       .then((existingUser) => {
         setIsExistingUser(existingUser);
       })
@@ -276,7 +298,7 @@ const HomeScreen = () => {
         >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
-            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {greetingPeriod},</Text>
             <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
           </View>
 
@@ -361,23 +383,34 @@ const HomeScreen = () => {
           }
         />
 
-        {isTodayComplete ? (
+        {shouldShowTomorrowPreview ? (
           <Animated.View entering={FadeInDown.delay(190).duration(360)} className="mt-5">
-            <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
-              <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
-                <Feather name="award" size={13} color="#FFFFFF" />
+            {isTodayComplete ? (
+              <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
+                <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
+                  <Feather name="award" size={13} color="#FFFFFF" />
+                </View>
+                <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#C65A00]">
+                  Hurray! You are done reading for today
+                </Text>
               </View>
-              <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#C65A00]">
-                Hurray! You are done reading for today
-              </Text>
-            </View>
+            ) : (
+              <View className="mb-3 flex-row items-center rounded-[16px] border border-[#D4EEDB] bg-[#EDF9F1] px-3 py-2.5">
+                <View className="h-7 w-7 items-center justify-center rounded-full bg-[#16A34A]">
+                  <Feather name="sunset" size={13} color="#FFFFFF" />
+                </View>
+                <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#1C6B39]">
+                  Morning done. Evening session is now active
+                </Text>
+              </View>
+            )}
 
             <TomorrowMorningLockedPreviewCard
               dayNumber={tomorrowDayNumber}
               reference={tomorrowMorningReference}
               chapterCount={tomorrowMorningChapterCount}
               isLoading={isLoadingTomorrowReadingSchedule}
-              message={completionMessage}
+              message={tomorrowPreviewMessage}
             />
           </Animated.View>
         ) : null}

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { UserReadingProgressStore } from "@/types/index";
+import { useAuthStore } from "@/store/authStore";
 import {
   getCompletedScheduleDaysForUser,
   getScheduleDayMetadata,
@@ -135,7 +136,6 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
               scheduleId,
             ),
           },
-          loadedUserId: supabaseUserId,
           progressError: null,
         }));
 
@@ -193,13 +193,15 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getCompletedScheduleCount: (scheduleIds) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const activeUserId = useAuthStore.getState().supabaseUserId;
+        const targetUserId = activeUserId ?? loadedUserId;
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return 0;
         }
 
         const completedScheduleIds = new Set(
-          completedScheduleIdsByUser[loadedUserId] ?? [],
+          completedScheduleIdsByUser[targetUserId] ?? [],
         );
         return scheduleIds.filter((scheduleId) =>
           completedScheduleIds.has(scheduleId),
@@ -207,22 +209,26 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getTotalCompletedChapters: () => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const activeUserId = useAuthStore.getState().supabaseUserId;
+        const targetUserId = activeUserId ?? loadedUserId;
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return 0;
         }
 
-        return completedScheduleIdsByUser[loadedUserId]?.length ?? 0;
+        return completedScheduleIdsByUser[targetUserId]?.length ?? 0;
       },
       isScheduleComplete: (scheduleId) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const activeUserId = useAuthStore.getState().supabaseUserId;
+        const targetUserId = activeUserId ?? loadedUserId;
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return false;
         }
 
         return (
-          completedScheduleIdsByUser[loadedUserId]?.includes(scheduleId) ??
+          completedScheduleIdsByUser[targetUserId]?.includes(scheduleId) ??
           false
         );
       },

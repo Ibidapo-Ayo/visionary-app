@@ -1,6 +1,6 @@
 import React from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { AppState, Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -199,6 +199,7 @@ const AppLayout = () => {
   useBibleReadingReminderScheduler();
   const { isLoaded, isSignedIn } = useAuth();
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
+  const refreshBibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.refreshBibleReadingPlanDayNumber);
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -209,6 +210,16 @@ const AppLayout = () => {
       console.warn('Unable to load Bible reading plan:', error);
     });
   }, [isLoaded, isSignedIn, loadBibleReadingPlan]);
+
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshBibleReadingPlanDayNumber();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refreshBibleReadingPlanDayNumber]);
 
   if (!isLoaded) {
     return null;
