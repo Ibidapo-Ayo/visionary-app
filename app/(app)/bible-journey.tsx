@@ -12,7 +12,10 @@ import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
+import { useTomorrowReadingSchedule } from '@/hooks/useTomorrowReadingSchedule';
+import { useRotatingCompletionMessage } from '@/hooks/useRotatingCompletionMessage';
 import TodayJourneyProgressCard from '@/components/bible_reading_plan/TodayJourneyProgressCard';
+import TomorrowMorningLockedPreviewCard from '@/components/bible_reading_plan/TomorrowMorningLockedPreviewCard';
 
 type JourneyStepProps = {
   title: string;
@@ -70,8 +73,13 @@ const BibleJourneyScreen = () => {
   const insets = useSafeAreaInsets();
 
   const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule } = useTodayReadingSchedule();
-  const { countCompleted } = useUserReadingProgress();
+  const { countCompleted, isChapterComplete } = useUserReadingProgress();
   const { eveningUnlocked, morningComplete: morningReadingDone, eveningComplete: eveningReadingDone } = useReadingPeriodLock();
+  const {
+    tomorrowReadingSchedule,
+    tomorrowDayNumber,
+    isLoadingTomorrowReadingSchedule,
+  } = useTomorrowReadingSchedule();
   const { currentStreak, longestStreak } = useStreak();
 
   const morningReferences = readingSchedule?.morning.map(formatDayReadingReference) ?? [];
@@ -85,12 +93,22 @@ const BibleJourneyScreen = () => {
   const eveningTotal = eveningReferences.length;
   const totalTodayChapters = morningTotal + eveningTotal;
   const totalCompletedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
+  const dailyReadingDone = morningReadingDone && eveningReadingDone;
+  const completionMessage = useRotatingCompletionMessage(dailyReadingDone);
   const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
   const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null && bibleReadingPlan.total_days > 0
     ? Math.min(100, Math.round((bibleReadingPlanDayNumber / bibleReadingPlan.total_days) * 100))
     : 0;
   const morningSubtitle = getReadingSubtitle(morningReferences, 'morning', isLoadingReadingSchedule);
   const eveningSubtitle = getReadingSubtitle(eveningReferences, 'evening', isLoadingReadingSchedule);
+  const todayCompletedReferences = [...(readingSchedule?.morning ?? []), ...(readingSchedule?.evening ?? [])]
+    .filter((reading) => isChapterComplete(reading.id))
+    .map(formatDayReadingReference);
+  const tomorrowMorningReading = tomorrowReadingSchedule?.morning[0] ?? null;
+  const tomorrowMorningReference = tomorrowMorningReading
+    ? formatDayReadingReference(tomorrowMorningReading)
+    : 'Tomorrow morning reading';
+  const tomorrowMorningChapterCount = tomorrowReadingSchedule?.morning.length ?? 0;
 
   const openReading = (period: ReadingPeriod) => {
     router.push({
@@ -139,6 +157,27 @@ const BibleJourneyScreen = () => {
           currentStreak={currentStreak}
         />
 
+        {dailyReadingDone ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(320)} className="mt-4">
+            <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
+              <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
+                <Feather name="sparkles" size={13} color="#FFFFFF" />
+              </View>
+              <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#C65A00]">
+                You finished today&apos;s reading
+              </Text>
+            </View>
+
+            <TomorrowMorningLockedPreviewCard
+              dayNumber={tomorrowDayNumber}
+              reference={tomorrowMorningReference}
+              chapterCount={tomorrowMorningChapterCount}
+              isLoading={isLoadingTomorrowReadingSchedule}
+              message={completionMessage}
+            />
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(120).duration(320)} className="mt-4 flex-row gap-3">
           <MiniStat icon="book-open" value={`${yearlyProgressPercent}%`} label="Year Goal" tint="#16A34A" />
           <MiniStat icon="calendar" value={`${totalTodayChapters}`} label="Chapters Today" tint="#FF7A00" />
@@ -177,19 +216,46 @@ const BibleJourneyScreen = () => {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(220).duration(320)} className="mt-5 rounded-[22px] border border-[#E6D9C9] bg-white p-4">
-          <View className="flex-row items-start">
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-[#FFF2E6]">
-              <Feather name="compass" size={17} color="#FF7A00" />
+        <Animated.View entering={FadeInDown.delay(200).duration(320)} className="mt-5 rounded-[22px] border border-[#E6D9C9] bg-white p-4">
+          <View className="flex-row items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#FFF2E6]">
+              <Feather name="check-circle" size={16} color="#16A34A" />
             </View>
-            <View className="ml-3 flex-1">
-              <Text className="text-[13px] font-black text-[#171717]">Stay steady today</Text>
-              <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">
-                Complete the morning reading first. The evening session opens right after.
-              </Text>
-            </View>
+            <Text className="ml-3 text-[13px] font-black text-[#171717]">Completed Chapters Today</Text>
           </View>
+
+          {todayCompletedReferences.length > 0 ? (
+            <View className="mt-3 flex-row flex-wrap gap-2">
+              {todayCompletedReferences.map((chapterReference, index) => (
+                <View key={`${chapterReference}-${index}`} className="rounded-full bg-[#F5EFE7] px-3 py-1.5">
+                  <Text className="text-[10px] font-bold text-[#6D6255]">{chapterReference}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text className="mt-3 text-[11px] font-semibold leading-5 text-[#7D7368]">
+              No completed chapters yet. Start with the morning reading to unlock today&apos;s momentum.
+            </Text>
+          )}
         </Animated.View>
+
+        {!dailyReadingDone ? (
+          <Animated.View entering={FadeInDown.delay(220).duration(320)} className="mt-5">
+            <View className="rounded-[22px] border border-[#E6D9C9] bg-white p-4">
+              <View className="flex-row items-start">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-[#FFF2E6]">
+                  <Feather name="compass" size={17} color="#FF7A00" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-[13px] font-black text-[#171717]">Stay steady today</Text>
+                  <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#7D7368]">
+                    Complete the morning reading first. The evening session opens right after.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        ) : null}
       </ScrollView>
     </LinearGradient>
   );

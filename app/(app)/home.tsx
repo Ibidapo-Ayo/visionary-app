@@ -16,6 +16,9 @@ import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
+import { useTomorrowReadingSchedule } from '@/hooks/useTomorrowReadingSchedule';
+import { useRotatingCompletionMessage } from '@/hooks/useRotatingCompletionMessage';
+import TomorrowMorningLockedPreviewCard from '@/components/bible_reading_plan/TomorrowMorningLockedPreviewCard';
 import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '@/lib/responsive';
 
 
@@ -50,7 +53,12 @@ const HomeScreen = () => {
   const user = useAuthStore((state) => state.user);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
   const { refreshProgress } = useUserReadingProgress();
-  const { eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
+  const { morningComplete, eveningComplete, eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
+  const {
+    tomorrowReadingSchedule,
+    tomorrowDayNumber,
+    isLoadingTomorrowReadingSchedule,
+  } = useTomorrowReadingSchedule();
   const { currentStreak, refreshStreak } = useStreak();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
@@ -67,9 +75,16 @@ const HomeScreen = () => {
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
   const progressStats = { ...dbProgressStats, reflections: 0 };
+  const isTodayComplete = morningComplete && eveningComplete;
+  const completionMessage = useRotatingCompletionMessage(isTodayComplete);
   const nextEveningReading = readingSchedule?.evening[0] ?? null;
   const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
   const eveningChapterCount = readingSchedule?.evening.length ?? 0;
+  const tomorrowMorningReading = tomorrowReadingSchedule?.morning[0] ?? null;
+  const tomorrowMorningReference = tomorrowMorningReading
+    ? formatDayReadingReference(tomorrowMorningReading)
+    : 'Tomorrow morning reading';
+  const tomorrowMorningChapterCount = tomorrowReadingSchedule?.morning.length ?? 0;
 
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
   const firstName = fullName.split(' ')[0] || 'Visionary';
@@ -277,18 +292,28 @@ const HomeScreen = () => {
           </View>
 
           <View className="mt-3">
-            <NextReadingPreviewCard
-              reference={nextEveningReference}
-              chapterCount={eveningChapterCount}
-              isLoading={isLoadingReadingSchedule}
-              locked={!eveningUnlocked}
-              onPress={() =>
-                router.push({
-                  pathname: '/(app)/bible-reading-select',
-                  params: { period: eveningUnlocked ? 'evening' : (nextActionablePeriod ?? 'morning') },
-                })
-              }
-            />
+            {isTodayComplete ? (
+              <TomorrowMorningLockedPreviewCard
+                dayNumber={tomorrowDayNumber}
+                reference={tomorrowMorningReference}
+                chapterCount={tomorrowMorningChapterCount}
+                isLoading={isLoadingTomorrowReadingSchedule}
+                message={completionMessage}
+              />
+            ) : (
+              <NextReadingPreviewCard
+                reference={nextEveningReference}
+                chapterCount={eveningChapterCount}
+                isLoading={isLoadingReadingSchedule}
+                locked={!eveningUnlocked}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(app)/bible-reading-select',
+                    params: { period: eveningUnlocked ? 'evening' : (nextActionablePeriod ?? 'morning') },
+                  })
+                }
+              />
+            )}
           </View>
         </Animated.View>
 
