@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BibleJourneyStore, DailyReadingProgress } from '@/types/index';
 import { getDateRangeBounds, toDateKey } from '@/lib/helper';
 
@@ -22,7 +20,6 @@ const computeDailyCompleted = (progress: DailyReadingProgress) =>
   Boolean(progress.morningCompleted && progress.eveningCompleted);
 
 export const useBibleJourneyStore = create<BibleJourneyStore>()(
-  persist(
     (set, get) => ({
       dailyProgressByDate: {},
       markSessionReadingCompleteForToday: ({ period, readingReference }) => {
@@ -186,37 +183,4 @@ export const useBibleJourneyStore = create<BibleJourneyStore>()(
         return { reflections };
       },
     }),
-    {
-      name: 'bible-journey-store',
-      storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
-      migrate: (persistedState) => {
-        if (!persistedState || typeof persistedState !== 'object') {
-          return persistedState;
-        }
-
-        const state = persistedState as {
-          dailyProgressByDate?: Record<string, DailyReadingProgress & { reflectionCompleted?: unknown; reflectionCompletedByPeriod?: unknown }>;
-        };
-
-        const dailyProgressByDate = state.dailyProgressByDate ?? {};
-        const migratedDailyProgressByDate = Object.fromEntries(
-          Object.entries(dailyProgressByDate).map(([dateKey, progress]) => {
-            const { reflectionCompleted: _reflectionCompleted, reflectionCompletedByPeriod: _reflectionCompletedByPeriod, ...rest } = progress;
-            const nextProgress: DailyReadingProgress = {
-              ...rest,
-              dailyCompleted: computeDailyCompleted(rest),
-            };
-
-            return [dateKey, nextProgress];
-          }),
-        );
-
-        return {
-          ...state,
-          dailyProgressByDate: migratedDailyProgressByDate,
-        };
-      },
-    },
-  ),
 );

@@ -1,17 +1,17 @@
-import type { ClerkUserResource, SupabaseUserRow, User } from '@/types/index';
+import type { ClerkAuthUserResource, SupabaseUserRow, User } from '@/types/index';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './client';
 import { USERS_TABLE } from './constants';
 
 const PROFILE_IMAGES_BUCKET = 'profile-images';
 
-const getPrimaryEmail = (user: ClerkUserResource): string =>
-  user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '';
+const getPrimaryEmail = (user: ClerkAuthUserResource): string =>
+  user.primaryEmailAddress?.emailAddress ?? user.emailAddresses?.[0]?.emailAddress ?? '';
 
-const getPrimaryPhone = (user: ClerkUserResource): string =>
-  user.primaryPhoneNumber?.phoneNumber ?? user.phoneNumbers[0]?.phoneNumber ?? '';
+const getPrimaryPhone = (user: ClerkAuthUserResource): string =>
+  user.primaryPhoneNumber?.phoneNumber ?? user.phoneNumbers?.[0]?.phoneNumber ?? '';
 
-const getMetadataPhone = (user: ClerkUserResource): string => {
+const getMetadataPhone = (user: ClerkAuthUserResource): string => {
   const metadataValue = user.unsafeMetadata?.phone_number;
   return typeof metadataValue === 'string' ? metadataValue : '';
 };
@@ -23,12 +23,10 @@ const toNullable = (value: string | null | undefined): string | null => {
 
 const nowIso = (): string => new Date().toISOString();
 
-const getDeviceTimezone = (): string => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
+const getTimezoneValueForSupabase = (existing?: SupabaseUserRow | null): string => {
+  // `users.timezone` is configured as timestamptz in this project DB, so persist
+  // an ISO value instead of an IANA timezone id (e.g. "Africa/Lagos").
+  return existing?.timezone?.trim() || nowIso();
 };
 
 const normalizeRoleForSupabase = (role: string | null | undefined): string => {
@@ -51,7 +49,7 @@ const normalizeRoleForSupabase = (role: string | null | undefined): string => {
   }
 };
 
-const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | null): SupabaseUserRow => {
+const baseRowFromClerk = (user: ClerkAuthUserResource, existing?: SupabaseUserRow | null): SupabaseUserRow => {
   const now = nowIso();
   const createdAt = user.createdAt ? new Date(user.createdAt).toISOString() : now;
   const phoneFromClerk = toNullable(getPrimaryPhone(user));
@@ -74,8 +72,7 @@ const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | 
     department: existing?.department ?? null,
     joined_at: existing?.joined_at ?? createdAt,
     is_active: existing?.is_active ?? true,
-    // Refresh on every sync so a user's streak always uses their current device's timezone.
-    timezone: getDeviceTimezone(),
+    timezone: getTimezoneValueForSupabase(existing),
   };
 };
 
@@ -95,15 +92,21 @@ const baseRowFromStoreUser = (user: User, existing?: SupabaseUserRow | null): Su
   department: existing?.department ?? null,
   joined_at: existing?.joined_at ?? user.joinDate,
   is_active: existing?.is_active ?? true,
-  timezone: getDeviceTimezone(),
+  timezone: getTimezoneValueForSupabase(existing),
 });
 
-const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
-  const { error } = await supabase.from(USERS_TABLE).upsert(row, { onConflict: 'clerk_user_id' });
+const upsertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .upsert(row, { onConflict: 'clerk_user_id' })
+    .select('*')
+    .single<SupabaseUserRow>();
 
   if (error) {
     throw new Error(`[supabase] Failed to upsert user for ${row.clerk_user_id}: ${error.message}`);
   }
+
+  return data;
 };
 
 const getImageExtensionFromUri = (uri: string): string => {
@@ -213,12 +216,15 @@ export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<strin
   return user.id;
 };
 
-export const syncProfileFromClerkUser = async (clerkUser: ClerkUserResource): Promise<void> => {
+
+export const syncProfileFromClerkUser = async (clerkUser: ClerkAuthUserResource): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(clerkUser.id);
-  await upsertUser(baseRowFromClerk(clerkUser, existing));
+  console.log("Existing user", existing);
+  return upsertUser(baseRowFromClerk(clerkUser, existing));
 };
 
-export const syncProfileFromStoreUser = async (user: User): Promise<void> => {
+export const syncProfileFromStoreUser = async (user: User): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(user.id);
-  await upsertUser(baseRowFromStoreUser(user, existing));
+  console.log("Existing store user", existing);
+  return upsertUser(baseRowFromStoreUser(user, existing));
 };

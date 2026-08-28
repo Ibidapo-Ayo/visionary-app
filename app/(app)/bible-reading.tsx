@@ -5,7 +5,6 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DayReading, ReadingPeriod } from '@/types/index';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { useAuthStore } from '@/store/authStore';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import { useReadingPeriodLockStore } from '@/store/readingPeriodLockStore';
@@ -64,7 +63,6 @@ const BibleReadingScreenView = () => {
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
-  const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
   const { readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
@@ -147,11 +145,6 @@ const BibleReadingScreenView = () => {
       }
 
       const completedReference = formatDayReadingReference(chapter);
-
-      markSessionReadingCompleteForToday({
-        period,
-        readingReference: completedReference,
-      });
 
       // Check the real DB-backed completion state (not the locally-mirrored flags above) so the
       // streak reliably updates the moment both sessions are actually done, even across devices/reinstalls.

@@ -14,7 +14,7 @@ import PasswordRequirementCard, { getPasswordRequirements } from '@components/au
 import SectionHeader from '@components/auth/SectionHeader';
 import SocialButton from '@components/auth/SocialButton';
 import TextField from '@components/auth/TextField';
-import { useAuthSignUp, useGoogleAuth } from '@services/auth';
+import { useAuthSignUp, useGoogleAuth, useSyncUserToBackend } from '@services/auth';
 
 const registrationSchema = z
   .object({
@@ -39,10 +39,12 @@ type RegistrationData = z.infer<typeof registrationSchema>;
 const RegisterScreen = () => {
   const router = useRouter();
   const { startSignUp, isLoaded } = useAuthSignUp();
+  const { syncUserToBackend } = useSyncUserToBackend();
   const { signInWithGoogle } = useGoogleAuth();
 
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -86,7 +88,18 @@ const RegisterScreen = () => {
     }
 
     if (result.complete) {
-      router.replace('/(app)/home');
+      setFinalizing(true);
+      const finalizeResult = await syncUserToBackend();
+      setFinalizing(false);
+
+      if (finalizeResult.complete) {
+        router.replace('/(app)/home');
+        return;
+      }
+
+      if (finalizeResult.error) {
+        setFormError(finalizeResult.error.message);
+      }
       return;
     }
 
@@ -105,20 +118,37 @@ const RegisterScreen = () => {
   };
 
   const onGoogle = async () => {
-    setFormError(null);
-    setGoogleSubmitting(true);
-    const result = await signInWithGoogle();
-    setGoogleSubmitting(false);
-    if (result.complete) {
-      router.replace('/(app)/home');
+    if (busy) {
       return;
     }
+
+    setFormError(null);
+    setGoogleSubmitting(true);
+    const result = await signInWithGoogle({ redirectPath: '/(auth)/register' });
+    setGoogleSubmitting(false);
+
+    if (result.complete) {
+      setFinalizing(true);
+      const finalizeResult = await syncUserToBackend();
+      setFinalizing(false);
+
+      if (finalizeResult.complete) {
+        router.replace('/(app)/home');
+        return;
+      }
+
+      if (finalizeResult.error) {
+        setFormError(finalizeResult.error.message);
+      }
+      return;
+    }
+
     if (result.error) {
       setFormError(result.error.message);
     }
   };
 
-  const busy = submitting || googleSubmitting || !isLoaded;
+  const busy = submitting || googleSubmitting || finalizing || !isLoaded;
   const passwordValue = watch('password') ?? '';
   const isPasswordValid = getPasswordRequirements(passwordValue).every((requirement) => requirement.met);
 
@@ -185,7 +215,7 @@ const RegisterScreen = () => {
         <View nativeID="clerk-captcha" />
 
         <Button
-          label={submitting ? 'Creating account…' : 'Sign Up'}
+          label={finalizing ? 'Finalizing account…' : submitting ? 'Creating account…' : 'Sign Up'}
           onPress={handleSubmit(handleRegister)}
           iconRight
           disabled={busy || !isPasswordValid}

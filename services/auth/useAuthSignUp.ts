@@ -8,8 +8,12 @@ import { toAuthError } from './errors';
  * primitives that our screens consume without ever importing Clerk directly.
  */
 export const useAuthSignUp = () => {
-  const { signUp, fetchStatus } = useSignUp();
+  const signUpState = useSignUp();
+  const { signUp, fetchStatus } = signUpState;
   const isLoaded = fetchStatus !== 'fetching' && Boolean(signUp);
+  const setActive = (signUpState as {
+    setActive?: (params: { session: string }) => Promise<unknown>;
+  }).setActive;
 
   const startSignUp = useCallback(
     async (input: SignUpInput): Promise<SignUpResult> => {
@@ -77,6 +81,14 @@ export const useAuthSignUp = () => {
               complete: false,
               error: toAuthError(finalizeResult.error),
             };
+          }
+
+          const createdSessionId =
+            (finalizeResult as { createdSessionId?: string | null }).createdSessionId ??
+            (signUp as { createdSessionId?: string | null }).createdSessionId;
+
+          if (createdSessionId && setActive) {
+            await setActive({ session: createdSessionId });
           }
 
           return { needsEmailVerification: false, complete: true };

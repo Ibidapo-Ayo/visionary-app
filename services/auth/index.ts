@@ -13,6 +13,8 @@ export type { RequestResetResult, CompleteResetResult } from '@/types/index';
 export { useGoogleAuth } from './useGoogleAuth';
 export type { OAuthResult } from '@/types/index';
 
+export { useSyncUserToBackend } from './useCompleteAuthRegistration';
+export { useCompleteAuthRegistration } from './useCompleteAuthRegistration';
 export { useSyncClerkAuth } from './useSyncClerkAuth';
 export { useSignOut } from './useSignOut';
 export type { SignOutResult } from '@/types/index';

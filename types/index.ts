@@ -62,6 +62,7 @@ export type ClerkAuthUserResource = {
   emailAddresses?: Array<{ emailAddress?: string | null }>;
   primaryPhoneNumber?: { phoneNumber?: string | null } | null;
   phoneNumbers?: Array<{ phoneNumber?: string | null }>;
+  unsafeMetadata?: Record<string, unknown>;
 };
 
 export interface SignUpInput {
@@ -360,8 +361,8 @@ export type ClerkUserResource = {
   firstName: string | null;
   lastName: string | null;
   imageUrl: string;
-  createdAt: number | null;
-  updatedAt: number | null;
+  createdAt: string | number | Date | null;
+  updatedAt: string | number | Date | null;
   primaryEmailAddress?: { emailAddress?: string | null } | null;
   emailAddresses: Array<{ emailAddress?: string | null }>;
   primaryPhoneNumber?: { phoneNumber?: string | null } | null;

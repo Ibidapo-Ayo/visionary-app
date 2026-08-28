@@ -18,9 +18,10 @@ WebBrowser.maybeCompleteAuthSession();
 export const useGoogleAuth = () => {
   const { startSSOFlow } = useSSO();
 
-  const signInWithGoogle = useCallback(async (): Promise<OAuthResult> => {
+  const signInWithGoogle = useCallback(async (options?: { redirectPath?: string }): Promise<OAuthResult> => {
     try {
-      const redirectUrl = Linking.createURL('/(app)/home', { scheme: 'visionary' });
+      const redirectPath = options?.redirectPath ?? '/(auth)/login';
+      const redirectUrl = Linking.createURL(redirectPath, { scheme: 'visionary' });
 
       const result = await startSSOFlow({
         strategy: 'oauth_google',

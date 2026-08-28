@@ -8,16 +8,18 @@ import AuthTopBar from '@components/auth/AuthTopBar';
 import Button from '@components/auth/Button';
 import OTPInput from '@components/auth/OTPInput';
 import SectionHeader from '@components/auth/SectionHeader';
-import { useAuthSignUp } from '@services/auth';
+import { useAuthSignUp, useSyncUserToBackend } from '@services/auth';
 
 const VerifyEmailScreen = () => {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email?: string }>();
   const { verifyEmailCode, resendEmailCode, isLoaded } = useAuthSignUp();
+  const { syncUserToBackend } = useSyncUserToBackend();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(30);
   const [submitting, setSubmitting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [resending, setResending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -41,7 +43,18 @@ const VerifyEmailScreen = () => {
     setSubmitting(false);
 
     if (result.complete) {
-      router.replace('/(app)/home');
+      setFinalizing(true);
+      const finalizeResult = await syncUserToBackend();
+      setFinalizing(false);
+
+      if (finalizeResult.complete) {
+        router.replace('/(app)/home');
+        return;
+      }
+
+      if (finalizeResult.error) {
+        setFormError(finalizeResult.error.message);
+      }
       return;
     }
 
@@ -66,7 +79,7 @@ const VerifyEmailScreen = () => {
     setCountdown(30);
   };
 
-  const busy = submitting || resending || !isLoaded;
+  const busy = submitting || finalizing || resending || !isLoaded;
 
   return (
     <AuthScaffold>
@@ -118,7 +131,7 @@ const VerifyEmailScreen = () => {
 
       <View className="mt-8">
         <Button
-          label={submitting ? 'Verifying…' : 'Verify Email'}
+          label={finalizing ? 'Finalizing account…' : submitting ? 'Verifying…' : 'Verify Email'}
           onPress={onVerify}
           iconRight
           disabled={!isCodeComplete || busy}

@@ -1,6 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 import type { UserReadingProgressStore } from "@/types/index";
 import {
   getCompletedScheduleDaysForUser,
@@ -41,7 +39,6 @@ const addCompletedScheduleDay = (
 };
 
 export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
-  persist(
     (set, get) => ({
       completedScheduleIdsByUser: {},
       completedScheduleDaysByUser: {},
@@ -252,14 +249,4 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         return { daysRead: dateKeysInRange.size, chapters };
       },
     }),
-    {
-      name: "user-reading-progress-store",
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        completedScheduleIdsByUser: state.completedScheduleIdsByUser,
-        completedScheduleDaysByUser: state.completedScheduleDaysByUser,
-        loadedUserId: state.loadedUserId,
-      }),
-    },
-  ),
 );

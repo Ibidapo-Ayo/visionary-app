@@ -7,7 +7,6 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
 import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
@@ -49,7 +48,6 @@ const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { width, isTablet } = useResponsive();
   const user = useAuthStore((state) => state.user);
-  const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
   const { refreshProgress } = useUserReadingProgress();
   const { eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
@@ -68,8 +66,7 @@ const HomeScreen = () => {
 
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
-  const { reflections: reflectionsCount } = getReflectionsStatsForRange(selectedProgressRange);
-  const progressStats = { ...dbProgressStats, reflections: reflectionsCount };
+  const progressStats = { ...dbProgressStats, reflections: 0 };
   const nextEveningReading = readingSchedule?.evening[0] ?? null;
   const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
   const eveningChapterCount = readingSchedule?.evening.length ?? 0;
