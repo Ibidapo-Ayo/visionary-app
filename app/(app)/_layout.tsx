@@ -100,6 +100,7 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const activeRoute = state.routes[state.index];
   const shouldHideTabBar =
     activeRoute.name === 'edit-profile' ||
+    activeRoute.name === 'settings' ||
     activeRoute.name === 'ai' ||
     activeRoute.name === 'bible-reading-select' ||
     activeRoute.name === 'bible-reading' ||
@@ -278,6 +279,13 @@ const AppLayout = () => {
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
       <Tabs.Screen
         name="edit-profile"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
         options={{
           href: null,
           tabBarStyle: { display: 'none' },

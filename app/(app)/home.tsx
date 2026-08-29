@@ -70,7 +70,7 @@ const HomeScreen = () => {
     tomorrowDayNumber,
     isLoadingTomorrowReadingSchedule,
   } = useTomorrowReadingSchedule();
-  const { currentStreak, refreshStreak } = useStreak();
+  const { currentStreak, longestStreak, refreshStreak } = useStreak();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
@@ -98,7 +98,7 @@ const HomeScreen = () => {
 
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
-  const progressStats = { ...dbProgressStats, reflections: 0 };
+  const progressStats = dbProgressStats;
   const isTodayComplete = morningComplete && eveningComplete;
   const completionMessage = useRotatingCompletionMessage(isTodayComplete);
   const shouldShowTomorrowPreview = isTodayComplete || (morningComplete && !eveningComplete);
@@ -456,7 +456,7 @@ const HomeScreen = () => {
           <View className="mt-3 flex-row gap-3" style={{ zIndex: 1 }}>
             <StatPill icon="book-open" label="Days Read" value={`${progressStats.daysRead}`} tint="#16A34A" />
             <StatPill icon="award" label="Chapters" value={`${progressStats.chapters}`} tint="#FF7A00" />
-            <StatPill icon="message-circle" label="Reflections" value={`${progressStats.reflections}`} tint="#7257D6" />
+            <StatPill icon="target" label="Longest" value={`${longestStreak}`} tint="#111111" />
           </View>
         </Animated.View>
 
