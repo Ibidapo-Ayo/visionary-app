@@ -234,12 +234,14 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getProgressStatsForRange: (range, planStartDate) => {
         const { completedScheduleDaysByUser, loadedUserId } = get();
+        const activeUserId = useAuthStore.getState().supabaseUserId;
+        const targetUserId = activeUserId ?? loadedUserId;
 
-        if (!loadedUserId || !planStartDate) {
+        if (!targetUserId || !planStartDate) {
           return { daysRead: 0, chapters: 0 };
         }
 
-        const scheduleDays = completedScheduleDaysByUser[loadedUserId] ?? [];
+        const scheduleDays = completedScheduleDaysByUser[targetUserId] ?? [];
         const { start, end } = getDateRangeBounds(range);
         const dateKeysInRange = new Set<string>();
         let chapters = 0;

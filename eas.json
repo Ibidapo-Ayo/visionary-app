@@ -1,14 +1,21 @@
 {
   "build": {
     "preview": {
-      "environment": "preview",
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "environment": "production"
+      "environment": "production",
+      "android": {
+        "buildType": "apk"
+      },
+      "autoIncrement": true
     }
+  },
+  "cli": {
+    "appVersionSource": "remote"
   }
 }

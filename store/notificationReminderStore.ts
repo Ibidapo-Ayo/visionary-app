@@ -43,6 +43,13 @@ const DEFAULT_STORED_PREFERENCES: StoredNotificationPreference = {
   eveningReminderHours: [],
 };
 
+type PersistedPreferenceState = Pick<
+  NotificationReminderStore,
+  'clerkUserId' | 'hidePromptForExistingUser' | 'hasSeenSignedInHome' | 'morningReminderHours' | 'eveningReminderHours'
+>;
+
+let preferenceWriteQueue: Promise<void> = Promise.resolve();
+
 const sanitizeReminderHours = (hours: unknown): number[] => {
   if (!Array.isArray(hours)) {
     return [];
@@ -86,6 +93,26 @@ const writeStoredPreferences = async (value: StoredNotificationPreference) => {
   } catch (error) {
     console.warn('Unable to save notification preferences:', error);
   }
+};
+
+const queuePreferenceSnapshotWrite = (getSnapshot: () => PersistedPreferenceState) => {
+  preferenceWriteQueue = preferenceWriteQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const stored = await readStoredPreferences();
+      const snapshot = getSnapshot();
+
+      await writeStoredPreferences({
+        ...stored,
+        clerkUserId: snapshot.clerkUserId,
+        hidePromptForExistingUser: snapshot.hidePromptForExistingUser,
+        hasSeenSignedInHome: snapshot.hasSeenSignedInHome,
+        morningReminderHours: sanitizeReminderHours(snapshot.morningReminderHours),
+        eveningReminderHours: sanitizeReminderHours(snapshot.eveningReminderHours),
+      });
+    });
+
+  return preferenceWriteQueue;
 };
 
 export const useNotificationReminderStore = create<NotificationReminderStore>((set, get) => ({
@@ -139,12 +166,15 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
 
   setHidePromptForExistingUser: async (value) => {
     set({ hidePromptForExistingUser: value });
-
-    const stored = await readStoredPreferences();
-    await writeStoredPreferences({
-      ...stored,
-      clerkUserId: get().clerkUserId,
-      hidePromptForExistingUser: value,
+    await queuePreferenceSnapshotWrite(() => {
+      const current = get();
+      return {
+        clerkUserId: current.clerkUserId,
+        hidePromptForExistingUser: current.hidePromptForExistingUser,
+        hasSeenSignedInHome: current.hasSeenSignedInHome,
+        morningReminderHours: current.morningReminderHours,
+        eveningReminderHours: current.eveningReminderHours,
+      };
     });
   },
 
@@ -160,12 +190,15 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
         eveningReminderHours: [],
       });
 
-      await writeStoredPreferences({
-        clerkUserId,
-        hasSeenSignedInHome: true,
-        hidePromptForExistingUser: false,
-        morningReminderHours: [],
-        eveningReminderHours: [],
+      await queuePreferenceSnapshotWrite(() => {
+        const current = get();
+        return {
+          clerkUserId: current.clerkUserId,
+          hidePromptForExistingUser: current.hidePromptForExistingUser,
+          hasSeenSignedInHome: current.hasSeenSignedInHome,
+          morningReminderHours: current.morningReminderHours,
+          eveningReminderHours: current.eveningReminderHours,
+        };
       });
 
       return false;
@@ -177,11 +210,15 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
 
     set({ hasSeenSignedInHome: true });
 
-    const stored = await readStoredPreferences();
-    await writeStoredPreferences({
-      ...stored,
-      clerkUserId,
-      hasSeenSignedInHome: true,
+    await queuePreferenceSnapshotWrite(() => {
+      const current = get();
+      return {
+        clerkUserId: current.clerkUserId,
+        hidePromptForExistingUser: current.hidePromptForExistingUser,
+        hasSeenSignedInHome: current.hasSeenSignedInHome,
+        morningReminderHours: current.morningReminderHours,
+        eveningReminderHours: current.eveningReminderHours,
+      };
     });
 
     return false;
@@ -196,12 +233,15 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
       set({ eveningReminderHours: sanitizedHours });
     }
 
-    const stored = await readStoredPreferences();
-    await writeStoredPreferences({
-      ...stored,
-      clerkUserId: get().clerkUserId,
-      morningReminderHours: period === 'morning' ? sanitizedHours : get().morningReminderHours,
-      eveningReminderHours: period === 'evening' ? sanitizedHours : get().eveningReminderHours,
+    await queuePreferenceSnapshotWrite(() => {
+      const current = get();
+      return {
+        clerkUserId: current.clerkUserId,
+        hidePromptForExistingUser: current.hidePromptForExistingUser,
+        hasSeenSignedInHome: current.hasSeenSignedInHome,
+        morningReminderHours: current.morningReminderHours,
+        eveningReminderHours: current.eveningReminderHours,
+      };
     });
   },
 
@@ -211,12 +251,15 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
       eveningReminderHours: [],
     });
 
-    const stored = await readStoredPreferences();
-    await writeStoredPreferences({
-      ...stored,
-      clerkUserId: get().clerkUserId,
-      morningReminderHours: [],
-      eveningReminderHours: [],
+    await queuePreferenceSnapshotWrite(() => {
+      const current = get();
+      return {
+        clerkUserId: current.clerkUserId,
+        hidePromptForExistingUser: current.hidePromptForExistingUser,
+        hasSeenSignedInHome: current.hasSeenSignedInHome,
+        morningReminderHours: current.morningReminderHours,
+        eveningReminderHours: current.eveningReminderHours,
+      };
     });
   },
 }));

@@ -10,6 +10,8 @@ type SyncUserToBackendResult = {
   error?: AuthErrorShape;
 };
 
+const STALE_SYNC_CODE = 'stale_sync';
+
 const toProjectedUser = (user: ClerkAuthUserResource): User | null => {
   const mapped = mapClerkUser(user);
   if (!mapped) {
@@ -48,6 +50,7 @@ export const useSyncUserToBackend = () => {
 
     try {
       const readyUser = clerkUserRef.current as ClerkAuthUserResource | null;
+      const isReadyUserStillCurrent = () => clerkUserRef.current?.id === readyUser?.id;
 
       if (!authLoaded || !userLoaded || !readyUser) {
         return {
@@ -70,7 +73,17 @@ export const useSyncUserToBackend = () => {
         };
       }
 
-      const row = await syncProfileFromClerkUser(readyUser);
+      const row = await syncProfileFromClerkUser(readyUser, isReadyUserStillCurrent);
+      if (!isReadyUserStillCurrent()) {
+        return {
+          complete: false,
+          error: {
+            code: STALE_SYNC_CODE,
+            message: 'Skipped stale authentication sync.',
+          },
+        };
+      }
+
       setUser({
         ...projectedUser,
         profileImage: row.profile_image ?? projectedUser.profileImage,
@@ -78,16 +91,45 @@ export const useSyncUserToBackend = () => {
         gender: row.gender ?? projectedUser.gender,
         updatedAt: row.updated_at,
       });
+      if (!isReadyUserStillCurrent()) {
+        return {
+          complete: false,
+          error: {
+            code: STALE_SYNC_CODE,
+            message: 'Skipped stale authentication sync.',
+          },
+        };
+      }
 
       if (row.id) {
         setSupabaseUserId(row.id);
       } else {
         const resolvedId = await resolveSupabaseUserId(projectedUser.id);
+        if (!isReadyUserStillCurrent()) {
+          return {
+            complete: false,
+            error: {
+              code: STALE_SYNC_CODE,
+              message: 'Skipped stale authentication sync.',
+            },
+          };
+        }
+
         setSupabaseUserId(resolvedId);
       }
 
       return { complete: true };
     } catch (error) {
+      if (error instanceof Error && error.message === STALE_SYNC_CODE) {
+        return {
+          complete: false,
+          error: {
+            code: STALE_SYNC_CODE,
+            message: 'Skipped stale authentication sync.',
+          },
+        };
+      }
+
       return {
         complete: false,
         error: toAuthError(error),

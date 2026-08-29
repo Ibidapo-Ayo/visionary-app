@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -85,12 +85,41 @@ const BibleReadingScreenView = () => {
     return firstIncomplete >= 0 ? firstIncomplete : 0;
   }, [completedScheduleIds, incomingReference, sessionChapters]);
 
-  // Lock initial chapter selection to mount time; wrapper key remount handles new selections.
-  const initialChapterIndexRef = useRef(initialChapterIndex);
-
-  const [chapterIndex, setChapterIndex] = useState(initialChapterIndexRef.current);
+  const [chapterIndex, setChapterIndex] = useState(0);
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const hasAppliedInitialChapterRef = useRef(false);
+  const hasUserChangedChapterRef = useRef(false);
+  const selectionSignatureRef = useRef('');
+
+  const selectionSignature = `${period}:${incomingReference}`;
+
+  useEffect(() => {
+    if (selectionSignatureRef.current === selectionSignature) {
+      return;
+    }
+
+    selectionSignatureRef.current = selectionSignature;
+    hasAppliedInitialChapterRef.current = false;
+    hasUserChangedChapterRef.current = false;
+  }, [selectionSignature]);
+
+  useEffect(() => {
+    if (isLoadingReadingSchedule || isLoadingBibleReadingPlan) {
+      return;
+    }
+
+    if (sessionChapters.length === 0) {
+      return;
+    }
+
+    if (hasAppliedInitialChapterRef.current || hasUserChangedChapterRef.current) {
+      return;
+    }
+
+    setChapterIndex(initialChapterIndex);
+    hasAppliedInitialChapterRef.current = true;
+  }, [initialChapterIndex, isLoadingBibleReadingPlan, isLoadingReadingSchedule, sessionChapters.length]);
 
   const chapter = sessionChapters[Math.min(chapterIndex, Math.max(0, sessionChapters.length - 1))];
   const currentChapterQuery = useBibleChapter(chapter?.bookName ?? null, chapter?.chapter ?? null);
@@ -124,6 +153,7 @@ const BibleReadingScreenView = () => {
       return;
     }
 
+    hasUserChangedChapterRef.current = true;
     setChapterIndex((prev) => prev - 1);
   };
 
@@ -139,6 +169,7 @@ const BibleReadingScreenView = () => {
       await markCurrentChapterComplete();
 
       if (hasNext) {
+        hasUserChangedChapterRef.current = true;
         setChapterIndex((prev) => prev + 1);
         return;
       }
@@ -314,13 +345,8 @@ const BibleReadingScreenView = () => {
   );
 };
 
-/** Keying on period+reference forces a remount per selection, so chapterIndex always initializes at the clicked chapter instead of carrying over from the previous session. */
 const BibleReadingScreen = () => {
-  const params = useLocalSearchParams<{ reference?: string; period?: string }>();
-  const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
-  const incomingReference = typeof params.reference === 'string' ? params.reference : '';
-
-  return <BibleReadingScreenView key={`${period}-${incomingReference}`} />;
+  return <BibleReadingScreenView />;
 };
 
 export default BibleReadingScreen;

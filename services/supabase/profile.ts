@@ -284,8 +284,15 @@ export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<strin
 };
 
 
-export const syncProfileFromClerkUser = async (clerkUser: ClerkAuthUserResource): Promise<SupabaseUserRow> => {
+export const syncProfileFromClerkUser = async (
+  clerkUser: ClerkAuthUserResource,
+  isCurrentSync?: () => boolean,
+): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(clerkUser.id);
+
+  if (isCurrentSync && !isCurrentSync()) {
+    throw new Error('stale_sync');
+  }
 
   // Important: once a user exists in Supabase, profile updates should come from
   // in-app edits (syncProfileFromStoreUser), not from Clerk fields on sign-in.
@@ -294,11 +301,22 @@ export const syncProfileFromClerkUser = async (clerkUser: ClerkAuthUserResource)
   }
 
   try {
-    return await insertUser(baseRowFromClerk(clerkUser, null));
+    const inserted = await insertUser(baseRowFromClerk(clerkUser, null));
+
+    if (isCurrentSync && !isCurrentSync()) {
+      throw new Error('stale_sync');
+    }
+
+    return inserted;
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : '';
     if (message.includes('duplicate key value violates unique constraint')) {
       const rowAfterConflict = await getUserByClerkId(clerkUser.id);
+
+      if (isCurrentSync && !isCurrentSync()) {
+        throw new Error('stale_sync');
+      }
+
       if (rowAfterConflict) {
         return rowAfterConflict;
       }

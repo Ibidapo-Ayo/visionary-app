@@ -92,8 +92,9 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
       return;
     }
 
-    const previousLongestStreak =
-      get().loadedUserId === userId && get().streak ? get().streak?.longest_streak ?? 0 : 0;
+    const currentState = get();
+    const hasKnownPreviousRecord = currentState.loadedUserId === userId && !!currentState.streak;
+    const previousLongestStreak = hasKnownPreviousRecord ? currentState.streak?.longest_streak ?? 0 : null;
     const requestVersion = streakRequestVersion + 1;
 
     set((state) => ({
@@ -119,7 +120,7 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
         return;
       }
 
-      const isNewRecord = streak.longest_streak > previousLongestStreak;
+      const isNewRecord = previousLongestStreak !== null && streak.longest_streak > previousLongestStreak;
 
       set({
         streak,

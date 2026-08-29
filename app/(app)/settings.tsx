@@ -227,20 +227,33 @@ const SettingsScreen = () => {
       ? activeHours.filter((value) => value !== hour)
       : [...activeHours, hour].sort((a, b) => a - b);
 
-    await setReminderHours(period, nextHours);
-
-    setFeedback({
-      message: 'Reminder timers saved. Selected times are now active.',
-      tone: 'success',
-    });
+    try {
+      await setReminderHours(period, nextHours);
+      setFeedback({
+        message: 'Reminder timers saved. Selected times are now active.',
+        tone: 'success',
+      });
+    } catch {
+      setFeedback({
+        message: 'Unable to save reminder timers right now. Please try again.',
+        tone: 'error',
+      });
+    }
   };
 
   const handleResetReminderTimers = async () => {
-    await resetReminderHours();
-    setFeedback({
-      message: 'Reminder timers reset. Default schedule is active again.',
-      tone: 'success',
-    });
+    try {
+      await resetReminderHours();
+      setFeedback({
+        message: 'Reminder timers reset. Default schedule is active again.',
+        tone: 'success',
+      });
+    } catch {
+      setFeedback({
+        message: 'Unable to reset reminder timers right now. Please try again.',
+        tone: 'error',
+      });
+    }
   };
 
   const notificationStatusText = statusTextMap[permissionStatus];
