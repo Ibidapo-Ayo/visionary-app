@@ -20,6 +20,7 @@ export const useBibleReadingReminderScheduler = () => {
   const syncPermissionStatus = useNotificationReminderStore((state) => state.syncPermissionStatus);
 
   const lastScheduleSignatureRef = useRef('');
+  const pendingScheduleSignatureRef = useRef('');
 
   useEffect(() => {
     void initializeBibleReadingNotifications().catch((error) => {
@@ -46,6 +47,7 @@ export const useBibleReadingReminderScheduler = () => {
   useEffect(() => {
     if (!user?.id) {
       lastScheduleSignatureRef.current = '';
+      pendingScheduleSignatureRef.current = '';
       void syncBibleReadingReminderSchedule({
         permissionGranted: false,
         morningComplete: false,
@@ -76,7 +78,11 @@ export const useBibleReadingReminderScheduler = () => {
       return;
     }
 
-    lastScheduleSignatureRef.current = nextSignature;
+    if (pendingScheduleSignatureRef.current === nextSignature) {
+      return;
+    }
+
+    pendingScheduleSignatureRef.current = nextSignature;
 
     void syncBibleReadingReminderSchedule({
       permissionGranted,
@@ -84,7 +90,19 @@ export const useBibleReadingReminderScheduler = () => {
       eveningComplete,
       morningReminderHours,
       eveningReminderHours,
+    }).then(() => {
+      if (pendingScheduleSignatureRef.current !== nextSignature) {
+        return;
+      }
+
+      lastScheduleSignatureRef.current = nextSignature;
+      pendingScheduleSignatureRef.current = '';
     }).catch((error) => {
+      if (pendingScheduleSignatureRef.current === nextSignature) {
+        pendingScheduleSignatureRef.current = '';
+      }
+
+      lastScheduleSignatureRef.current = '';
       console.warn('Unable to sync bible reading reminder schedule:', error);
     });
   }, [user?.id, isHydrated, permissionStatus, morningReminderHours, eveningReminderHours, morningComplete, eveningComplete]);

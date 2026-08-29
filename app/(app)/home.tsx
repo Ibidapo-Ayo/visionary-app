@@ -101,7 +101,8 @@ const HomeScreen = () => {
   const progressStats = dbProgressStats;
   const isTodayComplete = morningComplete && eveningComplete;
   const completionMessage = useRotatingCompletionMessage(isTodayComplete);
-  const shouldShowTomorrowPreview = isTodayComplete || (morningComplete && !eveningComplete);
+  const shouldShowTomorrowPreview =
+    tomorrowDayNumber !== null && (isTodayComplete || (morningComplete && !eveningComplete));
   const tomorrowPreviewMessage = isTodayComplete
     ? completionMessage
     : 'Morning completed. Finish your evening session to unlock tomorrow morning.';

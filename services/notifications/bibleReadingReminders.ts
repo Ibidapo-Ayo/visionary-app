@@ -28,6 +28,7 @@ const MORNING_REMINDER_HOURS = [6, 9, 12];
 const EVENING_REMINDER_HOURS = [18, 21];
 
 let notificationsInitialized = false;
+let reminderScheduleSyncQueue: Promise<void> = Promise.resolve();
 
 const toReminderStatus = (status: Notifications.PermissionStatus, granted: boolean) => {
   if (granted) {
@@ -169,61 +170,69 @@ export const syncBibleReadingReminderSchedule = async ({
   morningReminderHours,
   eveningReminderHours,
 }: SyncBibleReadingReminderParams) => {
-  await clearBibleReadingReminderSchedule();
+  const syncOperation = async () => {
+    await clearBibleReadingReminderSchedule();
 
-  if (!permissionGranted) {
-    return;
-  }
+    if (!permissionGranted) {
+      return;
+    }
 
-  const selectedMorningHours = getReminderHours(morningReminderHours, MORNING_REMINDER_HOURS);
-  const selectedEveningHours = getReminderHours(eveningReminderHours, EVENING_REMINDER_HOURS);
+    const selectedMorningHours = getReminderHours(morningReminderHours, MORNING_REMINDER_HOURS);
+    const selectedEveningHours = getReminderHours(eveningReminderHours, EVENING_REMINDER_HOURS);
 
-  const now = new Date();
-  const jobs: Promise<string>[] = [];
+    const now = new Date();
+    const jobs: Promise<string>[] = [];
 
-  for (let dayOffset = 0; dayOffset < SCHEDULE_DAYS_AHEAD; dayOffset += 1) {
-    const slots = buildReminderSlotsForOffset(dayOffset, selectedMorningHours, selectedEveningHours);
+    for (let dayOffset = 0; dayOffset < SCHEDULE_DAYS_AHEAD; dayOffset += 1) {
+      const slots = buildReminderSlotsForOffset(dayOffset, selectedMorningHours, selectedEveningHours);
 
-    slots.forEach((slot) => {
-      if (dayOffset === 0) {
-        if (slot.period === 'morning' && morningComplete) {
+      slots.forEach((slot) => {
+        if (dayOffset === 0) {
+          if (slot.period === 'morning' && morningComplete) {
+            return;
+          }
+
+          if (slot.period === 'evening' && eveningComplete) {
+            return;
+          }
+        }
+
+        const triggerDate = buildTriggerDate(dayOffset, slot.hour, slot.minute);
+        if (triggerDate <= now) {
           return;
         }
 
-        if (slot.period === 'evening' && eveningComplete) {
-          return;
-        }
-      }
-
-      const triggerDate = buildTriggerDate(dayOffset, slot.hour, slot.minute);
-      if (triggerDate <= now) {
-        return;
-      }
-
-      jobs.push(
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: slot.title,
-            body: slot.body,
-            sound: 'default',
-            data: {
-              namespace: REMINDER_NAMESPACE,
-              period: slot.period,
-              hour: slot.hour,
-              minute: slot.minute,
-              dateKey: toDateKey(triggerDate),
+        jobs.push(
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: slot.title,
+              body: slot.body,
+              sound: 'default',
+              data: {
+                namespace: REMINDER_NAMESPACE,
+                period: slot.period,
+                hour: slot.hour,
+                minute: slot.minute,
+                dateKey: toDateKey(triggerDate),
+              },
             },
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: triggerDate,
-          },
-        }),
-      );
-    });
-  }
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: triggerDate,
+            },
+          }),
+        );
+      });
+    }
 
-  await Promise.all(jobs);
+    await Promise.all(jobs);
+  };
+
+  reminderScheduleSyncQueue = reminderScheduleSyncQueue
+    .catch(() => undefined)
+    .then(syncOperation);
+
+  return reminderScheduleSyncQueue;
 };
 
 export const openNotificationSettings = async () => {

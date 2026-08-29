@@ -94,6 +94,7 @@ const BibleJourneyScreen = () => {
   const totalTodayChapters = morningTotal + eveningTotal;
   const totalCompletedChapters = countCompleted([...morningScheduleIds, ...eveningScheduleIds]);
   const dailyReadingDone = morningReadingDone && eveningReadingDone;
+  const shouldShowTomorrowPreview = dailyReadingDone && tomorrowDayNumber !== null;
   const completionMessage = useRotatingCompletionMessage(dailyReadingDone);
   const dayProgressPercent = calculateReadingProgressPercent(totalTodayChapters, totalCompletedChapters);
   const yearlyProgressPercent = bibleReadingPlan && bibleReadingPlanDayNumber !== null && bibleReadingPlan.total_days > 0
@@ -157,7 +158,7 @@ const BibleJourneyScreen = () => {
           currentStreak={currentStreak}
         />
 
-        {dailyReadingDone ? (
+        {shouldShowTomorrowPreview ? (
           <Animated.View entering={FadeInDown.delay(100).duration(320)} className="mt-4">
             <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
               <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
