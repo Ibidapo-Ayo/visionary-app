@@ -178,22 +178,22 @@ const BibleReadingScreenView = () => {
 
       // Check the real DB-backed completion state (not the locally-mirrored flags above) so the
       // streak reliably updates the moment both sessions are actually done, even across devices/reinstalls.
-      const resolvedUserId = clerkUserId ? await resolveSupabaseUserId(clerkUserId) : null;
-      const freshCompletedIds = resolvedUserId
-        ? new Set(useUserReadingProgressStore.getState().completedScheduleIdsByUser[resolvedUserId] ?? [])
-        : completedScheduleIds;
-      const { isPeriodComplete } = useReadingPeriodLockStore.getState();
-      const bothSessionsComplete =
-        isPeriodComplete('morning', readingSchedule, freshCompletedIds) &&
-        isPeriodComplete('evening', readingSchedule, freshCompletedIds);
-
       // Streak sync is best-effort here — it must never block the user from seeing the completion screen.
-      if (bothSessionsComplete) {
-        try {
+      try {
+        const resolvedUserId = clerkUserId ? await resolveSupabaseUserId(clerkUserId) : null;
+        const freshCompletedIds = resolvedUserId
+          ? new Set(useUserReadingProgressStore.getState().completedScheduleIdsByUser[resolvedUserId] ?? [])
+          : completedScheduleIds;
+        const { isPeriodComplete } = useReadingPeriodLockStore.getState();
+        const bothSessionsComplete =
+          isPeriodComplete('morning', readingSchedule, freshCompletedIds) &&
+          isPeriodComplete('evening', readingSchedule, freshCompletedIds);
+
+        if (bothSessionsComplete) {
           await completeReadingDay();
-        } catch (streakError) {
-          console.warn('Unable to sync streak:', streakError);
         }
+      } catch (streakError) {
+        console.warn('Unable to sync streak:', streakError);
       }
 
       router.replace({
