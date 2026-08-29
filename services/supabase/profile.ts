@@ -1,17 +1,18 @@
-import type { ClerkUserResource, SupabaseUserRow, User } from '@/types/index';
+import type { ClerkAuthUserResource, SupabaseUserRow, User } from '@/types/index';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './client';
 import { USERS_TABLE } from './constants';
 
-const PROFILE_IMAGES_BUCKET = 'profile-images';
+const PROFILE_IMAGES_BUCKET = 'visionary-app-bucket';
+const PROFILE_IMAGES_FOLDER = 'profile_images';
 
-const getPrimaryEmail = (user: ClerkUserResource): string =>
-  user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress ?? '';
+const getPrimaryEmail = (user: ClerkAuthUserResource): string =>
+  user.primaryEmailAddress?.emailAddress ?? user.emailAddresses?.[0]?.emailAddress ?? '';
 
-const getPrimaryPhone = (user: ClerkUserResource): string =>
-  user.primaryPhoneNumber?.phoneNumber ?? user.phoneNumbers[0]?.phoneNumber ?? '';
+const getPrimaryPhone = (user: ClerkAuthUserResource): string =>
+  user.primaryPhoneNumber?.phoneNumber ?? user.phoneNumbers?.[0]?.phoneNumber ?? '';
 
-const getMetadataPhone = (user: ClerkUserResource): string => {
+const getMetadataPhone = (user: ClerkAuthUserResource): string => {
   const metadataValue = user.unsafeMetadata?.phone_number;
   return typeof metadataValue === 'string' ? metadataValue : '';
 };
@@ -23,12 +24,10 @@ const toNullable = (value: string | null | undefined): string | null => {
 
 const nowIso = (): string => new Date().toISOString();
 
-const getDeviceTimezone = (): string => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
+const getTimezoneValueForSupabase = (existing?: SupabaseUserRow | null): string => {
+  // `users.timezone` is configured as timestamptz in this project DB, so persist
+  // an ISO value instead of an IANA timezone id (e.g. "Africa/Lagos").
+  return existing?.timezone?.trim() || nowIso();
 };
 
 const normalizeRoleForSupabase = (role: string | null | undefined): string => {
@@ -51,7 +50,7 @@ const normalizeRoleForSupabase = (role: string | null | undefined): string => {
   }
 };
 
-const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | null): SupabaseUserRow => {
+const baseRowFromClerk = (user: ClerkAuthUserResource, existing?: SupabaseUserRow | null): SupabaseUserRow => {
   const now = nowIso();
   const createdAt = user.createdAt ? new Date(user.createdAt).toISOString() : now;
   const phoneFromClerk = toNullable(getPrimaryPhone(user));
@@ -67,15 +66,17 @@ const baseRowFromClerk = (user: ClerkUserResource, existing?: SupabaseUserRow | 
     last_name: toNullable(user.lastName) ?? existing?.last_name ?? null,
     // Preserve a previously saved phone number when Clerk does not have one.
     phone_number: phoneFromClerk ?? phoneFromMetadata ?? existing?.phone_number ?? null,
-    profile_image: toNullable(user.imageUrl) ?? existing?.profile_image ?? null,
+    // Keep an existing saved profile image (including app uploads) instead of
+    // overwriting it on every Clerk sync.
+    profile_image: existing?.profile_image ?? toNullable(user.imageUrl) ?? null,
+    bio: existing?.bio ?? null,
     gender: existing?.gender ?? null,
     date_of_birth: existing?.date_of_birth ?? null,
     role: normalizeRoleForSupabase(existing?.role ?? 'MEMBER'),
     department: existing?.department ?? null,
     joined_at: existing?.joined_at ?? createdAt,
     is_active: existing?.is_active ?? true,
-    // Refresh on every sync so a user's streak always uses their current device's timezone.
-    timezone: getDeviceTimezone(),
+    timezone: getTimezoneValueForSupabase(existing),
   };
 };
 
@@ -87,38 +88,57 @@ const baseRowFromStoreUser = (user: User, existing?: SupabaseUserRow | null): Su
   email: toNullable(user.email) ?? existing?.email ?? null,
   first_name: toNullable(user.firstName) ?? existing?.first_name ?? null,
   last_name: toNullable(user.lastName) ?? existing?.last_name ?? null,
-  phone_number: toNullable(user.phone),
-  profile_image: toNullable(user.profileImage),
-  gender: existing?.gender ?? null,
+  phone_number: toNullable(user.phone) ?? existing?.phone_number ?? null,
+  profile_image: toNullable(user.profileImage) ?? existing?.profile_image ?? null,
+  bio: toNullable(user.bio) ?? existing?.bio ?? null,
+  gender: toNullable(user.gender) ?? existing?.gender ?? null,
   date_of_birth: existing?.date_of_birth ?? null,
   role: normalizeRoleForSupabase(user.role),
   department: existing?.department ?? null,
   joined_at: existing?.joined_at ?? user.joinDate,
   is_active: existing?.is_active ?? true,
-  timezone: getDeviceTimezone(),
+  timezone: getTimezoneValueForSupabase(existing),
 });
 
-const upsertUser = async (row: SupabaseUserRow): Promise<void> => {
-  const { error } = await supabase.from(USERS_TABLE).upsert(row, { onConflict: 'clerk_user_id' });
+const upsertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .upsert(row, { onConflict: 'clerk_user_id' })
+    .select('*')
+    .single<SupabaseUserRow>();
 
   if (error) {
     throw new Error(`[supabase] Failed to upsert user for ${row.clerk_user_id}: ${error.message}`);
   }
+
+  return data;
 };
 
-const getImageExtensionFromUri = (uri: string): string => {
+const insertUser = async (row: SupabaseUserRow): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase.from(USERS_TABLE).insert(row).select('*').single<SupabaseUserRow>();
+
+  if (error) {
+    throw new Error(`[supabase] Failed to insert user for ${row.clerk_user_id}: ${error.message}`);
+  }
+
+  return data;
+};
+
+const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'png', 'webp', 'heic']);
+
+const getImageExtensionFromUri = (uri: string): string | null => {
   const cleanUri = uri.split('?')[0] ?? uri;
-  const extension = cleanUri.split('.').pop()?.toLowerCase();
+  const extension = cleanUri.includes('.') ? cleanUri.split('.').pop()?.toLowerCase() : null;
 
   if (!extension) {
-    return 'jpg';
+    return null;
   }
 
   if (extension === 'jpeg') {
     return 'jpg';
   }
 
-  return extension;
+  return SUPPORTED_IMAGE_EXTENSIONS.has(extension) ? extension : null;
 };
 
 const ACCEPTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
@@ -138,6 +158,21 @@ const getImageMimeType = (extension: string): string => {
   }
 };
 
+const getImageExtensionFromMimeType = (mimeType: string): string => {
+  switch (mimeType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/heic':
+      return 'heic';
+    case 'image/jpeg':
+      return 'jpg';
+    default:
+      return 'jpg';
+  }
+};
+
 export type UploadedProfileImage = {
   publicUrl: string;
   objectPath: string;
@@ -149,12 +184,14 @@ export const uploadProfileImageAsset = async (
   imageBase64?: string,
   pickerMimeType?: string,
 ): Promise<UploadedProfileImage> => {
-  const extension = getImageExtensionFromUri(localAssetUri);
+  const extensionFromUri = getImageExtensionFromUri(localAssetUri);
   const normalizedPickerMimeType = pickerMimeType?.trim().toLowerCase();
+  const fallbackContentType = getImageMimeType(extensionFromUri ?? 'jpg');
   const contentType = ACCEPTED_IMAGE_MIME_TYPES.has(normalizedPickerMimeType ?? '')
     ? (normalizedPickerMimeType as string)
-    : getImageMimeType(extension);
-  const objectPath = `${userId}/${Date.now()}.${extension}`;
+    : fallbackContentType;
+  const extension = getImageExtensionFromMimeType(contentType);
+  const objectPath = `${PROFILE_IMAGES_FOLDER}/${userId}/${Date.now()}.${extension}`;
 
   if (!imageBase64?.trim()) {
     throw new Error('[supabase] Unable to read selected profile image for upload.');
@@ -167,6 +204,12 @@ export const uploadProfileImageAsset = async (
   });
 
   if (uploadError) {
+    if (uploadError.message.toLowerCase().includes('row-level security policy')) {
+      throw new Error(
+        '[supabase] Failed to upload profile image: blocked by storage policy. Allow uploads to visionary-app-bucket/profile_images for this user.',
+      );
+    }
+
     throw new Error(`[supabase] Failed to upload profile image: ${uploadError.message}`);
   }
 
@@ -185,6 +228,33 @@ export const deleteProfileImageAsset = async (objectPath: string): Promise<void>
   if (error) {
     console.warn(`[supabase] Failed to delete orphaned profile image ${objectPath}: ${error.message}`);
   }
+};
+
+export const deleteProfileImageByPublicUrl = async (
+  userId: string,
+  publicUrl: string | null | undefined,
+): Promise<void> => {
+  const trimmedUserId = userId.trim();
+  const trimmedUrl = publicUrl?.trim();
+
+  if (!trimmedUserId || !trimmedUrl) {
+    return;
+  }
+
+  const marker = `/object/public/${PROFILE_IMAGES_BUCKET}/`;
+  const markerIndex = trimmedUrl.indexOf(marker);
+  if (markerIndex < 0) {
+    return;
+  }
+
+  const encodedObjectPath = trimmedUrl.slice(markerIndex + marker.length).split('?')[0] ?? '';
+  const objectPath = decodeURIComponent(encodedObjectPath);
+
+  if (!objectPath.startsWith(`${PROFILE_IMAGES_FOLDER}/${trimmedUserId}/`)) {
+    return;
+  }
+
+  await deleteProfileImageAsset(objectPath);
 };
 
 export const getUserByClerkId = async (clerkId: string): Promise<SupabaseUserRow | null> => {
@@ -213,12 +283,67 @@ export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<strin
   return user.id;
 };
 
-export const syncProfileFromClerkUser = async (clerkUser: ClerkUserResource): Promise<void> => {
-  const existing = await getUserByClerkId(clerkUser.id);
-  await upsertUser(baseRowFromClerk(clerkUser, existing));
+const resolveExistingUserAfterDuplicateInsert = async (clerkUserId: string): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .update({ clerk_user_id: clerkUserId })
+    .eq('clerk_user_id', clerkUserId)
+    .select('*')
+    .single<SupabaseUserRow>();
+
+  if (error) {
+    throw new Error(`[supabase] Failed to resolve existing user for ${clerkUserId} after duplicate insert: ${error.message}`);
+  }
+
+  if (!data?.id) {
+    throw new Error(`[supabase] Existing user ${clerkUserId} was resolved without a Supabase user id.`);
+  }
+
+  return data;
 };
 
-export const syncProfileFromStoreUser = async (user: User): Promise<void> => {
+
+export const syncProfileFromClerkUser = async (
+  clerkUser: ClerkAuthUserResource,
+  isCurrentSync?: () => boolean,
+): Promise<SupabaseUserRow> => {
+  const existing = await getUserByClerkId(clerkUser.id);
+
+  if (isCurrentSync && !isCurrentSync()) {
+    throw new Error('stale_sync');
+  }
+
+  // Important: once a user exists in Supabase, profile updates should come from
+  // in-app edits (syncProfileFromStoreUser), not from Clerk fields on sign-in.
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    const inserted = await insertUser(baseRowFromClerk(clerkUser, null));
+
+    if (isCurrentSync && !isCurrentSync()) {
+      throw new Error('stale_sync');
+    }
+
+    return inserted;
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : '';
+    if (message.includes('duplicate key value violates unique constraint')) {
+      const rowAfterConflict = await resolveExistingUserAfterDuplicateInsert(clerkUser.id);
+
+      if (isCurrentSync && !isCurrentSync()) {
+        throw new Error('stale_sync');
+      }
+
+      return rowAfterConflict;
+    }
+
+    throw error;
+  }
+};
+
+export const syncProfileFromStoreUser = async (user: User): Promise<SupabaseUserRow> => {
   const existing = await getUserByClerkId(user.id);
-  await upsertUser(baseRowFromStoreUser(user, existing));
+  return upsertUser(baseRowFromStoreUser(user, existing));
 };

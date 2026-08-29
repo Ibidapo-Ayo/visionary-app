@@ -1,7 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 import type { UserReadingProgressStore } from "@/types/index";
+import { useAuthStore } from "@/store/authStore";
 import {
   getCompletedScheduleDaysForUser,
   getScheduleDayMetadata,
@@ -40,8 +39,25 @@ const addCompletedScheduleDay = (
   return [...completedScheduleDays, entry];
 };
 
+const resolveOwnedProgressUserId = (loadedUserId: string | null): string | null => {
+  const authState = useAuthStore.getState();
+  const activeSupabaseUserId = authState.supabaseUserId;
+
+  if (activeSupabaseUserId) {
+    return activeSupabaseUserId;
+  }
+
+  const currentClerkUserId = authState.user?.id ?? null;
+  const supabaseUserIdOwnerClerkUserId = authState.supabaseUserIdClerkUserId;
+
+  if (!loadedUserId || !currentClerkUserId || !supabaseUserIdOwnerClerkUserId) {
+    return null;
+  }
+
+  return supabaseUserIdOwnerClerkUserId === currentClerkUserId ? loadedUserId : null;
+};
+
 export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
-  persist(
     (set, get) => ({
       completedScheduleIdsByUser: {},
       completedScheduleDaysByUser: {},
@@ -138,7 +154,6 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
               scheduleId,
             ),
           },
-          loadedUserId: supabaseUserId,
           progressError: null,
         }));
 
@@ -196,13 +211,14 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getCompletedScheduleCount: (scheduleIds) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return 0;
         }
 
         const completedScheduleIds = new Set(
-          completedScheduleIdsByUser[loadedUserId] ?? [],
+          completedScheduleIdsByUser[targetUserId] ?? [],
         );
         return scheduleIds.filter((scheduleId) =>
           completedScheduleIds.has(scheduleId),
@@ -210,33 +226,36 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getTotalCompletedChapters: () => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return 0;
         }
 
-        return completedScheduleIdsByUser[loadedUserId]?.length ?? 0;
+        return completedScheduleIdsByUser[targetUserId]?.length ?? 0;
       },
       isScheduleComplete: (scheduleId) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
-        if (!loadedUserId) {
+        if (!targetUserId) {
           return false;
         }
 
         return (
-          completedScheduleIdsByUser[loadedUserId]?.includes(scheduleId) ??
+          completedScheduleIdsByUser[targetUserId]?.includes(scheduleId) ??
           false
         );
       },
       getProgressStatsForRange: (range, planStartDate) => {
         const { completedScheduleDaysByUser, loadedUserId } = get();
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
-        if (!loadedUserId || !planStartDate) {
+        if (!targetUserId || !planStartDate) {
           return { daysRead: 0, chapters: 0 };
         }
 
-        const scheduleDays = completedScheduleDaysByUser[loadedUserId] ?? [];
+        const scheduleDays = completedScheduleDaysByUser[targetUserId] ?? [];
         const { start, end } = getDateRangeBounds(range);
         const dateKeysInRange = new Set<string>();
         let chapters = 0;
@@ -252,14 +271,4 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
         return { daysRead: dateKeysInRange.size, chapters };
       },
     }),
-    {
-      name: "user-reading-progress-store",
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        completedScheduleIdsByUser: state.completedScheduleIdsByUser,
-        completedScheduleDaysByUser: state.completedScheduleDaysByUser,
-        loadedUserId: state.loadedUserId,
-      }),
-    },
-  ),
 );

@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Visionary",
+    "name": "Visionary Hub",
     "slug": "visionary-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#111226"
+      "backgroundColor": "#111111"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -31,7 +31,9 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -55,6 +57,12 @@
       ],
       "expo-sqlite"
     ],
-    "scheme": "visionary"
+    "scheme": "visionary",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6b805799-2f19-4e74-adaf-6759647280d1"
+      }
+    }
   }
 }

@@ -1,11 +1,14 @@
 import { create } from "zustand";
 import type { StreakRecord } from "@/types/index";
-import { completeReadingDay as requestCompleteReadingDay, getStreakForUser } from "@/services/supabase/streaks";
+import { completeReadingDay as requestCompleteReadingDay, syncStreakStatus } from "@/services/supabase/streaks";
 
 type StreakStore = {
   streak: StreakRecord | null;
   loadedUserId: string | null;
   loadingUserId: string | null;
+  completingUserId: string | null;
+  lastCompletedUserId: string | null;
+  lastCompletionWasNewRecord: boolean;
   streakRequestVersion: number;
   isLoadingStreak: boolean;
   streakError: string | null;
@@ -17,6 +20,9 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
   streak: null,
   loadedUserId: null,
   loadingUserId: null,
+  completingUserId: null,
+  lastCompletedUserId: null,
+  lastCompletionWasNewRecord: false,
   streakRequestVersion: 0,
   isLoadingStreak: false,
   streakError: null,
@@ -48,7 +54,7 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
     }));
 
     try {
-      const streak = await getStreakForUser(userId);
+      const streak = await syncStreakStatus(userId);
       const currentState = get();
       if (
         currentState.loadingUserId !== userId ||
@@ -82,8 +88,15 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
     }
   },
   completeReadingDay: async (userId) => {
-    const { streakRequestVersion } = get();
-    const requestVersion = streakRequestVersion + 1;
+    const { completingUserId } = get();
+
+    if (completingUserId === userId) {
+      return;
+    }
+
+    const currentState = get();
+    const hasKnownPreviousRecord = currentState.loadedUserId === userId && !!currentState.streak;
+    const previousLongestStreak = hasKnownPreviousRecord ? currentState.streak?.longest_streak ?? 0 : null;
 
     set((state) => ({
       ...(state.loadedUserId !== userId
@@ -92,45 +105,39 @@ export const useStreakStore = create<StreakStore>((set, get) => ({
             loadedUserId: null,
           }
         : {}),
-      isLoadingStreak: true,
-      loadingUserId: userId,
-      streakRequestVersion: requestVersion,
+      completingUserId: userId,
       streakError: null,
     }));
 
     try {
       const streak = await requestCompleteReadingDay(userId);
       const currentState = get();
-      if (
-        currentState.loadingUserId !== userId ||
-        currentState.streakRequestVersion !== requestVersion
-      ) {
+      if (currentState.completingUserId !== userId) {
         return;
       }
 
-      set({
+      const isNewRecord = previousLongestStreak !== null && streak.longest_streak > previousLongestStreak;
+
+      set((state) => ({
         streak,
         loadedUserId: userId,
-        isLoadingStreak: false,
-        loadingUserId: null,
+        lastCompletedUserId: userId,
+        lastCompletionWasNewRecord: isNewRecord,
         streakError: null,
-      });
+        completingUserId: state.completingUserId === userId ? null : state.completingUserId,
+      }));
     } catch (error) {
       const currentState = get();
-      if (
-        currentState.loadingUserId !== userId ||
-        currentState.streakRequestVersion !== requestVersion
-      ) {
+      if (currentState.completingUserId !== userId) {
         return;
       }
 
       const message = error instanceof Error ? error.message : "Unable to complete reading day.";
 
-      set({
+      set((state) => ({
         streakError: message,
-        isLoadingStreak: false,
-        loadingUserId: null,
-      });
+        completingUserId: state.completingUserId === userId ? null : state.completingUserId,
+      }));
       throw error;
     }
   },

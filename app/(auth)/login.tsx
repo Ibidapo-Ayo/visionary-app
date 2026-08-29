@@ -13,7 +13,7 @@ import PasswordField from '@components/auth/PasswordField';
 import SectionHeader from '@components/auth/SectionHeader';
 import SocialButton from '@components/auth/SocialButton';
 import TextField from '@components/auth/TextField';
-import { useAuthSignIn, useGoogleAuth } from '@services/auth';
+import { useAuthSignIn, useGoogleAuth, useSyncUserToBackend } from '@services/auth';
 
 const signInSchema = z.object({
   identity: z.string().min(1, 'Email or phone is required'),
@@ -25,9 +25,11 @@ type SignInForm = z.infer<typeof signInSchema>;
 const LoginScreen = () => {
   const router = useRouter();
   const { doSignIn, isLoaded } = useAuthSignIn();
+  const { syncUserToBackend } = useSyncUserToBackend();
   const { signInWithGoogle } = useGoogleAuth();
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -52,7 +54,18 @@ const LoginScreen = () => {
     setSubmitting(false);
 
     if (result.complete) {
-      router.replace('/(app)/home');
+      setFinalizing(true);
+      const finalizeResult = await syncUserToBackend();
+      setFinalizing(false);
+
+      if (finalizeResult.complete) {
+        router.replace('/(app)/home');
+        return;
+      }
+
+      if (finalizeResult.error) {
+        setFormError(finalizeResult.error.message);
+      }
       return;
     }
 
@@ -67,7 +80,18 @@ const LoginScreen = () => {
     const result = await signInWithGoogle();
     setGoogleSubmitting(false);
     if (result.complete) {
-      router.replace('/(app)/home');
+      setFinalizing(true);
+      const finalizeResult = await syncUserToBackend();
+      setFinalizing(false);
+
+      if (finalizeResult.complete) {
+        router.replace('/(app)/home');
+        return;
+      }
+
+      if (finalizeResult.error) {
+        setFormError(finalizeResult.error.message);
+      }
       return;
     }
     if (result.error) {
@@ -75,7 +99,7 @@ const LoginScreen = () => {
     }
   };
 
-  const busy = submitting || googleSubmitting || !isLoaded;
+  const busy = submitting || googleSubmitting || finalizing || !isLoaded;
 
   return (
     <AuthScaffold>
@@ -115,7 +139,7 @@ const LoginScreen = () => {
           <Text className="text-[13px] font-medium text-[#FF7A00]">Forgot Password?</Text>
         </Pressable>
 
-        <Button label="Sign In" onPress={handleSubmit(onSubmit)} iconRight disabled={busy} />
+        <Button label={finalizing ? 'Finalizing account…' : 'Sign In'} onPress={handleSubmit(onSubmit)} iconRight disabled={busy} />
       </Animated.View>
 
       {formError ? (

@@ -1,92 +1,100 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth, useUser } from '@clerk/expo';
 import { useAuthStore } from '@store/authStore';
-import type { User } from '@/types/index';
-import { mapClerkUser } from './errors';
-import { syncProfileFromClerkUser } from '@services/supabase';
+import { useSyncUserToBackend } from './useCompleteAuthRegistration';
 
-/**
- * Bridges Clerk's `useAuth`/`useUser` into our Zustand `authStore` so
- * existing UI (profile header, greetings, etc.) keeps working without
- * screens importing Clerk directly.
- *
- * Mount this once inside `(app)/_layout.tsx` and `(auth)/_layout.tsx`.
- */
+const SYNC_RETRY_LIMIT = 2;
+const SYNC_RETRY_DELAY_MS = 1200;
+
 export const useSyncClerkAuth = () => {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
-  const { isLoaded: userLoaded, user: clerkUser } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
+  const clerkUserId = user?.id ?? null;
 
-  const setUser = useAuthStore((state) => state.setUser);
   const setLoading = useAuthStore((state) => state.setLoading);
-  const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
   const reset = useAuthStore((state) => state.reset);
+  const { syncUserToBackend } = useSyncUserToBackend();
+  const previousClerkUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
     if (!authLoaded || !userLoaded) {
       setLoading(true);
-      return;
+      return () => {
+        isCancelled = true;
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+        }
+      };
     }
 
     if (!isSignedIn) {
+      previousClerkUserIdRef.current = null;
       reset();
-      return;
+      return () => {
+        isCancelled = true;
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+        }
+      };
     }
 
-    const mapped = mapClerkUser(clerkUser);
-    if (!mapped) {
-      reset();
-      return;
+    if (!clerkUserId) {
+      setLoading(true);
+      return () => {
+        isCancelled = true;
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+        }
+      };
     }
 
-    // Preserve existing ministry data (role, churchId) until Supabase
-    // syncing is added; default sensible values for now.
-    const projected: User = {
-      id: mapped.id,
-      firstName: mapped.firstName,
-      lastName: mapped.lastName,
-      email: mapped.email,
-      phone: mapped.phone,
-      role: 'MEMBER',
-      churchId: 'church_1',
-      joinDate: mapped.joinDate,
-      profileImage: mapped.profileImage,
-      createdAt: mapped.createdAt,
-      updatedAt: mapped.updatedAt,
-    };
+    const identityChanged =
+      previousClerkUserIdRef.current !== null &&
+      previousClerkUserIdRef.current !== clerkUserId;
 
-    setUser(projected);
-    setLoading(false);
-    void resolveSupabaseUserId(projected.id).catch((error) => {
-      console.warn('[supabase] Unable to resolve Supabase user id:', error);
-    });
+    if (identityChanged) {
+      reset();
+      setLoading(true);
+    }
 
-    const syncWithRetry = async (attempt: number): Promise<void> => {
-      try {
-        await syncProfileFromClerkUser(clerkUser);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
+    previousClerkUserIdRef.current = clerkUserId;
 
-        if (attempt < 2) {
-          setTimeout(() => {
-            if (!cancelled) {
-              void syncWithRetry(attempt + 1);
-            }
-          }, 800);
-          return;
-        }
+    const attemptSync = async (attempt: number): Promise<void> => {
+      const result = await syncUserToBackend();
 
-        console.warn('[supabase] Profile sync failed:', error);
+      if (isCancelled || result.complete) {
+        return;
+      }
+
+      const errorCode = result.error?.code;
+      const shouldSuppressWarning = errorCode === 'auth_not_ready' || errorCode === 'stale_sync';
+
+      if (shouldSuppressWarning) {
+        return;
+      }
+
+      if (attempt < SYNC_RETRY_LIMIT) {
+        retryTimeout = setTimeout(() => {
+          void attemptSync(attempt + 1);
+        }, SYNC_RETRY_DELAY_MS * (attempt + 1));
+        return;
+      }
+
+      if (result.error) {
+        console.warn('[auth] Unable to sync user to backend:', result.error.message);
       }
     };
 
-    void syncWithRetry(1);
+    void attemptSync(0);
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
     };
-  }, [authLoaded, userLoaded, isSignedIn, clerkUser, setUser, setLoading, resolveSupabaseUserId, reset]);
+  }, [authLoaded, userLoaded, isSignedIn, clerkUserId, reset, setLoading, syncUserToBackend]);
 };

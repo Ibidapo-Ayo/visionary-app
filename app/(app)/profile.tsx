@@ -1,13 +1,12 @@
 import React from 'react';
 import { Alert, Image, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
 import { useSignOut } from '@services/auth';
-import { mockProfileAchievements, mockRecentSpiritualActivities } from '@services/mockData';
 import { useStreak } from '@/hooks/useStreak';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
@@ -92,10 +91,22 @@ const ACHIEVEMENT_TIERS: {
   { days: 365, title: '365 Days', subtitle: 'Champion', tint: '#F6B21A', icon: (color) => <Feather name="star" size={23} color={color} /> },
 ];
 
-const RecentReflectionRow = ({ title, subtitle, icon }: { title: string; subtitle: string; icon: React.ComponentProps<typeof Feather>['name'] }) => (
-  <TouchableOpacity activeOpacity={0.84} className="flex-row items-center rounded-[16px] border border-[#EFE7DD] bg-white px-3 py-3">
-    <View className="h-10 w-10 items-center justify-center rounded-[13px] bg-[#FFF2E7]">
-      <Feather name={icon} size={16} color="#FF7A00" />
+const QuickActionCard = ({
+  title,
+  subtitle,
+  icon,
+  tint,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
+  tint: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.84} className="flex-row items-center rounded-[16px] border border-[#EFE7DD] bg-white px-3 py-3">
+    <View className="h-10 w-10 items-center justify-center rounded-[13px]" style={{ backgroundColor: `${tint}1A` }}>
+      <Feather name={icon} size={16} color={tint} />
     </View>
     <View className="ml-3 flex-1">
       <Text className="text-[12px] font-black text-[#231F1A]">{title}</Text>
@@ -107,10 +118,12 @@ const RecentReflectionRow = ({ title, subtitle, icon }: { title: string; subtitl
 
 const ProfileScreen = () => {
   const router = useRouter();
+  const { profileUpdated } = useLocalSearchParams<{ profileUpdated?: string }>();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useSignOut();
   const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+  const [showUpdatedToast, setShowUpdatedToast] = React.useState(false);
   const { currentStreak, longestStreak, totalDaysCompleted } = useStreak();
   useUserReadingProgress();
   const totalChaptersRead = useUserReadingProgressStore((state) => state.getTotalCompletedChapters());
@@ -127,7 +140,26 @@ const ProfileScreen = () => {
   const monthlyStats = getMonthlyProgressStats('month', bibleReadingPlan?.group_plan_start_date);
   const monthlyGoalDaysRead = monthlyStats.daysRead;
   const monthlyGoalProgressPercent = daysInCurrentMonth > 0 ? Math.min(100, Math.round((monthlyGoalDaysRead / daysInCurrentMonth) * 100)) : 0;
-  const recentReflections = mockRecentSpiritualActivities.filter((activity) => activity.type === 'reflection' || activity.type === 'bibleReading').slice(0, 3);
+
+  React.useEffect(() => {
+    if (profileUpdated !== '1') {
+      return;
+    }
+
+    setShowUpdatedToast(true);
+    const hideTimer = setTimeout(() => {
+      setShowUpdatedToast(false);
+    }, 1800);
+
+    const clearParamTimer = setTimeout(() => {
+      router.replace('/(app)/profile');
+    }, 2100);
+
+    return () => {
+      clearTimeout(hideTimer);
+      clearTimeout(clearParamTimer);
+    };
+  }, [profileUpdated, router]);
 
   const handleLogout = async () => {
     const result = await logout();
@@ -138,17 +170,37 @@ const ProfileScreen = () => {
     router.replace('/(auth)/login');
   };
 
-  const openProfileMenu = () => {
-    Alert.alert('Profile Settings', 'Manage your profile and account.', [
-      { text: 'Edit Profile', onPress: () => router.push('/(app)/edit-profile') },
-      { text: 'Sign Out', style: 'destructive', onPress: handleLogout },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const openSettingsScreen = () => {
+    router.push('/(app)/settings');
   };
 
   return (
     <View className="flex-1 bg-[#F7F1E8]">
       <StatusBar barStyle="light-content" />
+
+      {showUpdatedToast ? (
+        <Animated.View
+          entering={FadeInDown.duration(260)}
+          exiting={FadeOutUp.duration(220)}
+          className="absolute left-5 right-5 z-50"
+          style={{ top: insets.top + 8 }}
+        >
+          <LinearGradient
+            colors={['#1E8E3E', '#16A34A']}
+            className="rounded-[16px] border border-[#B4E7C3] px-4 py-3"
+          >
+            <View className="flex-row items-center">
+              <View className="h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                <Feather name="check" size={16} color="#FFFFFF" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[12px] font-black text-white">Profile Updated</Text>
+                <Text className="mt-0.5 text-[10px] font-semibold text-[#E7F9EC]">Your changes were saved successfully.</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+      ) : null}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 116, 136) }}>
         <LinearGradient colors={['#101010', '#151515', '#1B1B1B']} className="rounded-b-[28px] px-5 pb-7" style={{ paddingTop: insets.top + 14 }}>
@@ -159,7 +211,7 @@ const ProfileScreen = () => {
           </View>
 
           <View className="flex-row items-center justify-end">
-            <TouchableOpacity onPress={openProfileMenu} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
+            <TouchableOpacity onPress={openSettingsScreen} activeOpacity={0.82} className="h-10 w-10 items-center justify-center rounded-full bg-white/10">
               <Feather name="settings" size={17} color="#F6F2EE" />
             </TouchableOpacity>
           </View>
@@ -238,22 +290,41 @@ const ProfileScreen = () => {
 
           <Animated.View entering={FadeInDown.delay(260).duration(320)} className="mt-5">
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-[15px] font-black text-[#171717]">Recent Reflections</Text>
-              <TouchableOpacity activeOpacity={0.78}>
-                <Text className="text-[10px] font-bold text-[#7E756B]">View all</Text>
+              <Text className="text-[15px] font-black text-[#171717]">Kingdom Quick Actions</Text>
+              <TouchableOpacity activeOpacity={0.78} onPress={openSettingsScreen}>
+                <Text className="text-[10px] font-bold text-[#7E756B]">More settings</Text>
               </TouchableOpacity>
             </View>
 
             <View className="gap-2">
-              {recentReflections.map((activity) => (
-                <RecentReflectionRow
-                  key={activity.id}
-                  icon={activity.type === 'reflection' ? 'edit-3' : 'book-open'}
-                  title={activity.title}
-                  subtitle={`${activity.date} • ${activity.time}`}
-                />
-              ))}
-              <RecentReflectionRow icon="heart" title={mockProfileAchievements[0]?.title ?? 'Keep Growing'} subtitle="Achievement unlocked recently" />
+              <QuickActionCard
+                title="Continue Bible Journey"
+                subtitle="Resume today's reading plan"
+                icon="book-open"
+                tint="#16A34A"
+                onPress={() => router.push('/(app)/bible-journey')}
+              />
+              <QuickActionCard
+                title="Talk to AI Counselor"
+                subtitle="Get scriptural guidance now"
+                icon="message-circle"
+                tint="#FF7A00"
+                onPress={() => router.push('/(app)/ai')}
+              />
+              <QuickActionCard
+                title="View Leaderboard"
+                subtitle="See your consistency ranking"
+                icon="award"
+                tint="#111111"
+                onPress={() => router.push('/(app)/leaderboard')}
+              />
+              <QuickActionCard
+                title="Sign Out"
+                subtitle="Securely end your current session"
+                icon="log-out"
+                tint="#B64900"
+                onPress={() => void handleLogout()}
+              />
             </View>
           </Animated.View>
         </View>

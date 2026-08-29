@@ -1,14 +1,21 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@store/authStore';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
-import { formatDayReadingReference, getCurrentSession, getInitials } from '@/lib/helper';
+import { formatDayReadingReference, getCurrentGreeting, getInitials } from '@/lib/helper';
 import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
 import TodaysBibleJourneyCard from '@/components/bible_reading_plan/TodaysBibleJourneyCard';
 import NextReadingPreviewCard from '@/components/bible_reading_plan/NextReadingPreviewCard';
@@ -17,14 +24,26 @@ import { useReadingScheduleStore } from '@/store/readingScheduleStore';
 import { useUserReadingProgress } from '@/hooks/useUserReadingProgress';
 import { useReadingPeriodLock } from '@/hooks/useReadingPeriodLock';
 import { useStreak } from '@/hooks/useStreak';
+import { useTomorrowReadingSchedule } from '@/hooks/useTomorrowReadingSchedule';
+import { useRotatingCompletionMessage } from '@/hooks/useRotatingCompletionMessage';
+import TomorrowMorningLockedPreviewCard from '@/components/bible_reading_plan/TomorrowMorningLockedPreviewCard';
+import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '@/lib/responsive';
+import ReminderPermissionCard from '@/components/home/ReminderPermissionCard';
+import { useNotificationReminderStore } from '@/store/notificationReminderStore';
+import { openNotificationSettings } from '@/services/notifications/bibleReadingReminders';
 
 
 const StatPill = ({ icon, label, value, tint }: { icon: React.ComponentProps<typeof Feather>['name']; label: string; value: string; tint: string }) => (
   <View className="flex-1 items-center rounded-[18px] border border-[#ECE6DD] bg-white px-2 py-3">
-    <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: `${tint}18` }}>
+    <View
+      style={{ height: moderateScale(32), width: moderateScale(32), backgroundColor: `${tint}18` }}
+      className="items-center justify-center rounded-full"
+    >
       <Feather name={icon} size={15} color={tint} />
     </View>
-    <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]">{value}</Text>
+    <Text className="mt-2 text-[18px] font-black text-[#1B1B1B]" style={{ fontSize: scaleFont(18) }}>
+      {value}
+    </Text>
     <Text className="mt-0.5 text-center text-[10px] font-semibold text-[#7A746C]">{label}</Text>
   </View>
 );
@@ -41,12 +60,17 @@ const progressRangeOptions: { key: ProgressRangeKey; label: string }[] = [
 const HomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width, isTablet } = useResponsive();
   const user = useAuthStore((state) => state.user);
-  const getReflectionsStatsForRange = useBibleJourneyStore((state) => state.getProgressStatsForRange);
   const getDbProgressStatsForRange = useUserReadingProgressStore((state) => state.getProgressStatsForRange);
   const { refreshProgress } = useUserReadingProgress();
-  const { eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
-  const { currentStreak, refreshStreak } = useStreak();
+  const { morningComplete, eveningComplete, eveningUnlocked, nextActionablePeriod } = useReadingPeriodLock();
+  const {
+    tomorrowReadingSchedule,
+    tomorrowDayNumber,
+    isLoadingTomorrowReadingSchedule,
+  } = useTomorrowReadingSchedule();
+  const { currentStreak, longestStreak, refreshStreak } = useStreak();
   const bibleReadingPlan = useBibleReadingPlanStore((state) => state.bibleReadingPlan);
   const bibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.bibleReadingPlanDayNumber);
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
@@ -54,24 +78,77 @@ const HomeScreen = () => {
   const isLoadingReadingSchedule = useReadingScheduleStore((state) => state.isLoadingReadingSchedule);
   const loadReadingSchedule = useReadingScheduleStore((state) => state.loadReadingSchedule);
   const queryClient = useQueryClient();
+  const reminderPermissionStatus = useNotificationReminderStore((state) => state.permissionStatus);
+  const canAskReminderPermission = useNotificationReminderStore((state) => state.canAskAgain);
+  const isReminderStoreHydrated = useNotificationReminderStore((state) => state.isHydrated);
+  const hideReminderCardForExistingUsers = useNotificationReminderStore((state) => state.hidePromptForExistingUser);
+  const hydrateReminderStore = useNotificationReminderStore((state) => state.hydrate);
+  const syncReminderPermissionStatus = useNotificationReminderStore((state) => state.syncPermissionStatus);
+  const requestReminderPermission = useNotificationReminderStore((state) => state.requestPermission);
+  const setHideReminderCardForExistingUsers = useNotificationReminderStore((state) => state.setHidePromptForExistingUser);
+  const registerSignedInReminderVisit = useNotificationReminderStore((state) => state.registerSignedInVisit);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [selectedProgressRange, setSelectedProgressRange] = useState<ProgressRangeKey>('week');
   const [isProgressRangeOpen, setIsProgressRangeOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
+  const [isReminderPromptDismissed, setIsReminderPromptDismissed] = useState(false);
+  const [greetingPeriod, setGreetingPeriod] = useState(() => getCurrentGreeting());
+  const reminderIconBounceY = useSharedValue(0);
 
   const selectedProgressLabel = progressRangeOptions.find((option) => option.key === selectedProgressRange)?.label ?? 'This Week';
   const dbProgressStats = getDbProgressStatsForRange(selectedProgressRange, bibleReadingPlan?.group_plan_start_date);
-  const { reflections: reflectionsCount } = getReflectionsStatsForRange(selectedProgressRange);
-  const progressStats = { ...dbProgressStats, reflections: reflectionsCount };
+  const progressStats = dbProgressStats;
+  const isTodayComplete = morningComplete && eveningComplete;
+  const completionMessage = useRotatingCompletionMessage(isTodayComplete);
+  const shouldShowTomorrowPreview =
+    tomorrowDayNumber !== null && (isTodayComplete || (morningComplete && !eveningComplete));
+  const tomorrowPreviewMessage = isTodayComplete
+    ? completionMessage
+    : 'Morning completed. Finish your evening session to unlock tomorrow morning.';
   const nextEveningReading = readingSchedule?.evening[0] ?? null;
   const nextEveningReference = nextEveningReading ? formatDayReadingReference(nextEveningReading) : 'Evening reading';
   const eveningChapterCount = readingSchedule?.evening.length ?? 0;
+  const tomorrowMorningReading = tomorrowReadingSchedule?.morning[0] ?? null;
+  const tomorrowMorningReference = tomorrowMorningReading
+    ? formatDayReadingReference(tomorrowMorningReading)
+    : 'Tomorrow morning reading';
+  const tomorrowMorningChapterCount = tomorrowReadingSchedule?.morning.length ?? 0;
 
   const fullName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Visionary Member';
   const firstName = fullName.split(' ')[0] || 'Visionary';
   const userInitials = getInitials(user?.firstName, user?.lastName, user?.email);
   const profileImage = user?.profileImage?.trim() ?? '';
   const shouldShowProfileImage = !!profileImage && !avatarLoadFailed;
+  const notificationPermissionGranted = reminderPermissionStatus === 'granted';
+  const shouldBounceReminderIcon = !notificationPermissionGranted;
+  const shouldShowReminderPermissionCard = useMemo(() => {
+    if (!isReminderStoreHydrated || isExistingUser === null) {
+      return false;
+    }
+
+    if (notificationPermissionGranted || isReminderPromptDismissed) {
+      return false;
+    }
+
+    if (isExistingUser && hideReminderCardForExistingUsers) {
+      return false;
+    }
+
+    return true;
+  }, [
+    hideReminderCardForExistingUsers,
+    isExistingUser,
+    isReminderPromptDismissed,
+    isReminderStoreHydrated,
+    notificationPermissionGranted,
+  ]);
+
+  const reminderIconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reminderIconBounceY.value }],
+  }));
+  // Center content within a readable max width on tablets instead of stretching edge-to-edge.
+  const horizontalPadding = isTablet ? Math.max((width - MAX_CONTENT_WIDTH) / 2, 20) : 10;
 
   useEffect(() => {
     if (!bibleReadingPlan || bibleReadingPlanDayNumber === null) {
@@ -82,6 +159,66 @@ const HomeScreen = () => {
       console.warn('Unable to load reading schedule:', error);
     });
   }, [bibleReadingPlan, bibleReadingPlanDayNumber, loadReadingSchedule]);
+
+  useEffect(() => {
+    setGreetingPeriod(getCurrentGreeting());
+
+    const intervalId = setInterval(() => {
+      setGreetingPeriod(getCurrentGreeting());
+    }, 60 * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    void hydrateReminderStore().catch((error) => {
+      console.warn('Unable to hydrate notification reminder state:', error);
+    });
+  }, [hydrateReminderStore]);
+
+  useEffect(() => {
+    setIsExistingUser(null);
+    setIsReminderPromptDismissed(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !isReminderStoreHydrated || isExistingUser !== null) {
+      return;
+    }
+
+    void registerSignedInReminderVisit(user.id)
+      .then((existingUser) => {
+        setIsExistingUser(existingUser);
+      })
+      .catch((error) => {
+        console.warn('Unable to register reminder prompt visit:', error);
+        setIsExistingUser(true);
+      });
+  }, [isExistingUser, isReminderStoreHydrated, registerSignedInReminderVisit, user?.id]);
+
+  useEffect(() => {
+    if (notificationPermissionGranted) {
+      setIsReminderPromptDismissed(true);
+    }
+  }, [notificationPermissionGranted]);
+
+  useEffect(() => {
+    if (!shouldBounceReminderIcon) {
+      reminderIconBounceY.value = withTiming(0, { duration: 180 });
+      return;
+    }
+
+    reminderIconBounceY.value = withRepeat(
+      withSequence(
+        withTiming(-4, { duration: 320 }),
+        withTiming(0, { duration: 320 }),
+      ),
+      -1,
+      false,
+    );
+  }, [reminderIconBounceY, shouldBounceReminderIcon]);
 
   const refreshReadingPlanAndSchedule = useCallback(async () => {
     await loadBibleReadingPlan();
@@ -115,41 +252,80 @@ const HomeScreen = () => {
     }
   }, [queryClient, refreshProgress, refreshReadingPlanAndSchedule, refreshStreak]);
 
+  const handleEnableReminderNotifications = useCallback(async () => {
+    try {
+      if (canAskReminderPermission) {
+        const nextStatus = await requestReminderPermission();
+        if (nextStatus === 'granted') {
+          setIsReminderPromptDismissed(true);
+        }
+        return;
+      }
+
+      await openNotificationSettings();
+      await syncReminderPermissionStatus();
+    } catch (error) {
+      console.warn('Unable to update reminder notification permission:', error);
+    }
+  }, [canAskReminderPermission, requestReminderPermission, syncReminderPermissionStatus]);
+
+  const handleReminderIconPress = useCallback(() => {
+    setIsReminderPromptDismissed(false);
+    void handleEnableReminderNotifications();
+  }, [handleEnableReminderNotifications]);
+
   return (
     <LinearGradient colors={['#FFFDF9', '#F8F3EB', '#F4EFE6']} className="flex-1">
       <StatusBar barStyle="dark-content" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: Math.max(insets.bottom + 118, 136) }}
-        className="px-5"
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor="#FF7A00"
-            colors={['#FF7A00']}
-            progressBackgroundColor="#FFFFFF"
-          />
-        }
-      >
+      <View className="flex-1">
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: insets.top + 14,
+            paddingBottom: Math.max(insets.bottom + 118, 136),
+            paddingHorizontal: horizontalPadding,
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#FF7A00"
+              colors={['#FF7A00']}
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
+        >
         <Animated.View entering={FadeIn.duration(240)} className="flex-row items-center justify-between">
           <View>
-            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {getCurrentSession()},</Text>
+            <Text className="text-[19px] font-bold leading-6 text-[#161616]">Good {greetingPeriod},</Text>
             <Text className="text-[24px] font-black leading-8 text-[#FF7A00]">{firstName}</Text>
           </View>
 
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/digest')}
-              activeOpacity={0.85}
-              className="relative h-10 w-10 items-center justify-center rounded-full bg-white"
-            >
-              <Feather name="bell" size={17} color="#252525" />
-              <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#FF7A00]" />
-            </TouchableOpacity>
+            <Animated.View style={reminderIconStyle}>
+              <TouchableOpacity
+                onPress={handleReminderIconPress}
+                activeOpacity={0.85}
+                style={{ height: moderateScale(40), width: moderateScale(40) }}
+                className="relative items-center justify-center rounded-full bg-white"
+              >
+                <Feather name="clock" size={17} color="#252525" />
+                <View
+                  className={`absolute right-2.5 top-2.5 h-2 w-2 rounded-full ${
+                    notificationPermissionGranted ? 'bg-[#16A34A]' : 'bg-[#FF7A00]'
+                  }`}
+                />
+              </TouchableOpacity>
+            </Animated.View>
 
-            <TouchableOpacity onPress={() => router.push('/(app)/profile')} activeOpacity={0.9} className="h-11 w-11 overflow-hidden rounded-full bg-[#171717]">
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/profile')}
+              activeOpacity={0.9}
+              style={{ height: moderateScale(44), width: moderateScale(44) }}
+              className="overflow-hidden rounded-full bg-[#171717]"
+            >
               {shouldShowProfileImage ? (
                 <Image
                   source={{ uri: profileImage }}
@@ -167,22 +343,30 @@ const HomeScreen = () => {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(110).duration(360)} className="mt-5 overflow-hidden rounded-[20px] bg-[#17191B]">
-          <LinearGradient colors={['#202225', '#151719']} className="p-4">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-1 pr-4">
+          <LinearGradient colors={['#202225', '#151719']}>
+            <View className="flex-row items-center justify-between p-4">
+              <View className="flex-1 pr-2">
                 <View className="flex-row items-center">
                   <View className="h-2.5 w-2.5 rounded-full bg-[#FF7A00]" />
                   <Text className="ml-2 text-[11px] font-bold text-white">Current Streak</Text>
                 </View>
                 <View className="mt-4 flex-row items-end">
-                  <Text className="text-[42px] font-black leading-[44px] text-white">{currentStreak}</Text>
+                  <Text className="font-black leading-[44px] text-white" style={{ fontSize: scaleFont(42) }}>
+                    {currentStreak}
+                  </Text>
                   <Text className="mb-1.5 ml-2 text-[16px] font-bold text-[#E6E0D8]">days</Text>
                 </View>
                 <Text className="mt-2 text-[11px] font-semibold text-[#BEB7AE]">Keep the flame steady.</Text>
               </View>
 
-              <View className="h-[92px] w-[92px] items-center justify-center rounded-full border-[6px] border-[#FF8A18] bg-[#242628]">
-                <View className="h-[66px] w-[66px] items-center justify-center rounded-full bg-[#151719]">
+              <View
+                style={{ height: moderateScale(92), width: moderateScale(92), borderWidth: moderateScale(6) }}
+                className="items-center justify-center rounded-full border-[#FF8A18] bg-[#242628]"
+              >
+                <View
+                  style={{ height: moderateScale(66), width: moderateScale(66) }}
+                  className="items-center justify-center rounded-full bg-[#151719]"
+                >
                   <FontAwesome5 name="fire" size={30} color="#FF7A00" solid />
                 </View>
               </View>
@@ -200,10 +384,42 @@ const HomeScreen = () => {
           }
         />
 
+        {shouldShowTomorrowPreview ? (
+          <Animated.View entering={FadeInDown.delay(190).duration(360)} className="mt-5">
+            {isTodayComplete ? (
+              <View className="mb-3 flex-row items-center rounded-[16px] border border-[#FFD7B0] bg-[#FFF3E7] px-3 py-2.5">
+                <View className="h-7 w-7 items-center justify-center rounded-full bg-[#FF7A00]">
+                  <Feather name="award" size={13} color="#FFFFFF" />
+                </View>
+                <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#C65A00]">
+                  Hurray! You are done reading for today
+                </Text>
+              </View>
+            ) : (
+              <View className="mb-3 flex-row items-center rounded-[16px] border border-[#D4EEDB] bg-[#EDF9F1] px-3 py-2.5">
+                <View className="h-7 w-7 items-center justify-center rounded-full bg-[#16A34A]">
+                  <Feather name="sunset" size={13} color="#FFFFFF" />
+                </View>
+                <Text className="ml-2 flex-1 text-[11px] font-black uppercase tracking-[0.5px] text-[#1C6B39]">
+                  Morning done. Evening session is now active
+                </Text>
+              </View>
+            )}
+
+            <TomorrowMorningLockedPreviewCard
+              dayNumber={tomorrowDayNumber}
+              reference={tomorrowMorningReference}
+              chapterCount={tomorrowMorningChapterCount}
+              isLoading={isLoadingTomorrowReadingSchedule}
+              message={tomorrowPreviewMessage}
+            />
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(210).duration(360)} className="mt-5">
-          <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center justify-between" style={{ zIndex: 30, elevation: 30 }}>
             <Text className="text-[15px] font-black text-[#181818]">Your Progress</Text>
-            <View className="items-end" style={{ zIndex: 20 }}>
+            <View className="items-end">
               <TouchableOpacity
                 onPress={() => setIsProgressRangeOpen((isOpen) => !isOpen)}
                 activeOpacity={0.8}
@@ -238,38 +454,55 @@ const HomeScreen = () => {
             </View>
           </View>
 
-          <View className="mt-3 flex-row gap-3">
+          <View className="mt-3 flex-row gap-3" style={{ zIndex: 1 }}>
             <StatPill icon="book-open" label="Days Read" value={`${progressStats.daysRead}`} tint="#16A34A" />
             <StatPill icon="award" label="Chapters" value={`${progressStats.chapters}`} tint="#FF7A00" />
-            <StatPill icon="message-circle" label="Reflections" value={`${progressStats.reflections}`} tint="#7257D6" />
+            <StatPill icon="target" label="Longest" value={`${longestStreak}`} tint="#111111" />
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(260).duration(360)} className="mt-5">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[15px] font-black text-[#181818]">Continue Your Journey</Text>
-            <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.8}>
-              <Text className="text-[11px] font-bold text-[#716A61]">View all</Text>
-            </TouchableOpacity>
-          </View>
+        {!isTodayComplete ? (
+          <Animated.View entering={FadeInDown.delay(260).duration(360)} className="mt-5">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-[15px] font-black text-[#181818]">Continue Your Journey</Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/bible-journey')} activeOpacity={0.8}>
+                <Text className="text-[11px] font-bold text-[#716A61]">View all</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View className="mt-3">
-            <NextReadingPreviewCard
-              reference={nextEveningReference}
-              chapterCount={eveningChapterCount}
-              isLoading={isLoadingReadingSchedule}
-              locked={!eveningUnlocked}
-              onPress={() =>
-                router.push({
-                  pathname: '/(app)/bible-reading-select',
-                  params: { period: eveningUnlocked ? 'evening' : (nextActionablePeriod ?? 'morning') },
-                })
-              }
-            />
-          </View>
-        </Animated.View>
+            <View className="mt-3">
+              <NextReadingPreviewCard
+                reference={nextEveningReference}
+                chapterCount={eveningChapterCount}
+                isLoading={isLoadingReadingSchedule}
+                locked={!eveningUnlocked}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(app)/bible-reading-select',
+                    params: { period: eveningUnlocked ? 'evening' : (nextActionablePeriod ?? 'morning') },
+                  })
+                }
+              />
+            </View>
+          </Animated.View>
+        ) : null}
 
-      </ScrollView>
+        </ScrollView>
+
+        <ReminderPermissionCard
+          visible={shouldShowReminderPermissionCard}
+          isExistingUser={Boolean(isExistingUser)}
+          doNotShowAgain={hideReminderCardForExistingUsers}
+          canAskAgain={canAskReminderPermission}
+          onToggleDoNotShowAgain={(nextValue) => {
+            void setHideReminderCardForExistingUsers(nextValue);
+          }}
+          onEnablePress={() => {
+            void handleEnableReminderNotifications();
+          }}
+          onDismissPress={() => setIsReminderPromptDismissed(true)}
+        />
+      </View>
     </LinearGradient>
   );
 };

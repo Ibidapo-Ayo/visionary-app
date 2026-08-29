@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DayReading, ReadingPeriod } from '@/types/index';
-import { useBibleJourneyStore } from '@store/bibleJourneyStore';
+import { useAuthStore } from '@/store/authStore';
+import { useUserReadingProgressStore } from '@/store/userReadingProgressStore';
+import { useReadingPeriodLockStore } from '@/store/readingPeriodLockStore';
 import { formatDayReadingReference } from '@/lib/helper';
 import { useBibleChapter } from '@/hooks/useBibleChapter';
 import { useTodayReadingSchedule } from '@/hooks/useTodayReadingSchedule';
@@ -61,12 +63,18 @@ const BibleReadingScreenView = () => {
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
-  const markSessionReadingCompleteForToday = useBibleJourneyStore((state) => state.markSessionReadingCompleteForToday);
-  const getTodayProgress = useBibleJourneyStore((state) => state.getTodayProgress);
-  const { bibleReadingPlan, bibleReadingPlanDayNumber, readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
+  const {
+    bibleReadingPlan,
+    bibleReadingPlanDayNumber,
+    readingSchedule,
+    isLoadingReadingSchedule,
+    isLoadingBibleReadingPlan,
+  } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
   const { isUnlocked } = useReadingPeriodLock();
+  const clerkUserId = useAuthStore((state) => state.user?.id);
+  const resolveSupabaseUserId = useAuthStore((state) => state.resolveSupabaseUserId);
   const isSessionLocked = !isUnlocked(period);
 
   const sessionChapters = readingSchedule?.[period] ?? [];
@@ -83,13 +91,42 @@ const BibleReadingScreenView = () => {
     return firstIncomplete >= 0 ? firstIncomplete : 0;
   }, [completedScheduleIds, incomingReference, sessionChapters]);
 
-  const [chapterIndex, setChapterIndex] = useState(initialChapterIndex);
+  const [chapterIndex, setChapterIndex] = useState(0);
   const [isCompletingChapter, setIsCompletingChapter] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const hasAppliedInitialChapterRef = useRef(false);
+  const hasUserChangedChapterRef = useRef(false);
+  const selectionSignatureRef = useRef('');
+
+  const scheduleIdentity = `${bibleReadingPlan?.id ?? 'no-plan'}:${bibleReadingPlanDayNumber ?? 'no-day'}`;
+  const selectionSignature = `${scheduleIdentity}:${period}:${incomingReference}`;
 
   useEffect(() => {
+    if (selectionSignatureRef.current === selectionSignature) {
+      return;
+    }
+
+    selectionSignatureRef.current = selectionSignature;
+    hasAppliedInitialChapterRef.current = false;
+    hasUserChangedChapterRef.current = false;
+  }, [selectionSignature]);
+
+  useEffect(() => {
+    if (isLoadingReadingSchedule || isLoadingBibleReadingPlan) {
+      return;
+    }
+
+    if (sessionChapters.length === 0) {
+      return;
+    }
+
+    if (hasAppliedInitialChapterRef.current || hasUserChangedChapterRef.current) {
+      return;
+    }
+
     setChapterIndex(initialChapterIndex);
-  }, [initialChapterIndex]);
+    hasAppliedInitialChapterRef.current = true;
+  }, [initialChapterIndex, isLoadingBibleReadingPlan, isLoadingReadingSchedule, sessionChapters.length]);
 
   const chapter = sessionChapters[Math.min(chapterIndex, Math.max(0, sessionChapters.length - 1))];
   const currentChapterQuery = useBibleChapter(chapter?.bookName ?? null, chapter?.chapter ?? null);
@@ -123,6 +160,7 @@ const BibleReadingScreenView = () => {
       return;
     }
 
+    hasUserChangedChapterRef.current = true;
     setChapterIndex((prev) => prev - 1);
   };
 
@@ -138,21 +176,37 @@ const BibleReadingScreenView = () => {
       await markCurrentChapterComplete();
 
       if (hasNext) {
+        hasUserChangedChapterRef.current = true;
         setChapterIndex((prev) => prev + 1);
         return;
       }
 
-      markSessionReadingCompleteForToday({
-        period,
-        readingReference: formatDayReadingReference(chapter),
-      });
+      const completedReference = formatDayReadingReference(chapter);
 
-      // Only once both morning and evening are done for today does this actually advance the streak.
-      if (getTodayProgress().dailyCompleted) {
-        await completeReadingDay();
+      // Check the real DB-backed completion state (not the locally-mirrored flags above) so the
+      // streak reliably updates the moment both sessions are actually done, even across devices/reinstalls.
+      // Streak sync is best-effort here — it must never block the user from seeing the completion screen.
+      try {
+        const resolvedUserId = clerkUserId ? await resolveSupabaseUserId(clerkUserId) : null;
+        const freshCompletedIds = resolvedUserId
+          ? new Set(useUserReadingProgressStore.getState().completedScheduleIdsByUser[resolvedUserId] ?? [])
+          : completedScheduleIds;
+        const { isPeriodComplete } = useReadingPeriodLockStore.getState();
+        const bothSessionsComplete =
+          isPeriodComplete('morning', readingSchedule, freshCompletedIds) &&
+          isPeriodComplete('evening', readingSchedule, freshCompletedIds);
+
+        if (bothSessionsComplete) {
+          await completeReadingDay();
+        }
+      } catch (streakError) {
+        console.warn('Unable to sync streak:', streakError);
       }
 
-      router.replace('/(app)/bible-journey');
+      router.replace({
+        pathname: '/(app)/reading-complete',
+        params: { period, reference: completedReference },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to complete this chapter. Please retry.';
 
@@ -298,13 +352,8 @@ const BibleReadingScreenView = () => {
   );
 };
 
-/** Keying on period+reference forces a remount per selection, so chapterIndex always initializes at the clicked chapter instead of carrying over from the previous session. */
 const BibleReadingScreen = () => {
-  const params = useLocalSearchParams<{ reference?: string; period?: string }>();
-  const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
-  const incomingReference = typeof params.reference === 'string' ? params.reference : '';
-
-  return <BibleReadingScreenView key={`${period}-${incomingReference}`} />;
+  return <BibleReadingScreenView />;
 };
 
 export default BibleReadingScreen;

@@ -15,6 +15,7 @@ export interface User {
   joinDate: string;
   profileImage?: string;
   bio?: string;
+  gender?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +63,7 @@ export type ClerkAuthUserResource = {
   emailAddresses?: Array<{ emailAddress?: string | null }>;
   primaryPhoneNumber?: { phoneNumber?: string | null } | null;
   phoneNumbers?: Array<{ phoneNumber?: string | null }>;
+  unsafeMetadata?: Record<string, unknown>;
 };
 
 export interface SignUpInput {
@@ -360,8 +362,8 @@ export type ClerkUserResource = {
   firstName: string | null;
   lastName: string | null;
   imageUrl: string;
-  createdAt: number | null;
-  updatedAt: number | null;
+  createdAt: string | number | Date | null;
+  updatedAt: string | number | Date | null;
   primaryEmailAddress?: { emailAddress?: string | null } | null;
   emailAddresses: Array<{ emailAddress?: string | null }>;
   primaryPhoneNumber?: { phoneNumber?: string | null } | null;
@@ -379,6 +381,7 @@ export interface SupabaseUserRow {
   email: string | null;
   phone_number: string | null;
   profile_image: string | null;
+  bio: string | null;
   gender: string | null;
   date_of_birth: string | null;
   role: string;

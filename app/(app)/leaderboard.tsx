@@ -72,7 +72,7 @@ const LeaderboardComingSoonScreen = () => {
                 </View>
                 <Text className="mt-4 text-[31px] font-black leading-[36px] text-white">Leaderboard will celebrate Bible consistency.</Text>
                 <Text className="mt-2 text-[13px] font-semibold leading-6 text-[#CFC8BE]">
-                  Rankings will be introduced after reading progress and reflection data are stable enough to make the experience meaningful.
+                  Rankings will be introduced after reading progress and streak data are stable enough to make the experience meaningful.
                 </Text>
               </View>
 
@@ -91,7 +91,7 @@ const LeaderboardComingSoonScreen = () => {
             <Text className="mt-1 text-[9px] font-bold text-[#81776D]">Signal</Text>
           </View>
           <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
-            <Text className="text-[18px] font-black text-[#171717]">Reflect</Text>
+            <Text className="text-[18px] font-black text-[#171717]">Streak</Text>
             <Text className="mt-1 text-[9px] font-bold text-[#81776D]">Signal</Text>
           </View>
           <View className="flex-1 rounded-[18px] border border-[#EFE5D8] bg-white px-3 py-3">
@@ -102,7 +102,7 @@ const LeaderboardComingSoonScreen = () => {
 
         <Animated.View entering={FadeInDown.delay(180).duration(320)} className="mt-5 gap-3">
           <PreviewItem icon="book-open" title="Reading-based progress" subtitle="Future standings will be grounded in completed chapters and daily consistency." />
-          <PreviewItem icon="edit-3" title="Reflection completion" subtitle="Reflections will help distinguish real engagement from simple point chasing." />
+          <PreviewItem icon="zap" title="Streak momentum" subtitle="Streak stability will help distinguish deep consistency from short bursts." />
           <PreviewItem icon="users" title="Community encouragement" subtitle="The tone will stay encouraging and discipleship-focused, not pressure-driven." />
         </Animated.View>
 
@@ -114,7 +114,7 @@ const LeaderboardComingSoonScreen = () => {
             <View className="ml-3 flex-1">
               <Text className="text-[13px] font-black text-[#1D5B2A]">Current MVP priority</Text>
               <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#4E714B]">
-                Build the Bible Journey loop first: choose chapters, read, complete progress, and reflect with clarity.
+                Build the Bible Journey loop first: choose chapters, read, and complete progress with clarity.
               </Text>
             </View>
           </View>

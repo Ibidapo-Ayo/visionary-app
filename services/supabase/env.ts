@@ -1,7 +1,12 @@
 import type { SupabaseEnv } from '@/types/index';
 
-const requireEnv = (name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANON_KEY'): string => {
-  const value = process.env[name]?.trim();
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+const requireEnvValue = (
+  value: string | undefined,
+  name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANON_KEY'
+): string => {
 
   if (!value) {
     throw new Error(
@@ -13,6 +18,6 @@ const requireEnv = (name: 'EXPO_PUBLIC_SUPABASE_URL' | 'EXPO_PUBLIC_SUPABASE_ANO
 };
 
 export const getSupabaseEnv = (): SupabaseEnv => ({
-  url: requireEnv('EXPO_PUBLIC_SUPABASE_URL'),
-  anonKey: requireEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+  url: requireEnvValue(supabaseUrl, 'EXPO_PUBLIC_SUPABASE_URL'),
+  anonKey: requireEnvValue(supabaseAnonKey, 'EXPO_PUBLIC_SUPABASE_ANON_KEY'),
 });

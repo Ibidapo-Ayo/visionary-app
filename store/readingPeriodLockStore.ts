@@ -23,7 +23,14 @@ export const useReadingPeriodLockStore = create<ReadingPeriodLockState>()(() => 
       return false;
     }
 
-    const chapters = schedule?.[period] ?? [];
+    const hasAnyValidChapterForDay = [...(schedule.morning ?? []), ...(schedule.evening ?? [])]
+      .some((chapter) => Boolean(chapter?.id));
+
+    if (!hasAnyValidChapterForDay) {
+      return false;
+    }
+
+    const chapters = (schedule?.[period] ?? []).filter((chapter) => Boolean(chapter?.id));
 
     if (chapters.length === 0) {
       return true;

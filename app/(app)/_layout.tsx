@@ -1,6 +1,6 @@
 import React from 'react';
 import { Redirect, Tabs } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { AppState, Pressable, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import { useAuth } from '@clerk/expo';
 import { useSyncClerkAuth } from '@services/auth';
 import { useSupabaseClerkAuth } from '@services/supabase';
 import { useBibleReadingPlanStore } from '@/store/bible-reading-plan';
+import { useBibleReadingReminderScheduler } from '@/hooks/useBibleReadingReminderScheduler';
 import { colors } from '../../lib/theme';
 import { MAX_CONTENT_WIDTH, moderateScale, scaleFont, useResponsive } from '../../lib/responsive';
 
@@ -98,11 +99,12 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 
   const activeRoute = state.routes[state.index];
   const shouldHideTabBar =
-    activeRoute.name === 'digest' ||
     activeRoute.name === 'edit-profile' ||
+    activeRoute.name === 'settings' ||
     activeRoute.name === 'ai' ||
     activeRoute.name === 'bible-reading-select' ||
-    activeRoute.name === 'bible-reading';
+    activeRoute.name === 'bible-reading' ||
+    activeRoute.name === 'reading-complete';
 
   const visibleRoutes = visibleTabOrder
     .map((routeName) => state.routes.find((route) => route.name === routeName))
@@ -195,8 +197,10 @@ const AppTabBar = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 const AppLayout = () => {
   useSupabaseClerkAuth();
   useSyncClerkAuth();
+  useBibleReadingReminderScheduler();
   const { isLoaded, isSignedIn } = useAuth();
   const loadBibleReadingPlan = useBibleReadingPlanStore((state) => state.loadBibleReadingPlan);
+  const refreshBibleReadingPlanDayNumber = useBibleReadingPlanStore((state) => state.refreshBibleReadingPlanDayNumber);
 
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -207,6 +211,16 @@ const AppLayout = () => {
       console.warn('Unable to load Bible reading plan:', error);
     });
   }, [isLoaded, isSignedIn, loadBibleReadingPlan]);
+
+  React.useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshBibleReadingPlanDayNumber();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refreshBibleReadingPlanDayNumber]);
 
   if (!isLoaded) {
     return null;
@@ -227,13 +241,6 @@ const AppLayout = () => {
     >
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen
-        name="digest"
-        options={{
-          href: null,
-          tabBarStyle: { display: 'none' },
-        }}
-      />
-      <Tabs.Screen
         name="bible-journey"
         options={{
           title: 'Journey',
@@ -253,6 +260,13 @@ const AppLayout = () => {
           tabBarStyle: { display: 'none' },
         }}
       />
+      <Tabs.Screen
+        name="reading-complete"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
       <Tabs.Screen name="scan" options={{ title: 'Scan' }} />
       <Tabs.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
       <Tabs.Screen
@@ -265,6 +279,13 @@ const AppLayout = () => {
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
       <Tabs.Screen
         name="edit-profile"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
         options={{
           href: null,
           tabBarStyle: { display: 'none' },

@@ -79,7 +79,7 @@ const ScanComingSoonScreen = () => {
                 </View>
                 <Text className="mt-4 text-[31px] font-black leading-[36px] text-white">Attendance will launch with QR check-in.</Text>
                 <Text className="mt-2 text-[13px] font-semibold leading-6 text-[#CFC8BE]">
-                  This module is intentionally parked while the MVP focuses on Bible reading, chapter progress, and reflections.
+                  This module is intentionally parked while the MVP focuses on Bible reading, chapter progress, and streak consistency.
                 </Text>
               </View>
 
@@ -121,7 +121,7 @@ const ScanComingSoonScreen = () => {
             <View className="ml-3 flex-1">
               <Text className="text-[13px] font-black text-[#1D5B2A]">Current MVP priority</Text>
               <Text className="mt-1 text-[11px] font-semibold leading-5 text-[#4E714B]">
-                Bible Journey remains the primary experience: daily readings, selectable chapters, progress, and reflection tracking.
+                Bible Journey remains the primary experience: daily readings, selectable chapters, and progress tracking.
               </Text>
             </View>
           </View>
