@@ -33,7 +33,7 @@ export const useReadingPeriodLockStore = create<ReadingPeriodLockState>()(() => 
     const chapters = (schedule?.[period] ?? []).filter((chapter) => Boolean(chapter?.id));
 
     if (chapters.length === 0) {
-      return false;
+      return true;
     }
 
     return chapters.every((chapter) => completedScheduleIds.has(chapter.id));

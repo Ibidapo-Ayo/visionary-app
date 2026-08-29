@@ -283,6 +283,25 @@ export const getSupabaseUserIdByClerkId = async (clerkId: string): Promise<strin
   return user.id;
 };
 
+const resolveExistingUserAfterDuplicateInsert = async (clerkUserId: string): Promise<SupabaseUserRow> => {
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .update({ clerk_user_id: clerkUserId })
+    .eq('clerk_user_id', clerkUserId)
+    .select('*')
+    .single<SupabaseUserRow>();
+
+  if (error) {
+    throw new Error(`[supabase] Failed to resolve existing user for ${clerkUserId} after duplicate insert: ${error.message}`);
+  }
+
+  if (!data?.id) {
+    throw new Error(`[supabase] Existing user ${clerkUserId} was resolved without a Supabase user id.`);
+  }
+
+  return data;
+};
+
 
 export const syncProfileFromClerkUser = async (
   clerkUser: ClerkAuthUserResource,
@@ -311,15 +330,13 @@ export const syncProfileFromClerkUser = async (
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : '';
     if (message.includes('duplicate key value violates unique constraint')) {
-      const rowAfterConflict = await getUserByClerkId(clerkUser.id);
+      const rowAfterConflict = await resolveExistingUserAfterDuplicateInsert(clerkUser.id);
 
       if (isCurrentSync && !isCurrentSync()) {
         throw new Error('stale_sync');
       }
 
-      if (rowAfterConflict) {
-        return rowAfterConflict;
-      }
+      return rowAfterConflict;
     }
 
     throw error;

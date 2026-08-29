@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth, useUser } from '@clerk/expo';
 import { useAuthStore } from '@store/authStore';
 import { useSyncUserToBackend } from './useCompleteAuthRegistration';
@@ -8,11 +8,13 @@ const SYNC_RETRY_DELAY_MS = 1200;
 
 export const useSyncClerkAuth = () => {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
-  const { isLoaded: userLoaded } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
+  const clerkUserId = user?.id ?? null;
 
   const setLoading = useAuthStore((state) => state.setLoading);
   const reset = useAuthStore((state) => state.reset);
   const { syncUserToBackend } = useSyncUserToBackend();
+  const previousClerkUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -29,6 +31,7 @@ export const useSyncClerkAuth = () => {
     }
 
     if (!isSignedIn) {
+      previousClerkUserIdRef.current = null;
       reset();
       return () => {
         isCancelled = true;
@@ -37,6 +40,27 @@ export const useSyncClerkAuth = () => {
         }
       };
     }
+
+    if (!clerkUserId) {
+      setLoading(true);
+      return () => {
+        isCancelled = true;
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+        }
+      };
+    }
+
+    const identityChanged =
+      previousClerkUserIdRef.current !== null &&
+      previousClerkUserIdRef.current !== clerkUserId;
+
+    if (identityChanged) {
+      reset();
+      setLoading(true);
+    }
+
+    previousClerkUserIdRef.current = clerkUserId;
 
     const attemptSync = async (attempt: number): Promise<void> => {
       const result = await syncUserToBackend();
@@ -72,5 +96,5 @@ export const useSyncClerkAuth = () => {
         clearTimeout(retryTimeout);
       }
     };
-  }, [authLoaded, userLoaded, isSignedIn, reset, setLoading, syncUserToBackend]);
+  }, [authLoaded, userLoaded, isSignedIn, clerkUserId, reset, setLoading, syncUserToBackend]);
 };

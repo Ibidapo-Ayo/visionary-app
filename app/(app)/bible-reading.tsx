@@ -63,7 +63,13 @@ const BibleReadingScreenView = () => {
   const period: ReadingPeriod = params.period === 'evening' ? 'evening' : 'morning';
   const incomingReference = typeof params.reference === 'string' ? params.reference : '';
 
-  const { readingSchedule, isLoadingReadingSchedule, isLoadingBibleReadingPlan } = useTodayReadingSchedule();
+  const {
+    bibleReadingPlan,
+    bibleReadingPlanDayNumber,
+    readingSchedule,
+    isLoadingReadingSchedule,
+    isLoadingBibleReadingPlan,
+  } = useTodayReadingSchedule();
   const { completedScheduleIds, markScheduleComplete } = useUserReadingProgress();
   const { completeReadingDay } = useStreak();
   const { isUnlocked } = useReadingPeriodLock();
@@ -92,7 +98,8 @@ const BibleReadingScreenView = () => {
   const hasUserChangedChapterRef = useRef(false);
   const selectionSignatureRef = useRef('');
 
-  const selectionSignature = `${period}:${incomingReference}`;
+  const scheduleIdentity = `${bibleReadingPlan?.id ?? 'no-plan'}:${bibleReadingPlanDayNumber ?? 'no-day'}`;
+  const selectionSignature = `${scheduleIdentity}:${period}:${incomingReference}`;
 
   useEffect(() => {
     if (selectionSignatureRef.current === selectionSignature) {

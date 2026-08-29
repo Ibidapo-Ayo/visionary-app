@@ -76,6 +76,14 @@ const createRequestSignal = (timeoutMs: number) => {
   };
 };
 
+const isTimeoutAbortError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.name === 'AbortError' || /aborted|timed?\s*out/i.test(error.message);
+};
+
 const formatBookNameForBibleApi = (bookName: string) =>
   bookName
     .toLowerCase()
@@ -93,40 +101,58 @@ export const fetchBibleChapter = async (bookName: string, chapter: number): Prom
   }
 
   const { signal, cleanup } = createRequestSignal(BIBLE_API_TIMEOUT_MS);
-
-  let response: Response;
+  const timeoutErrorMessage = `Request timed out while fetching ${bookName} ${chapter}.`;
 
   try {
-    response = await fetch(`${BIBLE_API_BASE_URL}/${formattedBookName}+${chapter}`, { signal });
+    const response = await fetch(`${BIBLE_API_BASE_URL}/${formattedBookName}+${chapter}`, { signal });
+
+    if (!response.ok) {
+      let errorText = '';
+
+      try {
+        errorText = await response.text();
+      } catch (error) {
+        if (isTimeoutAbortError(error)) {
+          throw new Error(timeoutErrorMessage);
+        }
+      }
+
+      throw new Error(errorText || `Unable to fetch ${bookName} ${chapter}.`);
+    }
+
+    let payload: unknown = null;
+
+    try {
+      payload = await response.json();
+    } catch (error) {
+      if (isTimeoutAbortError(error)) {
+        throw new Error(timeoutErrorMessage);
+      }
+
+      payload = null;
+    }
+
+    if (!payload || typeof payload !== 'object') {
+      throw new Error(`Unable to fetch ${bookName} ${chapter}.`);
+    }
+
+    const payloadError = (payload as { error?: unknown }).error;
+    if (hasText(payloadError)) {
+      throw new Error(payloadError);
+    }
+
+    if (!isBibleChapterResponse(payload)) {
+      throw new Error(`Unable to fetch ${bookName} ${chapter}.`);
+    }
+
+    return payload;
   } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    if (error instanceof Error && (error.name === 'AbortError' || /aborted|timed?\s*out/i.test(message))) {
-      throw new Error(`Request timed out while fetching ${bookName} ${chapter}.`);
+    if (isTimeoutAbortError(error)) {
+      throw new Error(timeoutErrorMessage);
     }
 
     throw error;
   } finally {
     cleanup();
   }
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(errorText || `Unable to fetch ${bookName} ${chapter}.`);
-  }
-
-  const payload = await response.json().catch(() => null);
-  if (!payload || typeof payload !== 'object') {
-    throw new Error(`Unable to fetch ${bookName} ${chapter}.`);
-  }
-
-  const payloadError = (payload as { error?: unknown }).error;
-  if (hasText(payloadError)) {
-    throw new Error(payloadError);
-  }
-
-  if (!isBibleChapterResponse(payload)) {
-    throw new Error(`Unable to fetch ${bookName} ${chapter}.`);
-  }
-
-  return payload;
 };

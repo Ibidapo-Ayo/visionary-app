@@ -39,6 +39,24 @@ const addCompletedScheduleDay = (
   return [...completedScheduleDays, entry];
 };
 
+const resolveOwnedProgressUserId = (loadedUserId: string | null): string | null => {
+  const authState = useAuthStore.getState();
+  const activeSupabaseUserId = authState.supabaseUserId;
+
+  if (activeSupabaseUserId) {
+    return activeSupabaseUserId;
+  }
+
+  const currentClerkUserId = authState.user?.id ?? null;
+  const supabaseUserIdOwnerClerkUserId = authState.supabaseUserIdClerkUserId;
+
+  if (!loadedUserId || !currentClerkUserId || !supabaseUserIdOwnerClerkUserId) {
+    return null;
+  }
+
+  return supabaseUserIdOwnerClerkUserId === currentClerkUserId ? loadedUserId : null;
+};
+
 export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
     (set, get) => ({
       completedScheduleIdsByUser: {},
@@ -193,8 +211,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getCompletedScheduleCount: (scheduleIds) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
-        const activeUserId = useAuthStore.getState().supabaseUserId;
-        const targetUserId = activeUserId ?? loadedUserId;
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
         if (!targetUserId) {
           return 0;
@@ -209,8 +226,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getTotalCompletedChapters: () => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
-        const activeUserId = useAuthStore.getState().supabaseUserId;
-        const targetUserId = activeUserId ?? loadedUserId;
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
         if (!targetUserId) {
           return 0;
@@ -220,8 +236,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       isScheduleComplete: (scheduleId) => {
         const { completedScheduleIdsByUser, loadedUserId } = get();
-        const activeUserId = useAuthStore.getState().supabaseUserId;
-        const targetUserId = activeUserId ?? loadedUserId;
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
         if (!targetUserId) {
           return false;
@@ -234,8 +249,7 @@ export const useUserReadingProgressStore = create<UserReadingProgressStore>()(
       },
       getProgressStatsForRange: (range, planStartDate) => {
         const { completedScheduleDaysByUser, loadedUserId } = get();
-        const activeUserId = useAuthStore.getState().supabaseUserId;
-        const targetUserId = activeUserId ?? loadedUserId;
+        const targetUserId = resolveOwnedProgressUserId(loadedUserId);
 
         if (!targetUserId || !planStartDate) {
           return { daysRead: 0, chapters: 0 };

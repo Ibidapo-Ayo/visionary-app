@@ -22,7 +22,7 @@ interface ReminderSlot {
 
 const REMINDER_NAMESPACE = 'visionary-bible-reading-reminder';
 const ANDROID_CHANNEL_ID = 'bible-reading-reminders';
-const SCHEDULE_DAYS_AHEAD = 7;
+const SCHEDULE_DAYS_AHEAD = 365;
 
 const MORNING_REMINDER_HOURS = [6, 9, 12];
 const EVENING_REMINDER_HOURS = [18, 21];
@@ -152,6 +152,29 @@ const buildTriggerDate = (dayOffset: number, hour: number, minute: number) => {
   return triggerDate;
 };
 
+const scheduleDateReminder = (
+  slot: ReminderSlot,
+  triggerDate: Date,
+) =>
+  Notifications.scheduleNotificationAsync({
+    content: {
+      title: slot.title,
+      body: slot.body,
+      sound: 'default',
+      data: {
+        namespace: REMINDER_NAMESPACE,
+        period: slot.period,
+        hour: slot.hour,
+        minute: slot.minute,
+        dateKey: toDateKey(triggerDate),
+      },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: triggerDate,
+    },
+  });
+
 export const clearBibleReadingReminderSchedule = async () => {
   const pendingRequests = await Notifications.getAllScheduledNotificationsAsync();
   const reminderRequests = pendingRequests.filter(isReminderRequest);
@@ -183,45 +206,35 @@ export const syncBibleReadingReminderSchedule = async ({
     const now = new Date();
     const jobs: Promise<string>[] = [];
 
-    for (let dayOffset = 0; dayOffset < SCHEDULE_DAYS_AHEAD; dayOffset += 1) {
-      const slots = buildReminderSlotsForOffset(dayOffset, selectedMorningHours, selectedEveningHours);
+    // Keep today's behavior unchanged: only future reminders for incomplete periods are scheduled today.
+    const todaySlots = buildReminderSlotsForOffset(0, selectedMorningHours, selectedEveningHours);
+    todaySlots.forEach((slot) => {
+      if (slot.period === 'morning' && morningComplete) {
+        return;
+      }
 
-      slots.forEach((slot) => {
-        if (dayOffset === 0) {
-          if (slot.period === 'morning' && morningComplete) {
-            return;
-          }
+      if (slot.period === 'evening' && eveningComplete) {
+        return;
+      }
 
-          if (slot.period === 'evening' && eveningComplete) {
-            return;
-          }
-        }
+      const triggerDate = buildTriggerDate(0, slot.hour, slot.minute);
+      if (triggerDate <= now) {
+        return;
+      }
 
+      jobs.push(scheduleDateReminder(slot, triggerDate));
+    });
+
+    for (let dayOffset = 1; dayOffset < SCHEDULE_DAYS_AHEAD; dayOffset += 1) {
+      const futureSlots = buildReminderSlotsForOffset(dayOffset, selectedMorningHours, selectedEveningHours);
+
+      futureSlots.forEach((slot) => {
         const triggerDate = buildTriggerDate(dayOffset, slot.hour, slot.minute);
         if (triggerDate <= now) {
           return;
         }
 
-        jobs.push(
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: slot.title,
-              body: slot.body,
-              sound: 'default',
-              data: {
-                namespace: REMINDER_NAMESPACE,
-                period: slot.period,
-                hour: slot.hour,
-                minute: slot.minute,
-                dateKey: toDateKey(triggerDate),
-              },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: triggerDate,
-            },
-          }),
-        );
+        jobs.push(scheduleDateReminder(slot, triggerDate));
       });
     }
 
