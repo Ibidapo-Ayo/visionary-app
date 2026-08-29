@@ -9,6 +9,18 @@ import { useSignOut } from '@services/auth';
 import { openNotificationSettings } from '@/services/notifications/bibleReadingReminders';
 import { useNotificationReminderStore } from '@/store/notificationReminderStore';
 
+type ReminderPeriod = 'morning' | 'evening';
+
+const MORNING_TIMER_OPTIONS = [5, 6, 7, 8, 9, 10, 12];
+const EVENING_TIMER_OPTIONS = [17, 18, 19, 20, 21, 22];
+
+const formatHourLabel = (hour: number) => {
+  const normalizedHour = hour % 24;
+  const twelveHourValue = ((normalizedHour + 11) % 12) + 1;
+  const suffix = normalizedHour >= 12 ? 'PM' : 'AM';
+  return `${twelveHourValue}:00 ${suffix}`;
+};
+
 const statusTextMap: Record<'granted' | 'denied' | 'undetermined', string> = {
   granted: 'Enabled',
   denied: 'Blocked',
@@ -61,6 +73,55 @@ const SettingsAction = ({
   </TouchableOpacity>
 );
 
+const ReminderTimerSelector = ({
+  label,
+  selectedHours,
+  options,
+  onToggle,
+}: {
+  label: string;
+  selectedHours: number[];
+  options: number[];
+  onToggle: (hour: number) => void;
+}) => (
+  <View>
+    <View className="flex-row items-center justify-between">
+      <Text className="text-[12px] font-black text-[#1E1A16]">{label}</Text>
+      <View className="rounded-full bg-[#FFF1E5] px-2.5 py-1">
+        <Text className="text-[9px] font-black uppercase text-[#B95B00]">
+          {selectedHours.length > 0 ? `${selectedHours.length} selected` : 'Using default'}
+        </Text>
+      </View>
+    </View>
+
+    <View className="mt-2 flex-row flex-wrap gap-2">
+      {options.map((hour) => {
+        const isSelected = selectedHours.includes(hour);
+
+        return (
+          <TouchableOpacity
+            key={`${label}-${hour}`}
+            activeOpacity={0.84}
+            onPress={() => onToggle(hour)}
+            className="rounded-full border px-3 py-1.5"
+            style={{
+              borderColor: isSelected ? '#FF7A00' : '#E8DECF',
+              backgroundColor: isSelected ? '#FFF1E5' : '#FFFCF8',
+            }}
+          >
+            <Text
+              className="text-[10px] font-black"
+              style={{ color: isSelected ? '#B95B00' : '#7A7066' }}
+            >
+              {formatHourLabel(hour)}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+);
+
 const SettingsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -71,6 +132,10 @@ const SettingsScreen = () => {
   const hydrateReminderStore = useNotificationReminderStore((state) => state.hydrate);
   const requestReminderPermission = useNotificationReminderStore((state) => state.requestPermission);
   const syncReminderPermissionStatus = useNotificationReminderStore((state) => state.syncPermissionStatus);
+  const morningReminderHours = useNotificationReminderStore((state) => state.morningReminderHours);
+  const eveningReminderHours = useNotificationReminderStore((state) => state.eveningReminderHours);
+  const setReminderHours = useNotificationReminderStore((state) => state.setReminderHours);
+  const resetReminderHours = useNotificationReminderStore((state) => state.resetReminderHours);
 
   const [isSigningOut, setIsSigningOut] = React.useState(false);
   const [isUpdatingPermission, setIsUpdatingPermission] = React.useState(false);
@@ -156,7 +221,30 @@ const SettingsScreen = () => {
     router.replace('/(auth)/login');
   };
 
+  const toggleReminderHour = async (period: ReminderPeriod, hour: number) => {
+    const activeHours = period === 'morning' ? morningReminderHours : eveningReminderHours;
+    const nextHours = activeHours.includes(hour)
+      ? activeHours.filter((value) => value !== hour)
+      : [...activeHours, hour].sort((a, b) => a - b);
+
+    await setReminderHours(period, nextHours);
+
+    setFeedback({
+      message: 'Reminder timers saved. Selected times are now active.',
+      tone: 'success',
+    });
+  };
+
+  const handleResetReminderTimers = async () => {
+    await resetReminderHours();
+    setFeedback({
+      message: 'Reminder timers reset. Default schedule is active again.',
+      tone: 'success',
+    });
+  };
+
   const notificationStatusText = statusTextMap[permissionStatus];
+  const isReminderPermissionEnabled = permissionStatus === 'granted';
 
   return (
     <View className="flex-1 bg-[#F7F1E8]">
@@ -230,6 +318,66 @@ const SettingsScreen = () => {
                 }}
                 disabled={isUpdatingPermission}
               />
+
+              <View className="rounded-[18px] border border-[#EFE7DD] bg-white px-4 py-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-3">
+                    <Text className="text-[13px] font-black text-[#1E1A16]">Reminder timers</Text>
+                    <Text className="mt-1 text-[11px] font-semibold leading-[16px] text-[#7F756B]">
+                      Enable reminder permission first, then choose the morning and evening times you prefer.
+                    </Text>
+                  </View>
+                  <View className={`rounded-full px-2.5 py-1 ${isReminderPermissionEnabled ? 'bg-[#EAF8EE]' : 'bg-[#F4EEE7]'}`}>
+                    <Text className={`text-[9px] font-black uppercase ${isReminderPermissionEnabled ? 'text-[#1E7A3A]' : 'text-[#8D7E6F]'}`}>
+                      {isReminderPermissionEnabled ? 'Ready' : 'Step 1'}
+                    </Text>
+                  </View>
+                </View>
+
+                {isReminderPermissionEnabled ? (
+                  <View className="mt-4 gap-4">
+                    <ReminderTimerSelector
+                      label="Morning reminders"
+                      selectedHours={morningReminderHours}
+                      options={MORNING_TIMER_OPTIONS}
+                      onToggle={(hour) => {
+                        void toggleReminderHour('morning', hour);
+                      }}
+                    />
+
+                    <ReminderTimerSelector
+                      label="Evening reminders"
+                      selectedHours={eveningReminderHours}
+                      options={EVENING_TIMER_OPTIONS}
+                      onToggle={(hour) => {
+                        void toggleReminderHour('evening', hour);
+                      }}
+                    />
+
+                    <TouchableOpacity
+                      activeOpacity={0.84}
+                      onPress={() => {
+                        void handleResetReminderTimers();
+                      }}
+                      className="self-start rounded-full border border-[#EDD8C5] bg-[#FFF7EF] px-3 py-1.5"
+                    >
+                      <Text className="text-[10px] font-black uppercase text-[#A85D13]">Reset to default schedule</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.84}
+                    onPress={() => {
+                      void handleNotificationAction();
+                    }}
+                    className="mt-3 self-start rounded-full bg-[#FF7A00] px-3.5 py-2"
+                  >
+                    <Text className="text-[10px] font-black uppercase text-white">
+                      {isUpdatingPermission ? 'Updating...' : actionLabelMap[permissionStatus]}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
               <SettingsAction
                 icon="smartphone"

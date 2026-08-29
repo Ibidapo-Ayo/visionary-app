@@ -14,6 +14,8 @@ export const useBibleReadingReminderScheduler = () => {
 
   const isHydrated = useNotificationReminderStore((state) => state.isHydrated);
   const permissionStatus = useNotificationReminderStore((state) => state.permissionStatus);
+  const morningReminderHours = useNotificationReminderStore((state) => state.morningReminderHours);
+  const eveningReminderHours = useNotificationReminderStore((state) => state.eveningReminderHours);
   const hydrate = useNotificationReminderStore((state) => state.hydrate);
   const syncPermissionStatus = useNotificationReminderStore((state) => state.syncPermissionStatus);
 
@@ -48,6 +50,8 @@ export const useBibleReadingReminderScheduler = () => {
         permissionGranted: false,
         morningComplete: false,
         eveningComplete: false,
+        morningReminderHours: [],
+        eveningReminderHours: [],
       }).catch((error) => {
         console.warn('Unable to clear bible reading reminders after sign out:', error);
       });
@@ -62,6 +66,8 @@ export const useBibleReadingReminderScheduler = () => {
     const nextSignature = [
       user.id,
       permissionStatus,
+      morningReminderHours.join(','),
+      eveningReminderHours.join(','),
       morningComplete ? '1' : '0',
       eveningComplete ? '1' : '0',
     ].join(':');
@@ -76,8 +82,10 @@ export const useBibleReadingReminderScheduler = () => {
       permissionGranted,
       morningComplete,
       eveningComplete,
+      morningReminderHours,
+      eveningReminderHours,
     }).catch((error) => {
       console.warn('Unable to sync bible reading reminder schedule:', error);
     });
-  }, [user?.id, isHydrated, permissionStatus, morningComplete, eveningComplete]);
+  }, [user?.id, isHydrated, permissionStatus, morningReminderHours, eveningReminderHours, morningComplete, eveningComplete]);
 };

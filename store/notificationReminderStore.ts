@@ -11,6 +11,8 @@ interface StoredNotificationPreference {
   clerkUserId: string | null;
   hidePromptForExistingUser: boolean;
   hasSeenSignedInHome: boolean;
+  morningReminderHours: number[];
+  eveningReminderHours: number[];
 }
 
 interface NotificationReminderStore {
@@ -20,11 +22,15 @@ interface NotificationReminderStore {
   clerkUserId: string | null;
   hidePromptForExistingUser: boolean;
   hasSeenSignedInHome: boolean;
+  morningReminderHours: number[];
+  eveningReminderHours: number[];
   hydrate: () => Promise<void>;
   syncPermissionStatus: () => Promise<NotificationPermissionState>;
   requestPermission: () => Promise<NotificationPermissionState>;
   setHidePromptForExistingUser: (value: boolean) => Promise<void>;
   registerSignedInVisit: (clerkUserId: string) => Promise<boolean>;
+  setReminderHours: (period: 'morning' | 'evening', hours: number[]) => Promise<void>;
+  resetReminderHours: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'visionary-notification-preferences-v1';
@@ -33,6 +39,24 @@ const DEFAULT_STORED_PREFERENCES: StoredNotificationPreference = {
   clerkUserId: null,
   hidePromptForExistingUser: false,
   hasSeenSignedInHome: false,
+  morningReminderHours: [],
+  eveningReminderHours: [],
+};
+
+const sanitizeReminderHours = (hours: unknown): number[] => {
+  if (!Array.isArray(hours)) {
+    return [];
+  }
+
+  const uniqueSorted = Array.from(
+    new Set(
+      hours
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value >= 0 && value <= 23),
+    ),
+  ).sort((a, b) => a - b);
+
+  return uniqueSorted;
 };
 
 const readStoredPreferences = async (): Promise<StoredNotificationPreference> => {
@@ -48,6 +72,8 @@ const readStoredPreferences = async (): Promise<StoredNotificationPreference> =>
       clerkUserId: typeof parsed.clerkUserId === 'string' ? parsed.clerkUserId : null,
       hidePromptForExistingUser: Boolean(parsed.hidePromptForExistingUser),
       hasSeenSignedInHome: Boolean(parsed.hasSeenSignedInHome),
+      morningReminderHours: sanitizeReminderHours(parsed.morningReminderHours),
+      eveningReminderHours: sanitizeReminderHours(parsed.eveningReminderHours),
     };
   } catch {
     return DEFAULT_STORED_PREFERENCES;
@@ -69,6 +95,8 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
   clerkUserId: null,
   hidePromptForExistingUser: false,
   hasSeenSignedInHome: false,
+  morningReminderHours: [],
+  eveningReminderHours: [],
 
   hydrate: async () => {
     if (get().isHydrated) {
@@ -81,6 +109,8 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
       clerkUserId: stored.clerkUserId,
       hidePromptForExistingUser: stored.hidePromptForExistingUser,
       hasSeenSignedInHome: stored.hasSeenSignedInHome,
+      morningReminderHours: stored.morningReminderHours,
+      eveningReminderHours: stored.eveningReminderHours,
       isHydrated: true,
     });
 
@@ -126,12 +156,16 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
         clerkUserId,
         hasSeenSignedInHome: true,
         hidePromptForExistingUser: false,
+        morningReminderHours: [],
+        eveningReminderHours: [],
       });
 
       await writeStoredPreferences({
         clerkUserId,
         hasSeenSignedInHome: true,
         hidePromptForExistingUser: false,
+        morningReminderHours: [],
+        eveningReminderHours: [],
       });
 
       return false;
@@ -151,5 +185,38 @@ export const useNotificationReminderStore = create<NotificationReminderStore>((s
     });
 
     return false;
+  },
+
+  setReminderHours: async (period, hours) => {
+    const sanitizedHours = sanitizeReminderHours(hours);
+
+    if (period === 'morning') {
+      set({ morningReminderHours: sanitizedHours });
+    } else {
+      set({ eveningReminderHours: sanitizedHours });
+    }
+
+    const stored = await readStoredPreferences();
+    await writeStoredPreferences({
+      ...stored,
+      clerkUserId: get().clerkUserId,
+      morningReminderHours: period === 'morning' ? sanitizedHours : get().morningReminderHours,
+      eveningReminderHours: period === 'evening' ? sanitizedHours : get().eveningReminderHours,
+    });
+  },
+
+  resetReminderHours: async () => {
+    set({
+      morningReminderHours: [],
+      eveningReminderHours: [],
+    });
+
+    const stored = await readStoredPreferences();
+    await writeStoredPreferences({
+      ...stored,
+      clerkUserId: get().clerkUserId,
+      morningReminderHours: [],
+      eveningReminderHours: [],
+    });
   },
 }));

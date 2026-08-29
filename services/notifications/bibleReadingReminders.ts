@@ -8,6 +8,8 @@ interface SyncBibleReadingReminderParams {
   permissionGranted: boolean;
   morningComplete: boolean;
   eveningComplete: boolean;
+  morningReminderHours?: number[];
+  eveningReminderHours?: number[];
 }
 
 interface ReminderSlot {
@@ -82,7 +84,30 @@ const isReminderRequest = (request: Notifications.NotificationRequest) => {
   return payload?.namespace === REMINDER_NAMESPACE;
 };
 
-const buildReminderSlotsForOffset = (dayOffset: number): ReminderSlot[] => {
+const sanitizeReminderHours = (hours: unknown): number[] => {
+  if (!Array.isArray(hours)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      hours
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value >= 0 && value <= 23),
+    ),
+  ).sort((a, b) => a - b);
+};
+
+const getReminderHours = (hours: number[] | undefined, fallbackHours: number[]) => {
+  const sanitized = sanitizeReminderHours(hours);
+  return sanitized.length > 0 ? sanitized : fallbackHours;
+};
+
+const buildReminderSlotsForOffset = (
+  dayOffset: number,
+  morningHours: number[],
+  eveningHours: number[],
+): ReminderSlot[] => {
   const slots: ReminderSlot[] = [];
 
   if (dayOffset > 0) {
@@ -95,7 +120,7 @@ const buildReminderSlotsForOffset = (dayOffset: number): ReminderSlot[] => {
     });
   }
 
-  MORNING_REMINDER_HOURS.forEach((hour) => {
+  morningHours.forEach((hour) => {
     slots.push({
       period: 'morning',
       hour,
@@ -105,7 +130,7 @@ const buildReminderSlotsForOffset = (dayOffset: number): ReminderSlot[] => {
     });
   });
 
-  EVENING_REMINDER_HOURS.forEach((hour) => {
+  eveningHours.forEach((hour) => {
     slots.push({
       period: 'evening',
       hour,
@@ -141,6 +166,8 @@ export const syncBibleReadingReminderSchedule = async ({
   permissionGranted,
   morningComplete,
   eveningComplete,
+  morningReminderHours,
+  eveningReminderHours,
 }: SyncBibleReadingReminderParams) => {
   await clearBibleReadingReminderSchedule();
 
@@ -148,11 +175,14 @@ export const syncBibleReadingReminderSchedule = async ({
     return;
   }
 
+  const selectedMorningHours = getReminderHours(morningReminderHours, MORNING_REMINDER_HOURS);
+  const selectedEveningHours = getReminderHours(eveningReminderHours, EVENING_REMINDER_HOURS);
+
   const now = new Date();
   const jobs: Promise<string>[] = [];
 
   for (let dayOffset = 0; dayOffset < SCHEDULE_DAYS_AHEAD; dayOffset += 1) {
-    const slots = buildReminderSlotsForOffset(dayOffset);
+    const slots = buildReminderSlotsForOffset(dayOffset, selectedMorningHours, selectedEveningHours);
 
     slots.forEach((slot) => {
       if (dayOffset === 0) {

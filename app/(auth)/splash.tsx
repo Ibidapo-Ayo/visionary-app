@@ -73,7 +73,7 @@ const SplashScreen = () => {
   return (
     <Animated.View className="flex-1 items-center justify-center bg-[#111111]" style={screenStyle}>
       <Animated.View
-        className="absolute h-[188px] w-[188px] rounded-full bg-[rgba(255,122,0,0.2)]"
+        className="absolute h-[160px] w-[160px] rounded-full bg-[rgba(255,122,0,0.2)]"
         style={[
           {
             shadowColor: ORANGE,
@@ -86,7 +86,7 @@ const SplashScreen = () => {
       />
 
       <Animated.View className="items-center justify-center" style={logoStyle}>
-        <Image source={require('../../assets/images/logo.png')} resizeMode="contain" className="h-[132px] w-[132px]" />
+        <Image source={require('../../assets/icon.png')} resizeMode="contain" className="h-[96px] w-[96px]" />
       </Animated.View>
     </Animated.View>
   );
